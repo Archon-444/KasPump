@@ -1,0 +1,222 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom styles for KasPump */
+@layer components {
+  .glow-effect {
+    @apply relative;
+  }
+  
+  .glow-effect::before {
+    content: '';
+    @apply absolute inset-0 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 blur-sm;
+    z-index: -1;
+  }
+  
+  .token-card-glow {
+    @apply transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/25;
+  }
+  
+  .success-glow {
+    @apply shadow-lg shadow-green-500/25;
+  }
+  
+  .danger-glow {
+    @apply shadow-lg shadow-red-500/25;
+  }
+  
+  .glassmorphism {
+    @apply backdrop-blur-sm bg-white/10 border border-white/20;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .animate-gradient {
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+  }
+  
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+}
+
+/* Loading animations */
+.pulse-dot {
+  animation: pulse-dot 1.4s infinite ease-in-out both;
+}
+
+.pulse-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.pulse-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes pulse-dot {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+/* Trading interface specific styles */
+.trading-panel {
+  @apply bg-gradient-to-b from-gray-800/50 to-gray-900/50 border border-gray-700/50 backdrop-blur-sm;
+}
+
+.price-up {
+  @apply text-green-400;
+}
+
+.price-down {
+  @apply text-red-400;
+}
+
+.price-neutral {
+  @apply text-gray-400;
+}
+
+/* Chart container */
+.chart-container {
+  @apply bg-gray-900/50 border border-gray-700/50 rounded-lg p-4;
+}
+
+/* Button hover effects */
+.btn-glow-green:hover {
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+}
+
+.btn-glow-red:hover {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+.btn-glow-purple:hover {
+  box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
+}
+
+/* Modal and overlay styles */
+.modal-overlay {
+  @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-50;
+}
+
+.modal-content {
+  @apply fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl z-50 max-h-[90vh] overflow-y-auto;
+}
+
+/* Toast notification styles */
+.toast-success {
+  @apply bg-green-600 text-white border border-green-500;
+}
+
+.toast-error {
+  @apply bg-red-600 text-white border border-red-500;
+}
+
+.toast-info {
+  @apply bg-blue-600 text-white border border-blue-500;
+}
+
+.toast-warning {
+  @apply bg-yellow-600 text-white border border-yellow-500;
+}
+
+/* Responsive design helpers */
+@media (max-width: 768px) {
+  .mobile-hide {
+    @apply hidden;
+  }
+  
+  .mobile-show {
+    @apply block;
+  }
+}
+
+@media (min-width: 769px) {
+  .desktop-hide {
+    @apply hidden;
+  }
+  
+  .desktop-show {
+    @apply block;
+  }
+}
