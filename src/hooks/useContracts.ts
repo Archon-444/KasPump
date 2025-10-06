@@ -12,13 +12,16 @@ import {
 import { useKasplexWallet } from './useWallet';
 
 // Enhanced ABI definitions with events
+const TOKEN_CREATED_EVENT_LEGACY = "event TokenCreated(address indexed tokenAddress, address indexed creator, string name, string symbol, uint256 totalSupply, address ammAddress)";
+const TOKEN_CREATED_EVENT_ENHANCED = "event TokenCreated(address indexed tokenAddress, address indexed creator, string name, string symbol, uint256 totalSupply, address ammAddress, uint8 tier, uint256 fee)";
+
 const TOKEN_FACTORY_ABI = [
   "function createToken(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType) external payable returns (address, address)",
   "function getAllTokens() external view returns (address[])",
   "function getTokenConfig(address tokenAddress) external view returns (tuple(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType, uint256 graduationThreshold))",
   "function getTokenAMM(address tokenAddress) external view returns (address)",
   "function isKasPumpToken(address tokenAddress) external view returns (bool)",
-  "event TokenCreated(address indexed tokenAddress, address indexed creator, string name, string symbol, uint256 totalSupply, address ammAddress)"
+  TOKEN_CREATED_EVENT_ENHANCED
 ];
 
 const BONDING_CURVE_AMM_ABI = [
@@ -123,26 +126,57 @@ export function useContracts() {
 
     try {
       const factoryContract = new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, provider);
-      
+
       // Check if we have a getTokenAMM function (newer factory version)
       try {
         const ammAddress = await factoryContract.getTokenAMM(tokenAddress);
-        ammAddressCache.set(tokenAddress, ammAddress);
-        return ammAddress;
-      } catch (error) {
-        // Fallback: search TokenCreated events
-        const filter = factoryContract.filters.TokenCreated(tokenAddress);
-        const events = await factoryContract.queryFilter(filter, 0, 'latest');
-        
-        if (events.length > 0) {
-          const event = events[0];
-          const ammAddress = event.args.ammAddress;
+
+        if (ammAddress && ammAddress !== ethers.ZeroAddress) {
           ammAddressCache.set(tokenAddress, ammAddress);
           return ammAddress;
         }
-        
-        throw new Error('AMM address not found for token');
+      } catch (error) {
+        // Ignore and try fallback resolution path
+        console.debug('getTokenAMM lookup failed, trying event resolution', error);
       }
+
+      // Fallback: search TokenCreated events (supports legacy + enhanced factories)
+      const interfaces = [
+        new ethers.Interface([TOKEN_CREATED_EVENT_ENHANCED]),
+        new ethers.Interface([TOKEN_CREATED_EVENT_LEGACY])
+      ];
+
+      for (const iface of interfaces) {
+        try {
+          const topic = iface.getEventTopic('TokenCreated');
+          const logs = await provider.getLogs({
+            address: CONTRACT_ADDRESSES.tokenFactory,
+            topics: [
+              topic,
+              ethers.zeroPadValue(tokenAddress, 32)
+            ],
+            fromBlock: 0,
+            toBlock: 'latest'
+          });
+
+          if (logs.length === 0) {
+            continue;
+          }
+
+          // Use the most recent event for accuracy
+          const parsed = iface.parseLog(logs[logs.length - 1]);
+          const resolvedAmm = parsed.args.ammAddress as string;
+
+          if (resolvedAmm && resolvedAmm !== ethers.ZeroAddress) {
+            ammAddressCache.set(tokenAddress, resolvedAmm);
+            return resolvedAmm;
+          }
+        } catch (eventError) {
+          console.debug('TokenCreated event parsing failed for interface', eventError);
+        }
+      }
+
+      throw new Error('AMM address not found for token');
     } catch (error) {
       console.error('Failed to resolve AMM address:', error);
       throw new Error(`Failed to resolve AMM address for token ${tokenAddress}`);
@@ -194,20 +228,32 @@ export function useContracts() {
       const receipt = await tx.wait();
       
       // Parse the TokenCreated event to get addresses
-      const tokenCreatedEvent = receipt.logs.find((log: any) => {
-        try {
-          const decoded = contract.interface.parseLog(log);
-          return decoded?.name === 'TokenCreated';
-        } catch {
-          return false;
+      const eventInterfaces = [contract.interface, new ethers.Interface([TOKEN_CREATED_EVENT_LEGACY])];
+
+      let decodedEvent: ethers.LogDescription | null = null;
+
+      for (const log of receipt.logs) {
+        for (const iface of eventInterfaces) {
+          try {
+            const parsed = iface.parseLog(log);
+            if (parsed?.name === 'TokenCreated') {
+              decodedEvent = parsed;
+              break;
+            }
+          } catch {
+            // Ignore parse errors for mismatched interfaces
+          }
         }
-      });
-      
-      if (!tokenCreatedEvent) {
+
+        if (decodedEvent) {
+          break;
+        }
+      }
+
+      if (!decodedEvent) {
         throw new Error('TokenCreated event not found');
       }
 
-      const decodedEvent = contract.interface.parseLog(tokenCreatedEvent);
       const tokenAddress = decodedEvent.args.tokenAddress;
       const ammAddress = decodedEvent.args.ammAddress;
       
