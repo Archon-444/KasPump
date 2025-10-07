@@ -1,25 +1,25 @@
 # KasPump Production Status
 
 ## Executive Summary
-- **Launch readiness:** ~30%. The repository contains UI scaffolding and draft smart contracts, but critical backend, contract, and data integration work remains incomplete.
-- **Blockers:** Neither factory contract compiles cleanly alongside the bonding curve, the AMM cannot dispense tokens, and the frontend/API layers still rely on placeholder data.
-- **Recommendation:** Treat the codebase as an early prototype. Prioritize stabilizing the smart contracts, wiring real blockchain data, and hardening the trading flow before considering any release milestones.
+- **Launch readiness:** ~40%. Core contracts now compile together, the bonding-curve AMM is funded and guarded, and the frontend consumes deterministic API responses, but end-to-end validation and live data remain outstanding.
+- **Blockers:** Contract changes require a redeploy/test plan, indexer connectivity is not yet provisioned (APIs return 503 until configured), and trading UX is still missing transaction wiring.
+- **Recommendation:** Follow the remediation roadmap: finish contract/regression testing, stand up the indexer service, and complete trading/integration flows before announcing a beta.
 
 ## What Is Solid
 - ✅ Next.js 14 app shell with Tailwind-based component library and wallet hook stubs.
-- ✅ Draft Solidity contracts outlining the intended factory/AMM architecture.
-- ✅ Initial analytics and partnership integration scaffolding (non-functional placeholders noted below).
+- ✅ Solidity suite compiles with distinct `TokenFactory` and `EnhancedTokenFactory` contracts plus reentrancy-hardened bonding curve funding its own inventory.
+- ✅ Initial analytics and partnership integration scaffolding with buffered event delivery and a remediation plan capturing outstanding work.
 
 ## Critical Gaps (Must Address Before Production)
-1. **Fix Solidity build blockers** – Rename the enhanced factory contract, align constructor signatures, and write migrations/tests to ensure all contracts deploy and interoperate. The current sources fail to compile together and would strand user funds.
-2. **Fund and secure the AMM** – Ensure the bonding curve contract actually holds/mints inventory, add access control on graduation paths, and introduce reentrancy protection around external token/KAS transfers.
-3. **Replace mock integrations** – Home page, analytics API, and partnership modules still return hard-coded or random data. Integrate on-chain reads, remove randomness, and guard external fetches.
-4. **Establish error handling & telemetry** – Surface contract/API failures to the UI, add logging/monitoring destinations, and define recovery paths for degraded services.
+1. **Validate and migrate contract upgrades** – Run Hardhat/Foundry suites, update deployment scripts, and plan liquidity migrations so the new factories and AMM roll out safely.
+2. **Provision the indexer + data plane** – APIs now fail fast without `KASPUMP_INDEXER_URL`; stand up the indexer service, backfill historical data, and add health checks.
+3. **Finish trading flows and UX protections** – Implement buy/sell transaction handling, approval flows, and error surfaces across desktop/mobile experiences.
+4. **Establish error handling & telemetry** – Wire client/server logging destinations, alerting, and disaster-recovery steps once live data lands.
 
 ## High Priority Follow-Ups
 - Wire AMM discovery across the app using a single verified source and cache invalidation policy.
 - Build real trading flows (quotes, approvals, buy/sell submission, receipt handling) with test coverage.
-- Stand up reliable analytics storage instead of in-memory event buffers; define retention and privacy requirements.
+- Stand up reliable analytics storage (backend queue/database) to complement the improved client buffer; define retention and privacy requirements.
 - Perform comprehensive wallet QA (connection lifecycle, network mismatch handling, balance refresh scheduling).
 
 ## Medium Priority Enhancements

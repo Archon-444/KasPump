@@ -24,6 +24,11 @@ contract BondingCurveAMM {
     uint256 public constant PLATFORM_FEE = 50; // 0.5% in basis points
     uint256 public constant MAX_SLIPPAGE = 1000; // 10% maximum slippage
     
+    // Reentrancy guard state
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+    uint256 private _status;
+
     // Events
     event Trade(
         address indexed trader,
@@ -52,6 +57,13 @@ contract BondingCurveAMM {
         _;
     }
 
+    modifier nonReentrant() {
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+        _status = _ENTERED;
+        _;
+        _status = _NOT_ENTERED;
+    }
+
     constructor(
         address _token,
         uint256 _basePrice,
@@ -68,12 +80,13 @@ contract BondingCurveAMM {
         curveType = _curveType;
         graduationThreshold = _graduationThreshold;
         feeRecipient = _feeRecipient;
+        _status = _NOT_ENTERED;
     }
 
     /**
      * @dev Buy tokens with KAS using bonding curve pricing
      */
-    function buyTokens(uint256 minTokensOut) external payable notGraduated {
+    function buyTokens(uint256 minTokensOut) external payable notGraduated nonReentrant {
         if (msg.value == 0) revert InsufficientAmount();
         
         uint256 kasAmount = msg.value;
@@ -93,6 +106,10 @@ contract BondingCurveAMM {
             _graduateToken();
         }
         
+        // Ensure the AMM holds enough inventory before transferring.
+        uint256 tokenBalance = IKRC20(token).balanceOf(address(this));
+        if (tokenBalance < tokensOut) revert TransferFailed();
+
         // Transfer tokens to buyer
         if (!IKRC20(token).transfer(msg.sender, tokensOut)) {
             revert TransferFailed();
@@ -117,7 +134,7 @@ contract BondingCurveAMM {
     /**
      * @dev Sell tokens for KAS using bonding curve pricing
      */
-    function sellTokens(uint256 tokenAmount, uint256 minKasOut) external notGraduated {
+    function sellTokens(uint256 tokenAmount, uint256 minKasOut) external notGraduated nonReentrant {
         if (tokenAmount == 0) revert InsufficientAmount();
         if (tokenAmount > currentSupply) revert InsufficientAmount();
         
@@ -132,11 +149,14 @@ contract BondingCurveAMM {
         if (!IKRC20(token).transferFrom(msg.sender, address(this), tokenAmount)) {
             revert TransferFailed();
         }
-        
+
         // Update state
         currentSupply -= tokenAmount;
         totalVolume += kasOut;
-        
+
+        uint256 kasBalance = address(this).balance;
+        if (kasBalance < kasAfterFee + fee) revert TransferFailed();
+
         // Send KAS to seller
         (bool success, ) = msg.sender.call{value: kasAfterFee}("");
         if (!success) revert TransferFailed();

@@ -35,6 +35,11 @@ class KasPumpAnalytics {
   private sessionId: string;
   private events: AnalyticsEvent[] = [];
   private userId?: string;
+  private flushTimer?: number;
+
+  private static readonly FLUSH_THRESHOLD = 20;
+  private static readonly MAX_QUEUE_SIZE = 200;
+  private static readonly FLUSH_INTERVAL_MS = 15_000;
 
   constructor() {
     this.sessionId = this.generateSessionId();
@@ -48,9 +53,20 @@ class KasPumpAnalytics {
   private initializeTracking() {
     // Track page views and user engagement
     if (typeof window !== 'undefined') {
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'hidden') {
+          this.flushEvents({ useBeacon: true });
+        }
+      };
+
       window.addEventListener('beforeunload', () => {
-        this.flushEvents();
+        this.flushEvents({ useBeacon: true });
       });
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      this.flushTimer = window.setInterval(() => {
+        this.flushEvents();
+      }, KasPumpAnalytics.FLUSH_INTERVAL_MS);
     }
   }
 
@@ -80,8 +96,12 @@ class KasPumpAnalytics {
 
     this.events.push(event);
 
+    if (this.events.length > KasPumpAnalytics.MAX_QUEUE_SIZE) {
+      this.events.splice(0, this.events.length - KasPumpAnalytics.MAX_QUEUE_SIZE);
+    }
+
     // Auto-flush events periodically or when buffer is full
-    if (this.events.length >= 50) {
+    if (this.events.length >= KasPumpAnalytics.FLUSH_THRESHOLD) {
       this.flushEvents();
     }
 
@@ -208,13 +228,23 @@ class KasPumpAnalytics {
   }
 
   // Flush events to analytics service
-  private async flushEvents() {
+  private async flushEvents(options: { useBeacon?: boolean } = {}) {
     if (this.events.length === 0) return;
 
     const eventsToSend = [...this.events];
     this.events = [];
 
     try {
+      if (options.useBeacon && typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        const payload = JSON.stringify({ events: eventsToSend });
+        const blob = new Blob([payload], { type: 'application/json' });
+        const ok = navigator.sendBeacon('/api/analytics/events', blob);
+        if (!ok) {
+          throw new Error('sendBeacon rejected payload');
+        }
+        return;
+      }
+
       await this.sendEvents(eventsToSend);
     } catch (error) {
       console.error('Failed to send analytics events:', error);

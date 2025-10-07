@@ -69,7 +69,7 @@ contract TokenFactory {
         uint256 _basePrice,
         uint256 _slope,
         CurveType _curveType
-    ) external payable returns (address tokenAddress, address ammAddress) {
+    ) public virtual payable returns (address tokenAddress, address ammAddress) {
         require(bytes(_name).length > 0 && bytes(_name).length <= 50, "Invalid name length");
         require(bytes(_symbol).length > 0 && bytes(_symbol).length <= 10, "Invalid symbol length");
         require(_totalSupply > 0 && _totalSupply <= 1e12 * 1e18, "Invalid total supply");
@@ -85,6 +85,12 @@ contract TokenFactory {
             _slope,
             _curveType,
             _totalSupply * 80 / 100  // 80% graduation threshold
+        );
+
+        // Seed AMM inventory with the freshly minted supply so buys can settle.
+        require(
+            KRC20Token(tokenAddress).transfer(ammAddress, _totalSupply),
+            "AMM inventory transfer failed"
         );
         
         // Store configuration
@@ -115,7 +121,7 @@ contract TokenFactory {
         string memory _name,
         string memory _symbol,
         uint256 _totalSupply
-    ) internal returns (address) {
+    ) internal virtual returns (address) {
         // Create deterministic address
         bytes32 salt = keccak256(abi.encodePacked(_name, _symbol, block.timestamp));
         
@@ -143,7 +149,7 @@ contract TokenFactory {
         uint256 _slope,
         CurveType _curveType,
         uint256 _graduationThreshold
-    ) internal returns (address) {
+    ) internal virtual returns (address) {
         BondingCurveAMM amm = new BondingCurveAMM(
             _tokenAddress,
             _basePrice,

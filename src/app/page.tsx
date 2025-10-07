@@ -9,9 +9,8 @@ import { TokenCreationModal } from '../components/features/TokenCreationModal';
 import { TokenTradingPage } from '../components/features/TokenTradingPage';
 import { MobileNavigation, MobileHeader, useMobileNavigation, MobileTokenCard } from '../components/mobile';
 import { Button, Input, Card } from '../components/ui';
-import { useContracts } from '../hooks/useContracts';
 import { KasPumpToken } from '../types';
-import { debounce } from '../utils';
+import { cn, debounce } from '../utils';
 
 export default function HomePage() {
   const [tokens, setTokens] = useState<KasPumpToken[]>([]);
@@ -21,10 +20,9 @@ export default function HomePage() {
   const [filter, setFilter] = useState<'all' | 'trending' | 'new'>('all');
   const [selectedToken, setSelectedToken] = useState<KasPumpToken | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const mobileNav = useMobileNavigation();
-  
-  const contracts = useContracts();
 
   // Load tokens on mount
   useEffect(() => {
@@ -45,56 +43,32 @@ export default function HomePage() {
   const loadTokens = async () => {
     try {
       setLoading(true);
-      const tokenAddresses = await contracts.getAllTokens();
-      
-      // For now, we'll create mock data since the full token info fetching
-      // requires AMM address resolution which we noted needs implementation
-      const mockTokens: KasPumpToken[] = [
-        {
-          address: '0x1234567890123456789012345678901234567890',
-          name: 'Kaspa Moon',
-          symbol: 'KMOON',
-          description: 'First meme coin on Kasplex! 🌙',
-          image: '',
-          creator: '0xabcd...efgh',
-          totalSupply: 1000000000,
-          currentSupply: 400000000,
-          marketCap: 50000,
-          price: 0.000125,
-          change24h: 15.4,
-          volume24h: 12500,
-          holders: 342,
-          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-          curveType: 'linear',
-          bondingCurveProgress: 40,
-          ammAddress: '0x1234...amm',
-          isGraduated: false,
-        },
-        {
-          address: '0x2345678901234567890123456789012345678901',
-          name: 'KaspaBot',
-          symbol: 'KBOT',
-          description: 'AI-powered meme machine 🤖',
-          image: '',
-          creator: '0xdcba...hgfe',
-          totalSupply: 500000000,
-          currentSupply: 125000000,
-          marketCap: 18750,
-          price: 0.00015,
-          change24h: -8.2,
-          volume24h: 8900,
-          holders: 156,
-          createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-          curveType: 'exponential',
-          bondingCurveProgress: 25,
-          ammAddress: '0x2345...amm',
-          isGraduated: false,
-        },
-      ];
-      
-      setTokens(mockTokens);
+      setLoadError(null);
+
+      const response = await fetch('/api/tokens', { cache: 'no-store' });
+      if (!response.ok) {
+        const parsed = await safeJson(response);
+        setTokens([]);
+        setLoadError(parsed?.error ?? 'Unable to load tokens from the indexer.');
+        return;
+      }
+
+      const payload = await safeJson(response);
+      const rawTokens: unknown[] = Array.isArray(payload?.tokens)
+        ? payload?.tokens
+        : Array.isArray(payload?.items)
+        ? payload?.items
+        : [];
+
+      const parsedTokens = rawTokens
+        .map(mapIndexerToken)
+        .filter((token): token is KasPumpToken => token !== null);
+
+      setTokens(parsedTokens);
     } catch (error) {
       console.error('Failed to load tokens:', error);
+      setTokens([]);
+      setLoadError('Failed to load tokens from the KasPump indexer.');
     } finally {
       setLoading(false);
     }
@@ -325,6 +299,11 @@ export default function HomePage() {
                 </Card>
               ))}
             </div>
+          ) : loadError ? (
+            <Card className="text-left py-12 glassmorphism">
+              <div className="text-white text-lg font-semibold mb-2">Live data unavailable</div>
+              <p className="text-gray-400">{loadError}</p>
+            </Card>
           ) : filteredTokens.length === 0 ? (
             <Card className="text-center py-12 glassmorphism">
               <div className="text-gray-400 mb-4">No tokens found</div>
@@ -400,4 +379,49 @@ export default function HomePage() {
       )}
     </div>
   );
+}
+
+async function safeJson(response: Response) {
+  try {
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to parse JSON response', error);
+    return null;
+  }
+}
+
+function mapIndexerToken(raw: any): KasPumpToken | null {
+  if (!raw) return null;
+
+  const address = raw.address ?? raw.tokenAddress;
+  if (!address || typeof address !== 'string') {
+    return null;
+  }
+
+  const createdAtSource = raw.createdAt ?? raw.deployedAt ?? raw.timestamp;
+  const createdAt = createdAtSource ? new Date(createdAtSource) : new Date();
+  const validCreatedAt = Number.isNaN(createdAt.getTime()) ? new Date() : createdAt;
+
+  const curveType = raw.curveType === 'exponential' || raw.curveType === 1 ? 'exponential' : 'linear';
+
+  return {
+    address,
+    name: typeof raw.name === 'string' ? raw.name : 'Unnamed Token',
+    symbol: typeof raw.symbol === 'string' ? raw.symbol : '????',
+    description: typeof raw.description === 'string' ? raw.description : '',
+    image: typeof raw.imageUrl === 'string' ? raw.imageUrl : '',
+    creator: typeof raw.creator === 'string' ? raw.creator : '0x0000000000000000000000000000000000000000',
+    totalSupply: Number(raw.totalSupply ?? 0),
+    currentSupply: Number(raw.currentSupply ?? 0),
+    marketCap: Number(raw.marketCap ?? 0),
+    price: Number(raw.currentPrice ?? raw.price ?? 0),
+    change24h: Number(raw.change24h ?? raw.priceChange24h ?? 0),
+    volume24h: Number(raw.volume24h ?? 0),
+    holders: Number(raw.holders ?? raw.holderCount ?? 0),
+    createdAt: validCreatedAt,
+    curveType,
+    bondingCurveProgress: Number(raw.graduationProgress ?? raw.bondingCurveProgress ?? 0),
+    ammAddress: typeof raw.ammAddress === 'string' ? raw.ammAddress : '',
+    isGraduated: Boolean(raw.isGraduated),
+  };
 }
