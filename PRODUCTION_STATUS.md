@@ -31,7 +31,7 @@
 ## 🔄 NEEDS COMPLETION
 
 ### 🚨 Critical (Must fix before production)
-- [ ] **AMM Address Resolution** - Contract hooks need AMM address mapping
+- [x] **AMM Address Resolution** - Contract hooks now resolve enhanced and legacy AMM deployments
 - [ ] **Real Token Data** - Replace mock data with blockchain queries
 - [ ] **Image Upload** - IPFS integration for token logos
 - [ ] **Trading Interface** - Complete buy/sell functionality
@@ -48,7 +48,7 @@
 - [ ] **Performance Optimization** - Bundle splitting and lazy loading
 - [ ] **SEO Optimization** - Meta tags and structured data
 
-## 📊 Current Status: ~85% Complete
+## 📊 Current Status: ~88% Complete
 
 ### What Works Right Now:
 ✅ Smart contracts compile and can be deployed  
@@ -58,15 +58,14 @@
 ✅ Production-ready architecture  
 
 ### What Needs Work:
-❌ Contract hooks need AMM address resolution  
-❌ Mock data needs blockchain integration  
-❌ Real trading functionality incomplete  
+❌ Mock data needs blockchain integration
+❌ Real trading functionality incomplete
 
 ## 🚀 Next Steps (Priority Order)
 
 1. **Deploy contracts to testnet** - `npm run deploy`
-2. **Fix AMM address resolution** - Update contract hooks
-3. **Test token creation end-to-end** - Create real tokens
+2. **Test token creation end-to-end** - Create real tokens
+3. **Replace mocks with live blockchain data** - Hook token lists and stats to on-chain queries
 4. **Implement trading functionality** - Complete buy/sell flows
 5. **Add real-time data** - WebSocket price feeds
 6. **Production testing** - Comprehensive testing on mainnet
@@ -79,4 +78,4 @@
 - Ready for team development and deployment
 - Documentation is comprehensive and up-to-date
 
-**Ready to launch as soon as AMM address resolution is implemented!**
+**Ready to launch after live data integrations and trading flows are finalized.**
