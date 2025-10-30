@@ -1,17 +1,18 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import { Web3Provider } from '../providers/Web3Provider';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'KasPump - Meme Coin Launchpad on Kaspa',
-  description: 'Launch and trade meme coins instantly on Kasplex Layer 2. No presale, no team allocation - fair launch for everyone.',
-  keywords: ['Kaspa', 'Kasplex', 'meme coins', 'DeFi', 'crypto', 'bonding curve', 'token launch'],
+  title: 'KasPump - Multichain Meme Coin Launchpad',
+  description: 'Launch and trade meme coins instantly on BSC, Arbitrum, and Base. No presale, no team allocation - fair launch for everyone.',
+  keywords: ['BSC', 'Arbitrum', 'Base', 'meme coins', 'DeFi', 'crypto', 'bonding curve', 'token launch', 'multichain'],
   authors: [{ name: 'KasPump Team' }],
   openGraph: {
-    title: 'KasPump - Meme Coin Launchpad',
-    description: 'Launch and trade meme coins instantly on Kasplex Layer 2',
+    title: 'KasPump - Multichain Meme Coin Launchpad',
+    description: 'Launch and trade meme coins instantly on BSC, Arbitrum, and Base',
     url: 'https://kaspump.io',
     siteName: 'KasPump',
     images: [
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'KasPump - Meme Coin Launchpad',
+        alt: 'KasPump - Multichain Meme Coin Launchpad',
       },
     ],
     locale: 'en-US',
@@ -27,8 +28,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'KasPump - Meme Coin Launchpad',
-    description: 'Launch and trade meme coins instantly on Kasplex Layer 2',
+    title: 'KasPump - Multichain Meme Coin Launchpad',
+    description: 'Launch and trade meme coins on BSC, Arbitrum, and Base',
     images: ['/og-image.png'],
   },
   robots: {
@@ -55,9 +56,11 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={inter.className}>
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
-          {children}
-        </div>
+        <Web3Provider>
+          <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
+            {children}
+          </div>
+        </Web3Provider>
       </body>
     </html>
   );
