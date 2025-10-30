@@ -19,7 +19,7 @@
 ## 📝 Immediate Action Items
 
 ### Step 1: Get Testnet Funds ⏳
-**Your Wallet:** `0x7918c8840202eac8A490499065Cb6C850d52BBc7`
+**Your Wallet:** `0x9dbE4D3eB9C592361c57F3346e9FA5cCf3Bde17C`
 
 ```
 [ ] BSC Testnet BNB (~0.5 BNB)

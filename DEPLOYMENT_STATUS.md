@@ -53,7 +53,7 @@ Caused by: Failed to download https://binaries.soliditylang.org/linux-amd64/list
 - ⏳ **Required:** Network access to binaries.soliditylang.org OR GitHub
 
 ### Deployment Wallet
-- **Address:** `0x7918c8840202eac8A490499065Cb6C850d52BBc7`
+- **Address:** `0x9dbE4D3eB9C592361c57F3346e9FA5cCf3Bde17C`
 - ⏳ **Need:** ~0.5 testnet BNB from https://testnet.bnbchain.org/faucet-smart
 
 ---

@@ -32,7 +32,7 @@
 
 ### 1. Get Testnet Funds
 
-**Your Wallet Address:** `0x7918c8840202eac8A490499065Cb6C850d52BBc7`
+**Your Wallet Address:** `0x9dbE4D3eB9C592361c57F3346e9FA5cCf3Bde17C`
 
 #### BSC Testnet BNB
 - **Faucet:** https://testnet.bnbchain.org/faucet-smart
