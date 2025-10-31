@@ -218,27 +218,77 @@ export const PLATFORM_CONFIG = {
 } as const;
 
 export const NETWORK_CONFIG = {
-  KASPLEX_MAINNET: {
-    chainId: 167012,
-    name: 'Kasplex',
-    rpcUrl: 'https://rpc.kasplex.io',
-    explorerUrl: 'https://explorer.kasplex.io',
+  BSC_MAINNET: {
+    chainId: 56,
+    name: 'BNB Smart Chain',
+    rpcUrl: 'https://bsc-dataseed1.binance.org',
+    explorerUrl: 'https://bscscan.com',
     nativeCurrency: {
-      name: 'KAS',
-      symbol: 'KAS',
+      name: 'BNB',
+      symbol: 'BNB',
       decimals: 18,
     },
+    icon: '🟡',
   },
-  KASPLEX_TESTNET: {
-    chainId: 167012,
-    name: 'Kasplex Testnet',
-    rpcUrl: 'https://rpc.kasplextest.xyz',
-    explorerUrl: 'https://explorer.kasplextest.xyz',
+  BSC_TESTNET: {
+    chainId: 97,
+    name: 'BNB Smart Chain Testnet',
+    rpcUrl: 'https://data-seed-prebsc-1-s1.binance.org:8545',
+    explorerUrl: 'https://testnet.bscscan.com',
     nativeCurrency: {
-      name: 'KAS',
-      symbol: 'KAS',
+      name: 'BNB',
+      symbol: 'BNB',
       decimals: 18,
     },
+    icon: '🟡',
+  },
+  ARBITRUM_ONE: {
+    chainId: 42161,
+    name: 'Arbitrum One',
+    rpcUrl: 'https://arb1.arbitrum.io/rpc',
+    explorerUrl: 'https://arbiscan.io',
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18,
+    },
+    icon: '⬜',
+  },
+  ARBITRUM_SEPOLIA: {
+    chainId: 421614,
+    name: 'Arbitrum Sepolia',
+    rpcUrl: 'https://sepolia-rollup.arbitrum.io/rpc',
+    explorerUrl: 'https://sepolia.arbiscan.io',
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18,
+    },
+    icon: '⬜',
+  },
+  BASE_MAINNET: {
+    chainId: 8453,
+    name: 'Base',
+    rpcUrl: 'https://mainnet.base.org',
+    explorerUrl: 'https://basescan.org',
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18,
+    },
+    icon: '🔵',
+  },
+  BASE_SEPOLIA: {
+    chainId: 84532,
+    name: 'Base Sepolia',
+    rpcUrl: 'https://sepolia.base.org',
+    explorerUrl: 'https://sepolia.basescan.org',
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18,
+    },
+    icon: '🔵',
   },
 } as const;
 

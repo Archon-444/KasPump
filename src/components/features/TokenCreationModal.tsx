@@ -190,7 +190,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Input
                       label="Token Name *"
-                      placeholder="e.g., Kaspa Moon"
+                      placeholder="e.g., BSC Moon"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       error={errors.name}
