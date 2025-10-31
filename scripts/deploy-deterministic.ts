@@ -1,5 +1,7 @@
-import { ethers, network } from "hardhat";
+import hre from "hardhat";
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
+
+const { ethers, network } = hre;
 
 /**
  * Deterministic Multi-Chain Deployment Script
