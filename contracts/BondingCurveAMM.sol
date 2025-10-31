@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -340,10 +341,10 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
 
         if (curveType == 0) {
             // Linear curve
-            return _integrateLinearCurve(nativeIn, supply, true);
+            return _calculateLinearTokensOut(nativeIn, supply);
         } else {
             // Exponential curve (simplified for safety)
-            return _integrateLinearCurve(nativeIn, supply, true);
+            return _calculateLinearTokensOut(nativeIn, supply);
         }
     }
 
@@ -354,9 +355,9 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         if (tokensIn == 0) return 0;
 
         if (curveType == 0) {
-            return _integrateLinearCurve(tokensIn, supply, false);
+            return _calculateLinearNativeOut(tokensIn, supply);
         } else {
-            return _integrateLinearCurve(tokensIn, supply, false);
+            return _calculateLinearNativeOut(tokensIn, supply);
         }
     }
 
@@ -450,50 +451,56 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
      * @dev Linear curve integration with improved precision
      * SECURITY FIX: Better precision handling, prevents loss
      */
-    function _integrateLinearCurve(
-        uint256 amount,
-        uint256 supply,
-        bool isBuying
-    ) internal view returns (uint256) {
-        uint256 steps = 100; // Balance between precision and gas
-
-        if (isBuying) {
-            // Buying: given native, find tokens
-            uint256 stepSize = amount / steps;
-            uint256 tokens = 0;
-            uint256 currentS = supply;
-
-            for (uint256 i = 0; i < steps; i++) {
-                uint256 price = basePrice + (slope * currentS) / PRECISION;
-                if (price == 0) price = basePrice; // Safety check
-
-                // FIX: Multiply before divide for precision
-                uint256 tokensInStep = (stepSize * PRECISION) / price;
-                tokens += tokensInStep;
-                currentS += tokensInStep;
-            }
-
-            return tokens;
-        } else {
-            // Selling: given tokens, find native
-            uint256 stepSize = amount / steps;
-            uint256 nativeOut = 0;
-            uint256 currentS = supply;
-
-            for (uint256 i = 0; i < steps; i++) {
-                uint256 price = basePrice + (slope * currentS) / PRECISION;
-
-                // FIX: Multiply before divide
-                nativeOut += (stepSize * price) / PRECISION;
-                if (currentS >= stepSize) {
-                    currentS -= stepSize;
-                } else {
-                    currentS = 0;
-                }
-            }
-
-            return nativeOut;
+    function _calculateLinearTokensOut(uint256 nativeIn, uint256 supply) internal view returns (uint256) {
+        uint256 availableLiquidity = token.balanceOf(address(this));
+        if (availableLiquidity == 0) {
+            return 0;
         }
+
+        uint256 maxDelta = availableLiquidity;
+        if (supply + maxDelta > MAX_TOTAL_SUPPLY) {
+            maxDelta = MAX_TOTAL_SUPPLY - supply;
+        }
+
+        uint256 currentCost = _linearCumulativeCost(supply);
+        uint256 low = 0;
+        uint256 high = maxDelta;
+
+        while (low < high) {
+            uint256 mid = (low + high + 1) / 2;
+            uint256 targetCost = _linearCumulativeCost(supply + mid) - currentCost;
+
+            if (targetCost <= nativeIn) {
+                low = mid;
+            } else {
+                high = mid - 1;
+            }
+        }
+
+        return low;
+    }
+
+    function _calculateLinearNativeOut(uint256 tokensIn, uint256 supply) internal view returns (uint256) {
+        if (tokensIn > supply) {
+            return 0;
+        }
+
+        uint256 costAtSupply = _linearCumulativeCost(supply);
+        uint256 costAfter = _linearCumulativeCost(supply - tokensIn);
+
+        return costAtSupply - costAfter;
+    }
+
+    function _linearCumulativeCost(uint256 supply) internal view returns (uint256) {
+        if (supply == 0) {
+            return 0;
+        }
+
+        uint256 baseComponent = Math.mulDiv(basePrice, supply, PRECISION);
+        uint256 squaredSupply = Math.mulDiv(supply, supply, PRECISION);
+        uint256 slopeComponent = Math.mulDiv(slope, squaredSupply, 2 * PRECISION);
+
+        return baseComponent + slopeComponent;
     }
 
     /**
