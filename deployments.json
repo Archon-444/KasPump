@@ -1,0 +1,50 @@
+{
+  "56": {
+    "name": "BNB Smart Chain",
+    "contracts": {
+      "TokenFactory": "",
+      "FeeRecipient": ""
+    },
+    "deployedAt": null
+  },
+  "97": {
+    "name": "BNB Smart Chain Testnet",
+    "contracts": {
+      "TokenFactory": "",
+      "FeeRecipient": ""
+    },
+    "deployedAt": null
+  },
+  "42161": {
+    "name": "Arbitrum One",
+    "contracts": {
+      "TokenFactory": "",
+      "FeeRecipient": ""
+    },
+    "deployedAt": null
+  },
+  "421614": {
+    "name": "Arbitrum Sepolia",
+    "contracts": {
+      "TokenFactory": "",
+      "FeeRecipient": ""
+    },
+    "deployedAt": null
+  },
+  "8453": {
+    "name": "Base",
+    "contracts": {
+      "TokenFactory": "",
+      "FeeRecipient": ""
+    },
+    "deployedAt": null
+  },
+  "84532": {
+    "name": "Base Sepolia",
+    "contracts": {
+      "TokenFactory": "",
+      "FeeRecipient": ""
+    },
+    "deployedAt": null
+  }
+}

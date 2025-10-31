@@ -9,7 +9,7 @@ import {
   ContractError,
   BondingCurveConfig 
 } from '../types';
-import { useKasplexWallet } from './useWallet';
+import { useMultichainWallet } from './useMultichainWallet';
 
 // Enhanced ABI definitions with events
 const TOKEN_FACTORY_ABI = [
@@ -23,20 +23,20 @@ const TOKEN_FACTORY_ABI = [
 
 const BONDING_CURVE_AMM_ABI = [
   "function buyTokens(uint256 minTokensOut) external payable",
-  "function sellTokens(uint256 tokenAmount, uint256 minKasOut) external",
+  "function sellTokens(uint256 tokenAmount, uint256 minNativeOut) external",
   "function getCurrentPrice() external view returns (uint256)",
   "function getTradingInfo() external view returns (uint256 currentSupply, uint256 currentPrice, uint256 totalVolume, uint256 graduation, bool isGraduated)",
-  "function calculateTokensOut(uint256 kasIn, uint256 supply) external view returns (uint256)",
-  "function calculateKasOut(uint256 tokensIn, uint256 supply) external view returns (uint256)",
+  "function calculateTokensOut(uint256 nativeIn, uint256 supply) external view returns (uint256)",
+  "function calculateNativeOut(uint256 tokensIn, uint256 supply) external view returns (uint256)",
   "function getPriceImpact(uint256 amount, bool isBuy) external view returns (uint256)",
   "function token() external view returns (address)",
   "function currentSupply() external view returns (uint256)",
   "function totalVolume() external view returns (uint256)",
   "function isGraduated() external view returns (bool)",
-  "event Trade(address indexed trader, bool indexed isBuy, uint256 kasAmount, uint256 tokenAmount, uint256 newPrice, uint256 fee)"
+  "event Trade(address indexed trader, bool indexed isBuy, uint256 nativeAmount, uint256 tokenAmount, uint256 newPrice, uint256 fee)"
 ];
 
-const KRC20_ABI = [
+const ERC20_ABI = [
   "function balanceOf(address account) external view returns (uint256)",
   "function approve(address spender, uint256 amount) external returns (bool)",
   "function transfer(address to, uint256 amount) external returns (bool)",
@@ -62,7 +62,7 @@ const NETWORK_CONFIG = {
 const ammAddressCache = new Map<string, string>();
 
 export function useContracts() {
-  const wallet = useKasplexWallet();
+  const wallet = useMultichainWallet();
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Create ethers provider and signer
@@ -111,7 +111,7 @@ export function useContracts() {
   const getTokenContract = useCallback((tokenAddress: string) => {
     if (!provider) throw new Error('Provider not available');
     const signerOrProvider = signer || provider;
-    return new ethers.Contract(tokenAddress, KRC20_ABI, signerOrProvider);
+    return new ethers.Contract(tokenAddress, ERC20_ABI, signerOrProvider);
   }, [provider, signer]);
 
   // Resolve AMM address for a token (with caching)
@@ -237,24 +237,24 @@ export function useContracts() {
       const ammContract = getBondingCurveContract(ammAddress);
       
       if (trade.action === 'buy') {
-        const kasAmount = ethers.parseEther(trade.baseAmount.toString());
+        const nativeAmount = ethers.parseEther(trade.baseAmount.toString());
         const minTokensOut = ethers.parseEther((trade.expectedOutput * (1 - trade.slippageTolerance / 100)).toString());
-        
+
         // Estimate gas
-        const gasEstimate = await ammContract.buyTokens.estimateGas(minTokensOut, { value: kasAmount });
+        const gasEstimate = await ammContract.buyTokens.estimateGas(minTokensOut, { value: nativeAmount });
         const gasLimit = (gasEstimate * 120n) / 100n;
-        
-        const tx = await ammContract.buyTokens(minTokensOut, { 
-          value: kasAmount,
-          gasLimit 
+
+        const tx = await ammContract.buyTokens(minTokensOut, {
+          value: nativeAmount,
+          gasLimit
         });
         const receipt = await tx.wait();
         return receipt.hash;
-        
+
       } else {
         const tokenContract = getTokenContract(trade.tokenAddress);
         const tokenAmount = ethers.parseEther(trade.baseAmount.toString());
-        const minKasOut = ethers.parseEther((trade.expectedOutput * (1 - trade.slippageTolerance / 100)).toString());
+        const minNativeOut = ethers.parseEther((trade.expectedOutput * (1 - trade.slippageTolerance / 100)).toString());
         
         // Check and approve tokens if needed
         const allowance = await tokenContract.allowance(wallet.address, ammAddress);
@@ -264,10 +264,10 @@ export function useContracts() {
         }
         
         // Execute sell
-        const gasEstimate = await ammContract.sellTokens.estimateGas(tokenAmount, minKasOut);
+        const gasEstimate = await ammContract.sellTokens.estimateGas(tokenAmount, minNativeOut);
         const gasLimit = (gasEstimate * 120n) / 100n;
-        
-        const tx = await ammContract.sellTokens(tokenAmount, minKasOut, { gasLimit });
+
+        const tx = await ammContract.sellTokens(tokenAmount, minNativeOut, { gasLimit });
         const receipt = await tx.wait();
         return receipt.hash;
       }
@@ -306,17 +306,17 @@ export function useContracts() {
           minimumOutput: parseFloat(ethers.formatEther(tokensOut)) * 0.995 // 0.5% slippage
         };
       } else {
-        const kasOut = await ammContract.calculateKasOut(amountWei, currentSupply);
+        const nativeOut = await ammContract.calculateNativeOut(amountWei, currentSupply);
         const priceImpact = await ammContract.getPriceImpact(amountWei, false);
-        
+
         return {
           inputAmount: amount,
-          outputAmount: parseFloat(ethers.formatEther(kasOut)),
+          outputAmount: parseFloat(ethers.formatEther(nativeOut)),
           priceImpact: parseFloat(ethers.formatUnits(priceImpact, 2)),
           slippage: 0.5,
           gasFee: 0.001,
           route: isGraduated ? 'amm' : 'bonding-curve',
-          minimumOutput: parseFloat(ethers.formatEther(kasOut)) * 0.995
+          minimumOutput: parseFloat(ethers.formatEther(nativeOut)) * 0.995
         };
       }
       
@@ -419,7 +419,7 @@ function parseContractError(error: any): ContractError {
   if (error.code === 'INSUFFICIENT_FUNDS') {
     return {
       code: 'INSUFFICIENT_FUNDS',
-      message: 'Insufficient KAS balance for transaction and gas fees.',
+      message: 'Insufficient balance for transaction and gas fees.',
     };
   }
   
@@ -457,25 +457,25 @@ export function useTokenOperations() {
   
   const approveToken = useCallback(async (tokenAddress: string, spenderAddress: string, amount: string): Promise<string> => {
     if (!contracts.isConnected) throw new Error('Wallet not connected');
-    
+
     try {
-      const tokenContract = new ethers.Contract(tokenAddress, KRC20_ABI, await new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl).getSigner(contracts.walletAddress!));
+      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, await new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl).getSigner(contracts.walletAddress!));
       const amountWei = ethers.parseEther(amount);
-      
+
       const tx = await tokenContract.approve(spenderAddress, amountWei);
       const receipt = await tx.wait();
-      
+
       return receipt.hash;
     } catch (error) {
       throw parseContractError(error);
     }
   }, [contracts]);
-  
+
   const getTokenBalance = useCallback(async (tokenAddress: string, userAddress: string): Promise<number> => {
     try {
       const provider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
-      const tokenContract = new ethers.Contract(tokenAddress, KRC20_ABI, provider);
-      
+      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+
       const balance = await tokenContract.balanceOf(userAddress);
       return parseFloat(ethers.formatEther(balance));
     } catch (error) {
@@ -487,7 +487,7 @@ export function useTokenOperations() {
   const getAllowance = useCallback(async (tokenAddress: string, owner: string, spender: string): Promise<number> => {
     try {
       const provider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
-      const tokenContract = new ethers.Contract(tokenAddress, KRC20_ABI, provider);
+      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
       
       const allowance = await tokenContract.allowance(owner, spender);
       return parseFloat(ethers.formatEther(allowance));

@@ -1,24 +1,49 @@
-import { ethers } from "hardhat";
-import { writeFileSync } from "fs";
+import { ethers, network } from "hardhat";
+import { writeFileSync, readFileSync, existsSync } from "fs";
+
+// Network names mapped to chain IDs
+const NETWORK_CHAIN_IDS: Record<string, number> = {
+  bsc: 56,
+  bscTestnet: 97,
+  arbitrum: 42161,
+  arbitrumSepolia: 421614,
+  base: 8453,
+  baseSepolia: 84532,
+};
+
+// Network display names
+const NETWORK_NAMES: Record<string, string> = {
+  bsc: "BNB Smart Chain",
+  bscTestnet: "BNB Smart Chain Testnet",
+  arbitrum: "Arbitrum One",
+  arbitrumSepolia: "Arbitrum Sepolia",
+  base: "Base",
+  baseSepolia: "Base Sepolia",
+};
 
 async function main() {
-  console.log("🚀 Deploying KasPump contracts to Kasplex mainnet...");
+  const networkName = network.name;
+  const chainId = NETWORK_CHAIN_IDS[networkName];
+  const displayName = NETWORK_NAMES[networkName] || networkName;
+
+  console.log(`🚀 Deploying KasPump contracts to ${displayName}...`);
+  console.log(`📡 Network: ${networkName} (Chain ID: ${chainId})`);
 
   // Get deployer account
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with account:", deployer.address);
-  
+
   const balance = await ethers.provider.getBalance(deployer.address);
-  console.log("Account balance:", ethers.formatEther(balance), "KAS");
+  console.log("Account balance:", ethers.formatEther(balance));
 
   // Deploy TokenFactory
   console.log("\n📄 Deploying TokenFactory...");
   const TokenFactory = await ethers.getContractFactory("TokenFactory");
-  
+
   // Use deployer as initial fee recipient (can be changed later)
   const tokenFactory = await TokenFactory.deploy(deployer.address);
   await tokenFactory.waitForDeployment();
-  
+
   const factoryAddress = await tokenFactory.getAddress();
   console.log("✅ TokenFactory deployed to:", factoryAddress);
 
@@ -26,14 +51,37 @@ async function main() {
   console.log("\n🔍 Verifying deployment...");
   const owner = await tokenFactory.owner();
   const feeRecipient = await tokenFactory.feeRecipient();
-  
+
   console.log("Factory owner:", owner);
   console.log("Fee recipient:", feeRecipient);
 
-  // Save deployment addresses
+  // Update deployments.json
+  console.log("\n📝 Updating deployments.json...");
+  const deploymentsPath = "./deployments.json";
+  let deployments: any = {};
+
+  if (existsSync(deploymentsPath)) {
+    deployments = JSON.parse(readFileSync(deploymentsPath, "utf-8"));
+  }
+
+  deployments[chainId] = {
+    name: displayName,
+    contracts: {
+      TokenFactory: factoryAddress,
+      FeeRecipient: feeRecipient,
+    },
+    deployedAt: new Date().toISOString(),
+    deployer: deployer.address,
+    blockNumber: await ethers.provider.getBlockNumber(),
+  };
+
+  writeFileSync(deploymentsPath, JSON.stringify(deployments, null, 2));
+  console.log("✅ deployments.json updated");
+
+  // Save detailed deployment info
   const deploymentInfo = {
-    network: "kasplex",
-    chainId: 167012,
+    network: networkName,
+    chainId: chainId,
     timestamp: new Date().toISOString(),
     contracts: {
       TokenFactory: {
@@ -48,38 +96,23 @@ async function main() {
     }
   };
 
-  // Write to deployment file
-  const deploymentFile = `deployment-${Date.now()}.json`;
+  const deploymentFile = `deployments/deployment-${networkName}-${Date.now()}.json`;
   writeFileSync(deploymentFile, JSON.stringify(deploymentInfo, null, 2));
-  
-  console.log(`\n💾 Deployment info saved to: ${deploymentFile}`);
-  
-  // Create .env.local file for frontend
-  const envContent = `# KasPump Contract Addresses - Kasplex Mainnet
-NEXT_PUBLIC_NETWORK=mainnet
-NEXT_PUBLIC_CHAIN_ID=167012
-NEXT_PUBLIC_RPC_URL=https://rpc.kasplex.io
-NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS=${factoryAddress}
-NEXT_PUBLIC_FEE_RECIPIENT=${feeRecipient}
-
-# Add your private key for deployment (keep secret!)
-# PRIVATE_KEY=your_private_key_here
-`;
-  
-  writeFileSync('.env.local', envContent);
-  console.log("✅ Environment file created: .env.local");
+  console.log(`💾 Deployment info saved to: ${deploymentFile}`);
 
   console.log("\n🎉 Deployment completed successfully!");
   console.log("📋 Summary:");
+  console.log(`   Network: ${displayName} (${chainId})`);
   console.log(`   TokenFactory: ${factoryAddress}`);
-  console.log(`   Network: Kasplex (${167012})`);
+  console.log(`   FeeRecipient: ${feeRecipient}`);
   console.log(`   Deployer: ${deployer.address}`);
-  
-  console.log("\n⚠️  Important:");
-  console.log("1. Save the deployment file safely");
-  console.log("2. Update your frontend environment variables");
-  console.log("3. Consider setting up a proper fee recipient address");
-  console.log("4. Test token creation on testnet first");
+
+  console.log("\n⚠️  Next steps:");
+  console.log("1. Update your .env.local with the contract addresses");
+  console.log(`2. Set NEXT_PUBLIC_${networkName.toUpperCase()}_TOKEN_FACTORY=${factoryAddress}`);
+  console.log(`3. Set NEXT_PUBLIC_${networkName.toUpperCase()}_FEE_RECIPIENT=${feeRecipient}`);
+  console.log("4. Verify contracts on block explorer if needed");
+  console.log("5. Test token creation before going live");
 }
 
 main()
