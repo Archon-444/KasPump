@@ -1,5 +1,7 @@
-import { ethers, network } from "hardhat";
+import hre from "hardhat";
 import { writeFileSync, readFileSync, existsSync } from "fs";
+
+const { ethers, network } = hre;
 
 // Network names mapped to chain IDs
 const NETWORK_CHAIN_IDS: Record<string, number> = {
