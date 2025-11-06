@@ -1,13 +1,13 @@
 # KasPump Development Plan - Final Sprint to Production
 
 ## 🎯 OBJECTIVE
-Get KasPump from 85% complete to 100% production-ready in the simplest, most focused way possible.
+Get KasPump from 85% complete to 100% production-ready on BNB Smart Chain in the simplest, most focused way possible.
 
 ## 📋 HIGH-LEVEL TASKS
 
 ### Phase 1: Core Functionality (Days 1-3)
-- [ ] **Task 1**: Deploy contracts to Kasplex testnet
-- [ ] **Task 2**: Fix AMM address resolution in contract hooks  
+- [ ] **Task 1**: Deploy contracts to BSC testnet
+- [ ] **Task 2**: Fix AMM address resolution in contract hooks
 - [ ] **Task 3**: Replace mock data with real blockchain queries
 - [ ] **Task 4**: Implement basic trading functionality (buy/sell)
 
@@ -18,20 +18,20 @@ Get KasPump from 85% complete to 100% production-ready in the simplest, most foc
 - [ ] **Task 8**: Mobile responsive testing and fixes
 
 ### Phase 3: Production Polish (Days 6-7)
-- [ ] **Task 9**: Deploy to Kasplex mainnet
+- [ ] **Task 9**: Deploy to BSC mainnet
 - [ ] **Task 10**: Performance optimization and testing
 - [ ] **Task 11**: Final security review
 - [ ] **Task 12**: Documentation and launch preparation
 
 ## 🔧 DETAILED TASK BREAKDOWN
 
-### ✅ Task 1: Deploy Contracts to Testnet
-**Status**: Ready to start  
-**Time**: 30 minutes  
-**Description**: Deploy TokenFactory and BondingCurveAMM to Kasplex testnet
+### ✅ Task 1: Deploy Contracts to BSC Testnet
+**Status**: Ready to start
+**Time**: 30 minutes
+**Description**: Deploy TokenFactory and BondingCurveAMM to BSC testnet
 **Steps**:
-- [ ] Add private key to `.env.local`  
-- [ ] Get testnet KAS from faucet
+- [ ] Add private key to `.env.local`
+- [ ] Get testnet BNB from faucet (https://testnet.bnbchain.org/faucet-smart)
 - [ ] Run `npm run deploy:testnet`
 - [ ] Note contract addresses for next task
 
@@ -122,13 +122,13 @@ Get KasPump from 85% complete to 100% production-ready in the simplest, most foc
 - [ ] Optimize touch targets and interactions
 - [ ] Test PWA functionality
 
-### ✅ Task 9: Mainnet Deployment
-**Status**: Production deployment  
-**Time**: 1 hour  
-**Description**: Deploy to Kasplex mainnet
+### ✅ Task 9: BSC Mainnet Deployment
+**Status**: Production deployment
+**Time**: 1 hour
+**Description**: Deploy to BSC mainnet
 **Steps**:
 - [ ] Update environment for mainnet
-- [ ] Run `npm run deploy:mainnet`
+- [ ] Run `npm run deploy` (BSC mainnet)
 - [ ] Update frontend with mainnet addresses
 - [ ] Test basic functionality on mainnet
 
@@ -165,13 +165,14 @@ Get KasPump from 85% complete to 100% production-ready in the simplest, most foc
 ## 🚀 IMMEDIATE NEXT STEPS
 
 ### Start Today (30 minutes):
-1. **Deploy to Testnet** - `npm run deploy:testnet`
-2. **Verify deployment** - Check contract addresses work
-3. **Begin Task 2** - Fix AMM address resolution
+1. **Setup Environment** - Install dependencies and configure `.env.local`
+2. **Deploy to BSC Testnet** - `npm run deploy:testnet`
+3. **Verify deployment** - Check contract addresses work on BSCScan testnet
+4. **Begin Task 2** - Fix AMM address resolution
 
 ### This Week Priority:
 1. Complete Tasks 1-4 (core functionality)
-2. Test everything works end-to-end
+2. Test everything works end-to-end on BSC testnet
 3. Begin real-time features (Task 5)
 
 ## 📊 SUCCESS CRITERIA

@@ -2,18 +2,18 @@ import { ethers } from "hardhat";
 import { writeFileSync } from "fs";
 
 async function main() {
-  console.log("🚀 Deploying KasPump contracts to Kasplex TESTNET...");
+  console.log("🚀 Deploying KasPump contracts to BSC TESTNET...");
 
   // Get deployer account
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with account:", deployer.address);
-  
+
   const balance = await ethers.provider.getBalance(deployer.address);
-  console.log("Account balance:", ethers.formatEther(balance), "KAS");
-  
+  console.log("Account balance:", ethers.formatEther(balance), "BNB");
+
   if (balance === BigInt(0)) {
-    console.log("❌ No balance detected. Please get testnet KAS from the faucet:");
-    console.log("   Kasplex Testnet Faucet: https://faucet.kasplextest.xyz");
+    console.log("❌ No balance detected. Please get testnet BNB from the faucet:");
+    console.log("   BSC Testnet Faucet: https://testnet.bnbchain.org/faucet-smart");
     process.exit(1);
   }
 
@@ -48,11 +48,11 @@ async function main() {
 
   // Save deployment addresses
   const deploymentInfo = {
-    network: "kasplexTest",
-    networkName: "Kasplex Testnet",
-    chainId: 167012,
-    rpcUrl: "https://rpc.kasplextest.xyz",
-    explorerUrl: "https://explorer.kasplextest.xyz",
+    network: "bscTestnet",
+    networkName: "BSC Testnet",
+    chainId: 97,
+    rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545",
+    explorerUrl: "https://testnet.bscscan.com",
     timestamp: new Date().toISOString(),
     contracts: {
       TokenFactory: {
@@ -80,15 +80,17 @@ async function main() {
   console.log(`\n💾 Deployment info saved to: ${deploymentFile}`);
   
   // Create .env.local file for frontend
-  const envContent = `# KasPump Contract Addresses - Kasplex TESTNET
+  const envContent = `# KasPump Contract Addresses - BSC TESTNET
 # Generated on ${new Date().toISOString()}
 
 NEXT_PUBLIC_NETWORK=testnet
-NEXT_PUBLIC_CHAIN_ID=167012
-NEXT_PUBLIC_RPC_URL=https://rpc.kasplextest.xyz
-NEXT_PUBLIC_EXPLORER_URL=https://explorer.kasplextest.xyz
-NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS=${factoryAddress}
-NEXT_PUBLIC_FEE_RECIPIENT=${await tokenFactory.feeRecipient()}
+NEXT_PUBLIC_DEFAULT_CHAIN_ID=97
+NEXT_PUBLIC_BSC_TESTNET_RPC_URL=https://data-seed-prebsc-1-s1.binance.org:8545
+NEXT_PUBLIC_BSC_TESTNET_TOKEN_FACTORY=${factoryAddress}
+NEXT_PUBLIC_BSC_TESTNET_FEE_RECIPIENT=${await tokenFactory.feeRecipient()}
+
+# WalletConnect Project ID
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id_here
 
 # Your private key for deployment (keep secret!)
 PRIVATE_KEY=${process.env.PRIVATE_KEY || 'your_private_key_here'}
@@ -104,23 +106,23 @@ NEXT_PUBLIC_DEBUG=true
   console.log("\n🎉 TESTNET DEPLOYMENT COMPLETED SUCCESSFULLY!");
   console.log("📋 Summary:");
   console.log(`   TokenFactory: ${factoryAddress}`);
-  console.log(`   Network: Kasplex Testnet`);
-  console.log(`   Explorer: https://explorer.kasplextest.xyz/address/${factoryAddress}`);
+  console.log(`   Network: BSC Testnet`);
+  console.log(`   Explorer: https://testnet.bscscan.com/address/${factoryAddress}`);
   console.log(`   Deployer: ${deployer.address}`);
-  
+
   console.log("\n🔄 Next Steps:");
   console.log("1. ✅ Contracts deployed to testnet");
   console.log("2. ✅ Environment configured");
   console.log("3. 🔄 Start frontend: npm run dev");
   console.log("4. 🔄 Test token creation");
   console.log("5. 🔄 Test trading functionality");
-  
+
   console.log("\n📱 Test the deployment:");
   console.log(`   Frontend: http://localhost:3000`);
-  console.log(`   Contract: https://explorer.kasplextest.xyz/address/${factoryAddress}`);
-  
+  console.log(`   Contract: https://testnet.bscscan.com/address/${factoryAddress}`);
+
   console.log("\n⚠️  Remember:");
-  console.log("- This is TESTNET - use test KAS only");
+  console.log("- This is TESTNET - use test BNB only");
   console.log("- Save the deployment JSON file");
   console.log("- Test thoroughly before mainnet deployment");
 }
@@ -131,7 +133,7 @@ main()
     console.error("❌ TESTNET DEPLOYMENT FAILED:", error);
     console.error("\n🔧 Troubleshooting:");
     console.error("1. Check your PRIVATE_KEY in .env file");
-    console.error("2. Ensure you have testnet KAS: https://faucet.kasplextest.xyz");
+    console.error("2. Ensure you have testnet BNB: https://testnet.bnbchain.org/faucet-smart");
     console.error("3. Verify network connectivity");
     console.error("4. Check hardhat.config.ts network settings");
     process.exit(1);
