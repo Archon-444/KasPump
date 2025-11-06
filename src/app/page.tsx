@@ -4,7 +4,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, TrendingUp, Zap, Users, Search, Star } from 'lucide-react';
 import { WalletConnectButton } from '../components/features/WalletConnectButton';
-import { TokenCard } from '../components/features/TokenCard';
+import { TokenCard, TokenCardSkeleton } from '../components/features/TokenCard';
+import { TokenListSkeleton, EmptyState } from '../components/features/LoadingStates';
 import { TokenCreationModal } from '../components/features/TokenCreationModal';
 import dynamic from 'next/dynamic';
 import { TokenSearchFilters, TokenFilters } from '../components/features/TokenSearchFilters';
@@ -27,6 +28,7 @@ import { useContracts } from '../hooks/useContracts';
 import { useFavorites } from '../hooks/useFavorites';
 import { useKeyboardShortcuts, COMMON_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { useServiceWorkerCache } from '../hooks/useServiceWorkerCache';
 import { KasPumpToken } from '../types';
 import { debounce, cn } from '../utils';
 
@@ -50,6 +52,7 @@ export default function HomePage() {
   
   const contracts = useContracts();
   const favorites = useFavorites();
+  const { cacheTokenList } = useServiceWorkerCache();
 
   // Mobile detection
   useEffect(() => {
@@ -114,6 +117,9 @@ export default function HomePage() {
       ];
       
       setTokens(mockTokens);
+      
+      // Cache tokens for offline access
+      cacheTokenList({ tokens: mockTokens });
     } catch (error) {
       console.error('Failed to load tokens:', error);
     } finally {
@@ -292,11 +298,14 @@ export default function HomePage() {
             <div className="flex items-center space-x-4">
               <motion.a
                 href="/"
-                className="text-2xl font-bold gradient-text"
+                className="text-2xl font-bold gradient-text flex items-center space-x-2"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: 'spring', stiffness: 300 }}
               >
-                KasPump
+                <span className="text-3xl">🚀</span>
+                <span>KasPump</span>
               </motion.a>
               <div className="hidden sm:block text-sm text-gray-400">
                 Meme coins on Kasplex L2
@@ -346,8 +355,10 @@ export default function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="text-4xl md:text-6xl font-bold gradient-text mb-6">
-            Launch Your Meme Coin
+          <h1 className="text-4xl md:text-6xl font-bold gradient-text mb-6 flex items-center justify-center gap-3 flex-wrap">
+            <span>🚀</span>
+            <span>Launch Your Meme Coin</span>
+            <span>🚀</span>
           </h1>
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
             Fair launch, bonding curve trading, instant liquidity on Kasplex Layer 2. 
@@ -447,28 +458,22 @@ export default function HomePage() {
 
           {/* Token Grid */}
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse glassmorphism">
-                  <div className="h-48 bg-gray-700/50 rounded-lg mb-4" />
-                  <div className="space-y-3">
-                    <div className="h-4 bg-gray-700/50 rounded w-3/4" />
-                    <div className="h-4 bg-gray-700/50 rounded w-1/2" />
-                    <div className="h-4 bg-gray-700/50 rounded w-2/3" />
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <TokenListSkeleton count={6} />
           ) : filteredTokens.length === 0 ? (
-            <Card className="text-center py-12 glassmorphism">
-              <div className="text-gray-400 mb-4">No tokens found</div>
-              <Button
-                onClick={() => setShowCreateModal(true)}
-                icon={<Plus size={16} />}
-              >
-                Create First Token
-              </Button>
-            </Card>
+            <EmptyState
+              icon={<TrendingUp className="h-12 w-12 text-gray-400" />}
+              title="No tokens found"
+              description={
+                filters.searchQuery
+                  ? `No tokens match "${filters.searchQuery}". Try adjusting your search or filters.`
+                  : "Be the first to launch a token on KasPump! Create your meme coin and watch it pump."
+              }
+              action={{
+                label: 'Create First Token',
+                onClick: () => setShowCreateModal(true),
+                icon: <Plus size={16} />,
+              }}
+            />
           ) : (
             <motion.div
               className={cn(

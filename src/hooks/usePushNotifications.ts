@@ -111,12 +111,20 @@ export const usePushNotifications = () => {
 
       setSubscription(subscription);
       
-      // Send subscription to backend (would need API endpoint)
-      // await fetch('/api/push/subscribe', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(subscription),
-      // });
+      // Send subscription to backend
+      try {
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscription,
+            preferences: {}, // Will be passed from component
+          }),
+        });
+      } catch (error) {
+        console.warn('Failed to save subscription to backend:', error);
+        // Continue even if backend save fails
+      }
 
       return subscription;
     } catch (error) {
@@ -134,12 +142,17 @@ export const usePushNotifications = () => {
       if (unsubscribed) {
         setSubscription(null);
         
-        // Notify backend (would need API endpoint)
-        // await fetch('/api/push/unsubscribe', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify({ endpoint: subscription.endpoint }),
-        // });
+        // Notify backend
+        try {
+          await fetch('/api/push/subscribe', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: subscription.endpoint }),
+          });
+        } catch (error) {
+          console.warn('Failed to remove subscription from backend:', error);
+          // Continue even if backend removal fails
+        }
       }
       return unsubscribed;
     } catch (error) {

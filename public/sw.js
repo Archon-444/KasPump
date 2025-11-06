@@ -1,9 +1,11 @@
 // KasPump Service Worker - PWA Implementation
 // Optimized for mobile-first experience and offline functionality
 
-const CACHE_NAME = 'kaspump-v1.0.0';
-const STATIC_CACHE_NAME = 'kaspump-static-v1.0.0';
-const DYNAMIC_CACHE_NAME = 'kaspump-dynamic-v1.0.0';
+const CACHE_VERSION = '1.1.0';
+const CACHE_NAME = `kaspump-v${CACHE_VERSION}`;
+const STATIC_CACHE_NAME = `kaspump-static-v${CACHE_VERSION}`;
+const DYNAMIC_CACHE_NAME = `kaspump-dynamic-v${CACHE_VERSION}`;
+const API_CACHE_NAME = `kaspump-api-v${CACHE_VERSION}`;
 
 // Critical assets for offline functionality
 const STATIC_ASSETS = [
@@ -14,6 +16,10 @@ const STATIC_ASSETS = [
   '/icons/icon-512.png',
   // Core CSS and JS will be added dynamically
 ];
+
+// Token list cache (for offline browsing)
+const TOKEN_LIST_CACHE_KEY = 'kaspump-token-list';
+const TOKEN_LIST_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // API endpoints that should be cached for offline access
 const CACHE_API_ROUTES = [
@@ -56,7 +62,8 @@ self.addEventListener('activate', (event) => {
       .then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
-            if (cacheName !== STATIC_CACHE_NAME && cacheName !== DYNAMIC_CACHE_NAME) {
+            // Delete all caches that don't match current version
+            if (!cacheName.includes(`v${CACHE_VERSION}`)) {
               console.log('[ServiceWorker] Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
@@ -92,7 +99,7 @@ self.addEventListener('fetch', (event) => {
 
   // Strategy 1: Network First for API calls (with fallback to cache)
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirstStrategy(request));
+    event.respondWith(networkFirstWithStaleCacheStrategy(request));
     return;
   }
 
@@ -106,40 +113,53 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(staleWhileRevalidateStrategy(request));
 });
 
-// Network First Strategy (for API calls)
-async function networkFirstStrategy(request) {
-  try {
-    const networkResponse = await fetch(request);
-    
-    if (networkResponse.ok) {
-      // Cache successful API responses
-      const cache = await caches.open(DYNAMIC_CACHE_NAME);
-      cache.put(request, networkResponse.clone());
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    console.log('[ServiceWorker] Network failed, trying cache:', request.url);
-    const cachedResponse = await caches.match(request);
-    
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    
-    // Return offline fallback for API calls
-    return new Response(
-      JSON.stringify({ 
-        error: 'Offline', 
-        message: 'This feature requires an internet connection',
-        cached: false 
-      }), 
-      {
-        status: 503,
-        statusText: 'Service Unavailable',
-        headers: { 'Content-Type': 'application/json' }
+// Network First with Stale Cache Strategy (for API calls)
+// Returns cached data immediately if available, then updates from network
+async function networkFirstWithStaleCacheStrategy(request) {
+  const cache = await caches.open(API_CACHE_NAME);
+  const cachedResponse = await cache.match(request);
+  
+  // Start network fetch in parallel
+  const networkFetch = fetch(request)
+    .then((networkResponse) => {
+      if (networkResponse.ok) {
+        // Cache successful API responses
+        cache.put(request, networkResponse.clone());
       }
-    );
+      return networkResponse;
+    })
+    .catch((error) => {
+      console.log('[ServiceWorker] Network fetch failed:', request.url);
+      return null;
+    });
+  
+  // Return cached response immediately if available
+  if (cachedResponse) {
+    // Update cache in background
+    networkFetch.catch(() => {}); // Ignore errors
+    return cachedResponse;
   }
+  
+  // Wait for network if no cache
+  const networkResponse = await networkFetch;
+  
+  if (networkResponse) {
+    return networkResponse;
+  }
+  
+  // Return offline fallback for API calls
+  return new Response(
+    JSON.stringify({ 
+      error: 'Offline', 
+      message: 'This feature requires an internet connection',
+      cached: false 
+    }), 
+    {
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: { 'Content-Type': 'application/json' }
+    }
+  );
 }
 
 // Cache First Strategy (for static assets)
@@ -268,39 +288,74 @@ async function syncTrades() {
 
 // Push notification handling
 self.addEventListener('push', (event) => {
-  const options = {
+  let notificationData = {
+    title: 'KasPump',
     body: 'New trading opportunity available!',
     icon: '/icons/icon-192.png',
-    badge: '/icons/badge-72.png',
+    badge: '/icons/icon-192.png',
     vibrate: [200, 100, 200],
     data: {
       url: '/',
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      type: 'general',
     },
-    actions: [
-      {
-        action: 'open',
-        title: 'View Details',
-        icon: '/icons/action-open.png'
-      },
-      {
-        action: 'dismiss',
-        title: 'Dismiss',
-        icon: '/icons/action-dismiss.png'
-      }
-    ],
     requireInteraction: false,
-    silent: false
+    silent: false,
   };
 
+  // Parse push payload if available
   if (event.data) {
-    const payload = event.data.json();
-    options.body = payload.message || options.body;
-    options.data = { ...options.data, ...payload.data };
+    try {
+      const payload = event.data.json();
+      notificationData = {
+        ...notificationData,
+        title: payload.title || notificationData.title,
+        body: payload.body || payload.message || notificationData.body,
+        icon: payload.icon || notificationData.icon,
+        badge: payload.badge || notificationData.badge,
+        data: {
+          ...notificationData.data,
+          ...payload.data,
+          type: payload.type || 'general',
+        },
+        requireInteraction: payload.requireInteraction || false,
+        tag: payload.tag,
+      };
+
+      // Add actions for specific notification types
+      if (payload.type === 'price-alert') {
+        notificationData.actions = [
+          {
+            action: 'view',
+            title: 'View Token',
+            icon: '/icons/icon-192.png',
+          },
+          {
+            action: 'dismiss',
+            title: 'Dismiss',
+          },
+        ];
+      } else if (payload.type === 'trade-update') {
+        notificationData.actions = [
+          {
+            action: 'view',
+            title: 'View Trade',
+            icon: '/icons/icon-192.png',
+          },
+          {
+            action: 'dismiss',
+            title: 'Dismiss',
+          },
+        ];
+      }
+    } catch (error) {
+      console.error('[ServiceWorker] Error parsing push payload:', error);
+      // Use default notification data
+    }
   }
 
   event.waitUntil(
-    self.registration.showNotification('KasPump', options)
+    self.registration.showNotification(notificationData.title, notificationData)
   );
 });
 
@@ -312,9 +367,33 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  // Open the app
+  const notificationData = event.notification.data || {};
+  let url = '/';
+
+  // Handle different notification types
+  if (notificationData.type === 'price-alert' && notificationData.tokenAddress) {
+    url = `/token/${notificationData.tokenAddress}`;
+  } else if (notificationData.type === 'trade-update' && notificationData.txHash) {
+    url = `/portfolio?tx=${notificationData.txHash}`;
+  } else if (notificationData.url) {
+    url = notificationData.url;
+  }
+
+  // Open or focus the app
   event.waitUntil(
-    clients.openWindow(event.notification.data?.url || '/')
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Check if app is already open
+      for (const client of clientList) {
+        if (client.url === url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      
+      // Open new window
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
   );
 });
 
@@ -333,5 +412,56 @@ async function removeStoredAction(type, id) {
     resolve();
   });
 }
+
+// Message handler for cache management from client
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  
+  if (event.data && event.data.type === 'CACHE_TOKEN_LIST') {
+    const { tokens, timestamp } = event.data;
+    // Store token list in cache for offline access
+    const cacheKey = new Request('/api/tokens?cached=true');
+    const response = new Response(JSON.stringify({ tokens, timestamp }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    caches.open(API_CACHE_NAME).then((cache) => {
+      cache.put(cacheKey, response);
+      console.log('[ServiceWorker] Token list cached for offline access');
+    });
+  }
+  
+  if (event.data && event.data.type === 'CLEAR_CACHE') {
+    caches.delete(API_CACHE_NAME).then(() => {
+      console.log('[ServiceWorker] API cache cleared');
+      event.ports[0].postMessage({ success: true });
+    });
+  }
+});
+
+// Periodic cache cleanup (remove old entries)
+self.addEventListener('message', async (event) => {
+  if (event.data && event.data.type === 'CLEANUP_CACHE') {
+    const cache = await caches.open(API_CACHE_NAME);
+    const requests = await cache.keys();
+    const now = Date.now();
+    
+    for (const request of requests) {
+      const response = await cache.match(request);
+      const cachedDate = response.headers.get('sw-cached-date');
+      
+      if (cachedDate) {
+        const age = now - parseInt(cachedDate, 10);
+        // Remove entries older than 1 hour
+        if (age > 60 * 60 * 1000) {
+          await cache.delete(request);
+          console.log('[ServiceWorker] Removed stale cache entry:', request.url);
+        }
+      }
+    }
+  }
+});
 
 console.log('[ServiceWorker] Service Worker registered successfully');

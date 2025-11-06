@@ -1,9 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { Web3Provider } from '../providers/Web3Provider';
-import { ServiceWorkerRegistration } from '../components/features/ServiceWorkerRegistration';
-import { PerformanceMonitor } from '../components/features/PerformanceMonitor';
+import { AppProviders } from '../components/providers/AppProviders';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -57,15 +55,31 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
+      <head>
+        {/* DNS Prefetch for external resources */}
+        <link rel="dns-prefetch" href="https://ipfs.io" />
+        <link rel="dns-prefetch" href="https://gateway.pinata.cloud" />
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+        
+        {/* Preconnect to critical origins */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        
+        {/* Preload critical resources */}
+        <link rel="preload" href="/manifest.json" as="manifest" />
+        <link rel="preload" href="/sw.js" as="script" />
+        
+        {/* Resource hints for faster navigation */}
+        <link rel="prefetch" href="/portfolio" />
+        <link rel="prefetch" href="/analytics" />
+        <link rel="prefetch" href="/creator" />
+      </head>
       <body className={inter.className}>
-        <ServiceWorkerRegistration />
-              <Web3Provider>
-                <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
-                  {children}
-                  <PerformanceMonitor />
-                </div>
-              </Web3Provider>
-            </body>
-          </html>
-        );
-      }
+        <AppProviders>
+          {children}
+        </AppProviders>
+      </body>
+    </html>
+  );
+}
