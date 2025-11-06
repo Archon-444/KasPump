@@ -10,6 +10,7 @@ import {
   BondingCurveConfig 
 } from '../types';
 import { useMultichainWallet } from './useMultichainWallet';
+import { getTokenFactoryAddress, getFeeRecipientAddress } from '../config/contracts';
 
 // Enhanced ABI definitions with events
 const TOKEN_FACTORY_ABI = [
@@ -47,15 +48,10 @@ const ERC20_ABI = [
   "function totalSupply() external view returns (uint256)"
 ];
 
-// Contract addresses from environment
-const CONTRACT_ADDRESSES = {
-  tokenFactory: process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS ?? '',
-  feeRecipient: process.env.NEXT_PUBLIC_FEE_RECIPIENT ?? '',
-};
-
+// Network configuration from environment
 const NETWORK_CONFIG = {
-  chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? '0'),
-  rpcUrl: process.env.NEXT_PUBLIC_RPC_URL ?? '',
+  chainId: Number(process.env.NEXT_PUBLIC_DEFAULT_CHAIN_ID ?? '97'),
+  rpcUrl: process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ?? 'https://data-seed-prebsc-1-s1.binance.org:8545',
 };
 
 // AMM address cache for performance
@@ -66,6 +62,13 @@ export function useContracts() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [browserProvider, setBrowserProvider] = useState<ethers.BrowserProvider | null>(null);
   const [signer, setSigner] = useState<ethers.Signer | null>(null);
+
+  // Get contract addresses for current chain
+  const currentChainId = wallet.chainId ?? NETWORK_CONFIG.chainId;
+  const CONTRACT_ADDRESSES = {
+    tokenFactory: getTokenFactoryAddress(currentChainId) ?? '',
+    feeRecipient: getFeeRecipientAddress(currentChainId) ?? '',
+  };
 
   // Create ethers provider
   const provider = useMemo(() => {
@@ -141,12 +144,13 @@ export function useContracts() {
       }
 
       try {
-        if (!CONTRACT_ADDRESSES.tokenFactory) {
-          console.warn('Token factory address not configured');
+        const factoryAddress = getTokenFactoryAddress(currentChainId);
+        if (!factoryAddress) {
+          console.warn(`Token factory address not configured for chain ${currentChainId}`);
           return;
         }
 
-        const factory = new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, provider);
+        const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, provider);
         
         // Test contract connectivity
         await factory.getAllTokens();
@@ -157,16 +161,17 @@ export function useContracts() {
     };
 
     validateContracts();
-  }, [provider]);
+  }, [provider, currentChainId]);
 
   // Get contract instances
   const getTokenFactoryContract = useCallback(() => {
-    if (!CONTRACT_ADDRESSES.tokenFactory) {
-      throw new Error('Token factory address not configured');
+    const factoryAddress = getTokenFactoryAddress(currentChainId);
+    if (!factoryAddress) {
+      throw new Error(`Token factory address not configured for chain ${currentChainId}`);
     }
     if (!signer) throw new Error('Wallet not connected');
-    return new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, signer);
-  }, [signer]);
+    return new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
+  }, [signer, currentChainId]);
 
   const getRunnerOrThrow = useCallback((): ethers.Signer | ethers.AbstractProvider => {
     if (signer) return signer;
@@ -205,12 +210,13 @@ export function useContracts() {
     }
 
     try {
-      if (!CONTRACT_ADDRESSES.tokenFactory) {
-        throw new Error('Token factory address not configured');
+      const factoryAddress = getTokenFactoryAddress(currentChainId);
+      if (!factoryAddress) {
+        throw new Error(`Token factory address not configured for chain ${currentChainId}`);
       }
 
       const runner = getReadProviderOrThrow();
-      const factoryContract = new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, runner);
+      const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, runner);
       
       // Check if we have a getTokenAMM function (newer factory version)
       try {
@@ -427,26 +433,28 @@ export function useContracts() {
   // Get all tokens created through the factory
   const getAllTokens = useCallback(async (): Promise<string[]> => {
     try {
-      if (!CONTRACT_ADDRESSES.tokenFactory) {
-        throw new Error('Token factory address not configured');
+      const factoryAddress = getTokenFactoryAddress(currentChainId);
+      if (!factoryAddress) {
+        throw new Error(`Token factory address not configured for chain ${currentChainId}`);
       }
       const runner = getReadProviderOrThrow();
-      const contract = new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, runner);
+      const contract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, runner);
       return await contract.getAllTokens();
     } catch (error: any) {
       console.error('Failed to fetch tokens:', error);
       throw parseContractError(error);
     }
-  }, [getReadProviderOrThrow]);
+  }, [getReadProviderOrThrow, currentChainId]);
 
   // Get detailed token information with real blockchain data
   const getTokenInfo = useCallback(async (tokenAddress: string): Promise<KasPumpToken | null> => {
     try {
-      if (!CONTRACT_ADDRESSES.tokenFactory) {
-        throw new Error('Token factory address not configured');
+      const factoryAddress = getTokenFactoryAddress(currentChainId);
+      if (!factoryAddress) {
+        throw new Error(`Token factory address not configured for chain ${currentChainId}`);
       }
       const runner = getReadProviderOrThrow();
-      const factoryContract = new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, runner);
+      const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, runner);
       const tokenContract = getTokenContract(tokenAddress);
       
       // Check if it's a KasPump token
@@ -498,7 +506,7 @@ export function useContracts() {
       console.error('Failed to fetch token info:', error);
       return null;
     }
-  }, [getReadProviderOrThrow, getTokenContract, getTokenAMMAddress, getBondingCurveContract]);
+  }, [getReadProviderOrThrow, getTokenContract, getTokenAMMAddress, getBondingCurveContract, currentChainId]);
 
   return {
     createToken,

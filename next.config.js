@@ -98,12 +98,8 @@ const nextConfig = {
   poweredByHeader: false,
   // React strict mode for better performance
   reactStrictMode: true,
-  env: {
-    NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
-    NEXT_PUBLIC_CHAIN_ID: process.env.NEXT_PUBLIC_CHAIN_ID,
-    NEXT_PUBLIC_RPC_URL: process.env.NEXT_PUBLIC_RPC_URL,
-    NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS: process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS,
-  },
+  // Note: NEXT_PUBLIC_* variables from .env.local are automatically exposed by Next.js
+  // No need to define them in the env section
 }
 
 module.exports = nextConfig;
