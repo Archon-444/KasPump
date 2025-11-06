@@ -310,3 +310,7 @@ export const Alert: React.FC<{
     </div>
   );
 };
+
+// Export Skeleton components
+export { Skeleton, SkeletonGroup } from './Skeleton';
+export type { SkeletonProps, SkeletonGroupProps } from './Skeleton';

@@ -281,7 +281,28 @@ img[loading="lazy"] {
   }
   
   .gradient-text {
-    @apply bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent;
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    display: inline-block;
+  }
+  
+  /* Fallback for browsers that don't support background-clip */
+  @supports not (background-clip: text) {
+    .gradient-text {
+      color: #a855f7;
+      background: none;
+    }
+  }
+  
+  .gradient-text-bold {
+    @apply bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 bg-clip-text text-transparent font-bold;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
   }
   
   .scrollbar-hide {
@@ -331,6 +352,40 @@ img[loading="lazy"] {
   40% {
     transform: scale(1);
   }
+}
+
+/* Shimmer effect for skeletons */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 /* Trading interface specific styles */

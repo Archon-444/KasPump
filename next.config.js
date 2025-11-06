@@ -1,9 +1,24 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['ipfs.io', 'gateway.ipfs.io'],
+    domains: [
+      'ipfs.io',
+      'gateway.ipfs.io',
+      'gateway.pinata.cloud',
+      'ipfs.filebase.io',
+      'nftstorage.link',
+      'dweb.link',
+    ],
     // Optimize images for mobile
     formats: ['image/avif', 'image/webp'],
+    // Device sizes for responsive images
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    // Image sizes for different breakpoints
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // Minimum quality for compression
+    minimumCacheTTL: 60,
+    // Disable static image optimization in development
+    unoptimized: process.env.NODE_ENV === 'development',
   },
   // Webpack config to ignore optional dependencies and optimize for mobile
   webpack: (config, { isServer }) => {
@@ -28,7 +43,16 @@ const nextConfig = {
               chunks: 'all',
               test: /node_modules/,
               priority: 20,
-              maxSize: 244000, // ~240KB chunks for mobile
+              maxSize: 200000, // ~200KB chunks for better mobile performance
+              minSize: 20000, // Minimum chunk size
+            },
+            // Separate chunk for ethers.js (large library)
+            ethers: {
+              name: 'ethers',
+              test: /[\\/]node_modules[\\/](ethers|@ethersproject)[\\/]/,
+              chunks: 'all',
+              priority: 35,
+              maxSize: 300000, // Ethers is large, allow bigger chunk
             },
             // Separate chunk for chart libraries
             charts: {
@@ -61,11 +85,19 @@ const nextConfig = {
   // Performance optimizations
   experimental: {
     optimizeCss: true,
+    // Optimize package imports
+    optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
   // Compression
   compress: true,
   // Enable SWC minification
   swcMinify: true,
+  // Output standalone for better deployment
+  output: 'standalone',
+  // Power optimization
+  poweredByHeader: false,
+  // React strict mode for better performance
+  reactStrictMode: true,
   env: {
     NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
     NEXT_PUBLIC_CHAIN_ID: process.env.NEXT_PUBLIC_CHAIN_ID,
