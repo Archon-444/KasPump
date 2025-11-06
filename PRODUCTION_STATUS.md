@@ -5,11 +5,11 @@
 ### 🏗️ Core Infrastructure
 - [x] **Repository Structure** - Modern Next.js 14 app with proper organization
 - [x] **Smart Contracts** - TokenFactory.sol & BondingCurveAMM.sol with production-ready features
-- [x] **Deployment Scripts** - Automated contract deployment to Kasplex mainnet/testnet
+- [x] **Deployment Scripts** - Automated contract deployment to BSC testnet/mainnet
 - [x] **Environment Setup** - Configuration files and environment templates
 
-### 🔐 Security & Integration  
-- [x] **Real Wallet Integration** - @kasplex/kiwi-web SDK integration (replaces mocks)
+### 🔐 Security & Integration
+- [x] **Real Wallet Integration** - Multi-chain wallet support via WalletConnect
 - [x] **Crypto-Secure Random** - Fixed Math.random() security vulnerability
 - [x] **Contract Integration** - Ethers.js v6 integration for contract interactions
 - [x] **Input Validation** - Comprehensive form validation and sanitization
@@ -64,12 +64,12 @@
 
 ## 🚀 Next Steps (Priority Order)
 
-1. **Deploy contracts to testnet** - `npm run deploy`
-2. **Fix AMM address resolution** - Update contract hooks
-3. **Test token creation end-to-end** - Create real tokens
+1. **Deploy contracts to BSC testnet** - `npm run deploy:testnet`
+2. **Fix AMM address resolution** - Update contract hooks with deployed addresses
+3. **Test token creation end-to-end** - Create real tokens on BSC testnet
 4. **Implement trading functionality** - Complete buy/sell flows
 5. **Add real-time data** - WebSocket price feeds
-6. **Production testing** - Comprehensive testing on mainnet
+6. **Production testing** - Comprehensive testing on BSC mainnet
 
 ## 📝 Notes
 

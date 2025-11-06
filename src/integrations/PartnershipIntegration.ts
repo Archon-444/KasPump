@@ -1,5 +1,5 @@
 // Partnership Integration Framework for KasPump
-// Defines interfaces and integration points for Kaspa ecosystem partnerships
+// Defines interfaces and integration points for EVM ecosystem partnerships
 
 import * as React from 'react';
 import { ethers } from 'ethers';
@@ -27,7 +27,7 @@ export interface GraduationRequest {
 export interface PartnershipRevenue {
   partner: string;
   amount: number;
-  currency: 'KAS' | 'USD';
+  currency: 'BNB' | 'ETH' | 'USD';
   source: 'trading' | 'graduation' | 'subscription';
   timestamp: number;
 }
@@ -90,20 +90,7 @@ export class PartnershipIntegrationManager {
       isActive: false // Future integration
     });
 
-    // Kasplex L2 Infrastructure
-    this.partners.set('kasplex', {
-      name: 'Kasplex L2',
-      type: 'infrastructure',
-      contractAddress: process.env.NEXT_PUBLIC_KASPLEX_REGISTRY,
-      features: [
-        'gas_optimization',
-        'transaction_batching',
-        'event_indexing',
-        'node_access'
-      ],
-      revenueShare: 0,
-      isActive: true
-    });
+    // Future infrastructure partners can be added here
   }
 
   // Zealous Swap specific integrations
@@ -128,8 +115,6 @@ export class PartnershipIntegrationManager {
         return new ZealousSwapIntegration(partner, this.provider);
       case 'moonbound':
         return new MoonboundIntegration(partner);
-      case 'kasplex':
-        return new KasplexIntegration(partner, this.provider);
       default:
         return new GenericPartnerIntegration(partner);
     }
@@ -216,14 +201,14 @@ export class ZealousSwapIntegration implements PartnerIntegrationInterface {
 
     try {
       // 1. Create pair on Zealous Swap
-      const kaspaAddress = '0x0000000000000000000000000000000000000001'; // Kaspa native token
-      const createPairTx = await this.zealousContract.createPair(request.tokenAddress, kaspaAddress);
+      const nativeTokenAddress = '0x0000000000000000000000000000000000000001'; // Native token (BNB/ETH)
+      const createPairTx = await this.zealousContract.createPair(request.tokenAddress, nativeTokenAddress);
       await createPairTx.wait();
 
       // 2. Add initial liquidity
       const addLiquidityTx = await this.zealousContract.addLiquidity(
         request.tokenAddress,
-        kaspaAddress,
+        nativeTokenAddress,
         ethers.parseEther(request.currentSupply.toString()),
         ethers.parseEther(request.liquidityAmount.toString())
       );
@@ -263,14 +248,14 @@ export class ZealousSwapIntegration implements PartnerIntegrationInterface {
 
     const revenueShare = (amount * this.partner.revenueShare) / 10000;
     
-    console.log(`💸 Sharing ${revenueShare} KAS with Zealous Swap`);
-    
+    console.log(`💸 Sharing ${revenueShare} native tokens with Zealous Swap`);
+
     // In production, this would send actual tokens
     // For now, just track the revenue sharing
     const revenue: PartnershipRevenue = {
       partner: 'zealous-swap',
       amount: revenueShare,
-      currency: 'KAS',
+      currency: 'BNB',
       source: 'trading',
       timestamp: Date.now()
     };
@@ -367,73 +352,7 @@ export class MoonboundIntegration implements PartnerIntegrationInterface {
   }
 }
 
-// Kasplex Infrastructure Integration
-export class KasplexIntegration implements PartnerIntegrationInterface {
-  private partner: PartnerIntegration;
-  private provider: ethers.JsonRpcProvider;
-
-  constructor(partner: PartnerIntegration, provider: ethers.JsonRpcProvider) {
-    this.partner = partner;
-    this.provider = provider;
-  }
-
-  async initialize(): Promise<void> {
-    console.log('⚡ Kasplex L2 infrastructure integration initialized');
-  }
-
-  async graduateToken(request: GraduationRequest): Promise<string> {
-    // Kasplex handles infrastructure, not graduations
-    return 'infrastructure-optimized';
-  }
-
-  async getPartnerData(): Promise<any> {
-    // Get L2 network stats and performance metrics
-    return {
-      networkStats: await this.getNetworkStats(),
-      gasOptimization: await this.getGasOptimization(),
-      transactionStats: await this.getTransactionStats()
-    };
-  }
-
-  async shareRevenue(amount: number): Promise<void> {
-    // No direct revenue sharing with infrastructure layer
-    console.log('🏗️ Infrastructure partnership - no revenue sharing needed');
-  }
-
-  private async getNetworkStats() {
-    try {
-      const blockNumber = await this.provider.getBlockNumber();
-      const gasPrice = await this.provider.getFeeData();
-      
-      return {
-        currentBlock: blockNumber,
-        gasPrice: gasPrice.gasPrice?.toString(),
-        networkActive: true
-      };
-    } catch (error) {
-      console.error('Failed to get network stats:', error);
-      return null;
-    }
-  }
-
-  private async getGasOptimization() {
-    // Placeholder for gas optimization metrics
-    return {
-      averageGasSavings: '45%',
-      batchedTransactions: 1250,
-      optimizedContracts: true
-    };
-  }
-
-  private async getTransactionStats() {
-    // Placeholder for transaction statistics
-    return {
-      tps: 85,
-      averageConfirmationTime: '2.3s',
-      failureRate: '0.12%'
-    };
-  }
-}
+// Infrastructure integrations can be added here for future chains
 
 // Generic Partner Integration
 export class GenericPartnerIntegration implements PartnerIntegrationInterface {
@@ -496,7 +415,7 @@ export function usePartnershipIntegration() {
     const revenue: PartnershipRevenue = {
       partner,
       amount,
-      currency: 'KAS',
+      currency: 'BNB',
       source: 'trading',
       timestamp: Date.now()
     };
