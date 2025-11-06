@@ -1,5 +1,6 @@
 // Analytics tracking system for KasPump - crucial for partnerships and business intelligence
 // Collects user interaction data, trading metrics, and platform usage statistics
+import * as React from 'react';
 
 interface AnalyticsEvent {
   event: string;
@@ -341,7 +342,7 @@ export function withAnalytics<P extends object>(Component: React.ComponentType<P
       analytics.trackPageView(pageName);
     }, []);
 
-    return <Component {...props} />;
+    return React.createElement(Component, props);
   };
 }
 

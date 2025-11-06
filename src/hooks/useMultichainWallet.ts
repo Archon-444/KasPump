@@ -4,7 +4,7 @@
 import { useAccount, useConnect, useDisconnect, useBalance, useSwitchChain } from 'wagmi';
 import { useCallback, useEffect, useState } from 'react';
 import { formatEther } from 'viem';
-import { getChainById, getChainMetadata } from '../config/chains';
+import { getChainById, getChainMetadata, supportedChains } from '../config/chains';
 
 export interface MultichainWalletState {
   connected: boolean;
@@ -113,7 +113,7 @@ export function useMultichainWallet() {
     async (targetChainId: number) => {
       if (!switchChain) return false;
       try {
-        await switchChain({ chainId: targetChainId });
+        await switchChain({ chainId: targetChainId } as any);
         return true;
       } catch (error) {
         console.error('Failed to switch network:', error);
@@ -139,6 +139,7 @@ export function useMultichainWallet() {
     connectorName: connector?.name,
     availableConnectors: connectors,
     isSwitchingNetwork: isSwitching,
+    connector,
   };
 }
 

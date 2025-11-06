@@ -2,18 +2,33 @@
 'use client';
 
 import React from 'react';
-import { Wallet, Power, Copy, ExternalLink } from 'lucide-react';
-import { useKasplexWallet, formatKasBalance, formatAddress } from '../../hooks/useWallet';
+import { Wallet, Power, Copy, ExternalLink, Settings } from 'lucide-react';
+import { useMultichainWallet } from '../../hooks/useMultichainWallet';
+import { WalletSelectModal } from './WalletSelectModal';
 import { Button } from '../ui';
-import { cn, copyToClipboard } from '../../utils';
+import { cn, copyToClipboard, truncateAddress } from '../../utils';
 
 interface WalletConnectButtonProps {
   className?: string;
 }
 
+// Helper functions
+const formatKasBalance = (balance: string): string => {
+  const num = parseFloat(balance);
+  if (num === 0) return '0.0000';
+  if (num < 0.0001) return num.toExponential(2);
+  return num.toFixed(4);
+};
+
+const formatAddress = (address: string | null): string => {
+  if (!address) return '';
+  return truncateAddress(address, 6, 4);
+};
+
 export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ className }) => {
-  const wallet = useKasplexWallet();
+  const wallet = useMultichainWallet();
   const [showDropdown, setShowDropdown] = React.useState(false);
+  const [showWalletModal, setShowWalletModal] = React.useState(false);
   const [copySuccess, setCopySuccess] = React.useState(false);
 
   const handleCopyAddress = async () => {
@@ -27,11 +42,8 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
   };
 
   const handleConnect = async () => {
-    try {
-      await wallet.connectWallet();
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
-    }
+    // Show wallet selection modal instead of auto-connecting
+    setShowWalletModal(true);
   };
 
   const handleDisconnect = async () => {
@@ -43,15 +55,19 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
     }
   };
 
-  if (!wallet.isSupported) {
+  // Check if any wallet is available
+  const hasAvailableWallet = wallet.availableConnectors && wallet.availableConnectors.length > 0;
+
+  if (!hasAvailableWallet) {
     return (
       <div className={cn("relative", className)}>
         <Button
           variant="secondary"
-          onClick={() => window.open('https://kasplex.io/wallet', '_blank')}
-          icon={<Wallet size={16} />}
+          onClick={() => window.open('https://metamask.io/download/', '_blank')}
+          className="flex items-center space-x-2"
         >
-          Install Kasplex Wallet
+          <Wallet size={16} />
+          <span>Install Wallet</span>
         </Button>
       </div>
     );
@@ -115,7 +131,18 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
                   <Copy size={14} />
                 </button>
                 <button
-                  onClick={() => window.open(`https://explorer.kasplex.io/address/${wallet.address}`, '_blank')}
+                  onClick={() => {
+                    const explorerUrl = wallet.chainId === 97 
+                      ? `https://testnet.bscscan.com/address/${wallet.address}`
+                      : wallet.chainId === 56
+                      ? `https://bscscan.com/address/${wallet.address}`
+                      : wallet.chainId === 42161
+                      ? `https://arbiscan.io/address/${wallet.address}`
+                      : wallet.chainId === 8453
+                      ? `https://basescan.org/address/${wallet.address}`
+                      : `https://explorer.example.com/address/${wallet.address}`;
+                    window.open(explorerUrl, '_blank');
+                  }}
                   className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
                   title="View on explorer"
                 >
@@ -143,12 +170,19 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
               </button>
             </div>
             <div className="text-lg font-semibold text-gray-900 mt-1">
-              {formatKasBalance(wallet.kasBalance)}
+              {wallet.balanceFormatted || formatKasBalance(wallet.balance)}
             </div>
           </div>
 
           {/* Actions */}
-          <div className="p-4">
+          <div className="p-4 space-y-2">
+            <a
+              href="/settings"
+              className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
+            >
+              <Settings size={14} />
+              <span>Settings</span>
+            </a>
             <Button
               onClick={handleDisconnect}
               variant="danger"
@@ -169,15 +203,23 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
           onClick={() => setShowDropdown(false)}
         />
       )}
+
+      {/* Wallet Selection Modal */}
+      <WalletSelectModal
+        isOpen={showWalletModal}
+        onClose={() => setShowWalletModal(false)}
+      />
     </div>
   );
 };
 
 // Wallet connection status indicator for other components
 export const WalletStatus: React.FC<{ className?: string }> = ({ className }) => {
-  const wallet = useKasplexWallet();
+  const wallet = useMultichainWallet();
 
-  if (!wallet.isSupported) {
+  const hasAvailableWallet = wallet.availableConnectors && wallet.availableConnectors.length > 0;
+  
+  if (!hasAvailableWallet) {
     return (
       <div className={cn("flex items-center text-amber-600", className)}>
         <div className="w-2 h-2 bg-amber-500 rounded-full mr-2" />
@@ -214,11 +256,13 @@ export const WalletStatus: React.FC<{ className?: string }> = ({ className }) =>
 
 // Hook for wallet connection requirements in other components
 export const useWalletGuard = () => {
-  const wallet = useKasplexWallet();
+  const wallet = useMultichainWallet();
 
   const requireConnection = (action: string = 'perform this action') => {
-    if (!wallet.isSupported) {
-      throw new Error('Kasplex wallet is not installed. Please install it to continue.');
+    const hasAvailableWallet = wallet.availableConnectors && wallet.availableConnectors.length > 0;
+    
+    if (!hasAvailableWallet) {
+      throw new Error('Wallet is not installed. Please install a compatible wallet to continue.');
     }
     
     if (!wallet.connected) {
@@ -239,21 +283,22 @@ export const WalletRequired: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }> = ({ children, fallback }) => {
-  const wallet = useKasplexWallet();
+  const wallet = useMultichainWallet();
+  const hasAvailableWallet = wallet.availableConnectors && wallet.availableConnectors.length > 0;
 
-  if (!wallet.isSupported) {
+  if (!hasAvailableWallet) {
     return (
       fallback || (
         <div className="text-center p-8 bg-amber-50 rounded-lg border border-amber-200">
           <Wallet size={48} className="mx-auto text-amber-600 mb-4" />
           <h3 className="text-lg font-semibold text-amber-800 mb-2">
-            Kasplex Wallet Required
+            Wallet Required
           </h3>
           <p className="text-amber-700 mb-4">
-            You need to install the Kasplex wallet to use this feature.
+            You need to install a compatible wallet (MetaMask, WalletConnect, etc.) to use this feature.
           </p>
           <Button
-            onClick={() => window.open('https://kasplex.io/wallet', '_blank')}
+            onClick={() => window.open('https://metamask.io/download/', '_blank')}
             variant="primary"
           >
             Install Wallet
@@ -272,7 +317,7 @@ export const WalletRequired: React.FC<{
             Connect Your Wallet
           </h3>
           <p className="text-blue-700 mb-4">
-            Please connect your Kasplex wallet to continue.
+            Please connect your wallet to continue.
           </p>
           <WalletConnectButton />
         </div>

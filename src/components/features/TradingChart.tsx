@@ -41,6 +41,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [priceData, setPriceData] = useState<PriceData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   const timeframes = [
     { value: '1m', label: '1m' },
@@ -61,20 +62,23 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       layout: {
         background: { color: 'transparent' },
         textColor: '#d1d5db',
+        fontSize: isMobile ? 10 : 12,
       },
       grid: {
         vertLines: {
           color: 'rgba(107, 114, 128, 0.2)',
+          visible: !isMobile, // Hide vertical lines on mobile for cleaner look
         },
         horzLines: {
           color: 'rgba(107, 114, 128, 0.2)',
         },
       },
       crosshair: {
-        mode: 1,
+        mode: isMobile ? 0 : 1, // Disable crosshair on mobile for better touch interaction
         vertLine: {
           color: 'rgba(168, 85, 247, 0.5)',
           labelBackgroundColor: '#a855f7',
+          visible: !isMobile,
         },
         horzLine: {
           color: 'rgba(168, 85, 247, 0.5)',
@@ -84,12 +88,28 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       rightPriceScale: {
         borderColor: 'rgba(107, 114, 128, 0.3)',
         textColor: '#d1d5db',
+        autoScale: true,
+        scaleMargins: {
+          top: isMobile ? 0.05 : 0.1,
+          bottom: isMobile ? 0.05 : 0.1,
+        },
       },
       timeScale: {
         borderColor: 'rgba(107, 114, 128, 0.3)',
-        textColor: '#d1d5db',
-        timeVisible: true,
+        timeVisible: !isMobile, // Hide time labels on mobile
         secondsVisible: false,
+      },
+      // Mobile optimizations
+      handleScroll: {
+        mouseWheel: !isMobile, // Disable mouse wheel on mobile
+        pressedMouseMove: !isMobile,
+        horzTouchDrag: isMobile, // Enable horizontal touch drag on mobile
+        vertTouchDrag: false, // Disable vertical drag
+      },
+      handleScale: {
+        axisPressedMouseMove: !isMobile,
+        mouseWheel: !isMobile,
+        pinch: isMobile, // Enable pinch-to-zoom on mobile
       },
     });
 
@@ -140,7 +160,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [height, showVolume]);
+  }, [height, showVolume, isMobile]);
 
   // Generate mock price data (replace with real data)
   useEffect(() => {
@@ -204,9 +224,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   if (loading) {
     return (
       <Card className={cn('p-6', className)}>
-        <div className=\"flex items-center justify-center h-96\">
-          <div className=\"animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500\"></div>
-          <span className=\"ml-3 text-gray-400\">Loading chart...</span>
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+          <span className="ml-3 text-gray-400">Loading chart...</span>
         </div>
       </Card>
     );
@@ -227,30 +247,30 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         isFullscreen && 'h-full rounded-none border-none'
       )}>
         {/* Header */}
-        <div className=\"flex items-center justify-between p-4 border-b border-gray-700/50\">
-          <div className=\"flex items-center space-x-4\">
-            <div className=\"flex items-center space-x-2\">
-              <BarChart3 className=\"text-purple-500\" size={20} />
-              <h3 className=\"font-semibold text-white\">{token.symbol}/KAS</h3>
+        <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <BarChart3 className="text-purple-500" size={20} />
+              <h3 className="font-semibold text-white">{token.symbol}/KAS</h3>
             </div>
             
-            <div className=\"flex items-center space-x-2\">
-              <span className=\"text-white font-mono text-lg\">
+            <div className="flex items-center space-x-2">
+              <span className="text-white font-mono text-lg">
                 {currentPrice.toFixed(8)}
               </span>
               <span className={cn(
                 'text-sm font-medium flex items-center',
                 priceChange >= 0 ? 'text-green-500' : 'text-red-500'
               )}>
-                <TrendingUp size={14} className=\"mr-1\" />
+                <TrendingUp size={14} className="mr-1" />
                 {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
               </span>
             </div>
           </div>
 
-          <div className=\"flex items-center space-x-2\">
+          <div className="flex items-center space-x-2">
             {/* Timeframe Selector */}
-            <div className=\"flex items-center space-x-1 bg-gray-800/50 rounded-lg p-1\">
+            <div className="flex items-center space-x-1 bg-gray-800/50 rounded-lg p-1">
               {timeframes.map((tf) => (
                 <button
                   key={tf.value}
@@ -270,38 +290,45 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             {/* Fullscreen Toggle */}
             <button
               onClick={toggleFullscreen}
-              className=\"p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors\"
+              className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
             >
               <Maximize2 size={16} />
             </button>
           </div>
         </div>
 
-        {/* Chart Container */}
+        {/* Chart Container - Mobile optimized */}
         <div 
           ref={chartContainerRef}
           className={cn(
-            'relative bg-transparent',
-            isFullscreen ? 'flex-1' : `h-[${height}px]`
+            'relative bg-transparent touch-manipulation gpu-accelerated',
+            isMobile && 'rounded-lg overflow-hidden',
+            isFullscreen && 'flex-1'
           )}
-          style={{ height: isFullscreen ? 'calc(100vh - 80px)' : height }}
+          style={{ 
+            height: isFullscreen ? 'calc(100vh - 80px)' : height,
+            // Prevent text selection on mobile during chart interaction
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            WebkitTouchCallout: 'none',
+          }}
         />
 
         {/* Chart Stats Footer */}
-        <div className=\"flex items-center justify-between p-4 border-t border-gray-700/50 bg-gray-800/20\">
-          <div className=\"flex items-center space-x-6 text-sm\">
-            <div className=\"flex items-center space-x-1 text-gray-400\">
+        <div className="flex items-center justify-between p-4 border-t border-gray-700/50 bg-gray-800/20">
+          <div className="flex items-center space-x-6 text-sm">
+            <div className="flex items-center space-x-1 text-gray-400">
               <Volume2 size={14} />
               <span>Vol: {token.volume24h.toLocaleString()}</span>
             </div>
             
-            <div className=\"flex items-center space-x-1 text-gray-400\">
+            <div className="flex items-center space-x-1 text-gray-400">
               <Clock size={14} />
               <span>24h: {token.change24h >= 0 ? '+' : ''}{token.change24h.toFixed(2)}%</span>
             </div>
           </div>
 
-          <div className=\"text-xs text-gray-500\">
+          <div className="text-xs text-gray-500">
             Last updated: {new Date().toLocaleTimeString()}
           </div>
         </div>
@@ -321,7 +348,7 @@ export const MiniTradingChart: React.FC<{
         token={token}
         height={96}
         showVolume={false}
-        className=\"border-none\"
+        className="border-none"
       />
     </div>
   );

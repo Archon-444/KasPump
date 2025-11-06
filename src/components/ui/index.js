@@ -1,2 +1,2 @@
 // UI Components Export Index
-export * from './index.ts';
+export * from './index.tsx';

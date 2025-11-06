@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { KasPumpToken } from '../../types';
 import { formatCurrency, formatPercentage, formatTimeAgo, cn } from '../../utils';
+import { useHapticFeedback } from '../../hooks/useHapticFeedback';
 import { Badge, Progress } from '../ui';
 
 export interface MobileTokenCardProps {
@@ -35,32 +36,26 @@ export const MobileTokenCard: React.FC<MobileTokenCardProps> = ({
   const [liked, setLiked] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const isPositive = token.change24h >= 0;
+  const haptic = useHapticFeedback();
 
   const handlePanEnd = (event: any, info: PanInfo) => {
     const threshold = 100;
     
     if (info.offset.x > threshold) {
       // Swipe right - Quick buy
+      haptic.trigger('success');
       onQuickTrade?.(token, 'buy');
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
     } else if (info.offset.x < -threshold) {
       // Swipe left - Show actions
+      haptic.trigger('selection');
       setShowActions(true);
-      if (navigator.vibrate) {
-        navigator.vibrate(30);
-      }
     }
   };
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
     setLiked(!liked);
-    
-    if (navigator.vibrate) {
-      navigator.vibrate(liked ? 30 : 50);
-    }
+    haptic.trigger(liked ? 'light' : 'success');
   };
 
   const handleShare = (e: React.MouseEvent) => {

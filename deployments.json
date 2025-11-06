@@ -8,7 +8,20 @@
     "deployedAt": null
   },
   "97": {
-    "name": "BNB Smart Chain Testnet",
+    "name": "BSC Testnet",
+    "contracts": {
+      "DeterministicDeployer": "0x943D9f1D05586435282dc2F978612d6526138c79",
+      "TokenFactory": "0x7Af627Bf902549543701C58366d424eE59A4ee08",
+      "FeeRecipient": "0xEFec2Eddf5151c724B610B7e5fa148752674D667"
+    },
+    "deployedAt": "2025-10-31T08:14:02.548Z",
+    "deployer": "0xEFec2Eddf5151c724B610B7e5fa148752674D667",
+    "blockNumber": 70735503,
+    "deterministicSalt": "0x5cd19fe5f28d6e25fa610706857dc91815daea7e10fabb6d757b91eb1942ec4f",
+    "isDeterministic": true
+  },
+  "8453": {
+    "name": "Base",
     "contracts": {
       "TokenFactory": "",
       "FeeRecipient": ""
@@ -23,24 +36,16 @@
     },
     "deployedAt": null
   },
-  "421614": {
-    "name": "Arbitrum Sepolia",
-    "contracts": {
-      "TokenFactory": "",
-      "FeeRecipient": ""
-    },
-    "deployedAt": null
-  },
-  "8453": {
-    "name": "Base",
-    "contracts": {
-      "TokenFactory": "",
-      "FeeRecipient": ""
-    },
-    "deployedAt": null
-  },
   "84532": {
     "name": "Base Sepolia",
+    "contracts": {
+      "TokenFactory": "",
+      "FeeRecipient": ""
+    },
+    "deployedAt": null
+  },
+  "421614": {
+    "name": "Arbitrum Sepolia",
     "contracts": {
       "TokenFactory": "",
       "FeeRecipient": ""

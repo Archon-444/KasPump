@@ -19,6 +19,7 @@
     "deploy:deterministic:base": "hardhat run scripts/deploy-deterministic.ts --network base",
     "deploy:deterministic:base-sepolia": "hardhat run scripts/deploy-deterministic.ts --network baseSepolia",
     "test": "hardhat test",
+    "test:bsc": "hardhat run scripts/test-deployed-bsc.ts --network bscTestnet",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -35,6 +36,7 @@
     "lucide-react": "^0.294.0",
     "next": "14.0.4",
     "react": "^18.2.0",
+    "react-confetti": "^6.4.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
     "recharts": "^2.8.0",
@@ -52,6 +54,7 @@
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "autoprefixer": "^10.4.16",
+    "critters": "^0.0.23",
     "dotenv": "^17.2.3",
     "eslint": "^8.53.0",
     "eslint-config-next": "14.0.4",

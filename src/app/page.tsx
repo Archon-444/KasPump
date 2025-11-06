@@ -1,35 +1,55 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, TrendingUp, Zap, Users, Search } from 'lucide-react';
+import { Plus, TrendingUp, Zap, Users, Search, Star } from 'lucide-react';
 import { WalletConnectButton } from '../components/features/WalletConnectButton';
 import { TokenCard } from '../components/features/TokenCard';
 import { TokenCreationModal } from '../components/features/TokenCreationModal';
-import { TokenTradingPage } from '../components/features/TokenTradingPage';
+import dynamic from 'next/dynamic';
+import { TokenSearchFilters, TokenFilters } from '../components/features/TokenSearchFilters';
+import { PWAInstallBanner } from '../components/features/PWAInstallBanner';
 import { MobileNavigation, MobileHeader, useMobileNavigation, MobileTokenCard } from '../components/mobile';
+
+// Lazy load heavy components for better mobile performance
+const TokenTradingPage = dynamic(() => import('../components/features/TokenTradingPage').then(mod => ({ default: mod.TokenTradingPage })), {
+  loading: () => <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div></div>,
+  ssr: false,
+});
+
+const TokenCarousel = dynamic(() => import('../components/features/TokenCarousel').then(mod => ({ default: mod.TokenCarousel })), {
+  loading: () => <div className="h-64 flex items-center justify-center"><div className="animate-pulse text-gray-400">Loading trending tokens...</div></div>,
+  ssr: false,
+});
 import { Button, Input, Card } from '../components/ui';
+import { useRouter } from 'next/navigation';
 import { useContracts } from '../hooks/useContracts';
+import { useFavorites } from '../hooks/useFavorites';
+import { useKeyboardShortcuts, COMMON_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { KasPumpToken } from '../types';
-import { debounce } from '../utils';
+import { debounce, cn } from '../utils';
 
 export default function HomePage() {
   const [tokens, setTokens] = useState<KasPumpToken[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'trending' | 'new'>('all');
   const [selectedToken, setSelectedToken] = useState<KasPumpToken | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [filters, setFilters] = useState<TokenFilters>({
+    searchQuery: '',
+    chains: [],
+    status: 'all',
+    volumeRange: 'all',
+    sortBy: 'volume',
+    sortOrder: 'desc',
+  });
   
+  const router = useRouter();
   const mobileNav = useMobileNavigation();
   
   const contracts = useContracts();
-
-  // Load tokens on mount
-  useEffect(() => {
-    loadTokens();
-  }, []);
+  const favorites = useFavorites();
 
   // Mobile detection
   useEffect(() => {
@@ -42,6 +62,7 @@ export default function HomePage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Load tokens function
   const loadTokens = async () => {
     try {
       setLoading(true);
@@ -100,28 +121,97 @@ export default function HomePage() {
     }
   };
 
-  // Debounced search
-  const debouncedSearch = debounce((term: string) => {
-    // In a real implementation, this would filter tokens
-    console.log('Searching for:', term);
-  }, 300);
-
+  // Load tokens on mount
   useEffect(() => {
-    debouncedSearch(searchTerm);
-  }, [searchTerm]);
+    loadTokens();
+  }, []);
 
-  const filteredTokens = tokens.filter(token => {
-    const matchesSearch = token.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         token.symbol.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (filter === 'trending') {
-      return matchesSearch && token.change24h > 5;
-    } else if (filter === 'new') {
-      return matchesSearch && Date.now() - token.createdAt.getTime() < 24 * 60 * 60 * 1000;
-    }
-    
-    return matchesSearch;
+  // Pull-to-refresh support (mobile) - must be after loadTokens is defined
+  const { elementRef: pullRefreshRef, isPulling, pullProgress } = usePullToRefresh({
+    onRefresh: loadTokens,
+    enabled: isMobile,
   });
+
+  // Filter and sort tokens
+  const filteredTokens = useMemo(() => {
+    let filtered = [...tokens];
+
+    // Search filter
+    if (filters.searchQuery) {
+      const query = filters.searchQuery.toLowerCase();
+      filtered = filtered.filter(token =>
+        token.name.toLowerCase().includes(query) ||
+        token.symbol.toLowerCase().includes(query) ||
+        token.address.toLowerCase().includes(query)
+      );
+    }
+
+    // Status filter
+    if (filters.status === 'active') {
+      filtered = filtered.filter(token => !token.isGraduated && (token.volume24h || 0) > 0);
+    } else if (filters.status === 'graduated') {
+      filtered = filtered.filter(token => token.isGraduated);
+    } else if (filters.status === 'new') {
+      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+      filtered = filtered.filter(token => token.createdAt.getTime() > oneDayAgo);
+    }
+
+    // Chain filter (if tokens had chainId, we'd filter here)
+    // For now, we'll skip since mock tokens don't have chainId
+
+    // Volume range filter
+    if (filters.volumeRange === 'high') {
+      filtered = filtered.filter(token => (token.volume24h || 0) >= 10000);
+    } else if (filters.volumeRange === 'medium') {
+      filtered = filtered.filter(token => {
+        const vol = token.volume24h || 0;
+        return vol >= 1000 && vol < 10000;
+      });
+    } else if (filters.volumeRange === 'low') {
+      filtered = filtered.filter(token => (token.volume24h || 0) < 1000);
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      let compareA: number;
+      let compareB: number;
+
+      switch (filters.sortBy) {
+        case 'volume':
+          compareA = a.volume24h || 0;
+          compareB = b.volume24h || 0;
+          break;
+        case 'marketCap':
+          compareA = a.marketCap;
+          compareB = b.marketCap;
+          break;
+        case 'price':
+          compareA = a.price;
+          compareB = b.price;
+          break;
+        case 'change24h':
+          compareA = a.change24h;
+          compareB = b.change24h;
+          break;
+        case 'holders':
+          compareA = a.holders;
+          compareB = b.holders;
+          break;
+        case 'created':
+          compareA = a.createdAt.getTime();
+          compareB = b.createdAt.getTime();
+          break;
+        default:
+          return 0;
+      }
+
+      if (compareA < compareB) return filters.sortOrder === 'asc' ? -1 : 1;
+      if (compareA > compareB) return filters.sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [tokens, filters]);
 
   const stats = {
     totalTokens: tokens.length,
@@ -170,20 +260,44 @@ export default function HomePage() {
   }
 
   return (
-    <div className={cn('min-h-screen', isMobile && 'pb-20')}>
+    <div 
+      ref={pullRefreshRef as any}
+      className={cn('min-h-screen', isMobile && 'pb-20')}
+    >
+      {/* Pull-to-refresh indicator */}
+      {isMobile && isPulling && (
+        <motion.div
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center bg-purple-600/20 backdrop-blur-sm"
+          style={{ height: `${Math.min(pullProgress * 60, 60)}px` }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <div className="flex items-center space-x-2">
+            <motion.div
+              animate={{ rotate: pullProgress * 360 }}
+              className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full"
+            />
+            <span className="text-purple-400 text-sm font-medium">
+              {pullProgress >= 1 ? 'Release to refresh' : 'Pull to refresh'}
+            </span>
+          </div>
+        </motion.div>
+      )}
+
       {/* Header */}
       <header className="border-b border-gray-800/50 bg-gray-900/30 backdrop-blur-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center space-x-4">
-              <motion.div
+              <motion.a
+                href="/"
                 className="text-2xl font-bold gradient-text"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
               >
                 KasPump
-              </motion.div>
+              </motion.a>
               <div className="hidden sm:block text-sm text-gray-400">
                 Meme coins on Kasplex L2
               </div>
@@ -191,19 +305,40 @@ export default function HomePage() {
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-6">
-              <Button variant="ghost" size="sm">Trade</Button>
-              <Button variant="ghost" size="sm">Create</Button>
-              <Button variant="ghost" size="sm">Portfolio</Button>
+              <Button variant="ghost" size="sm" onClick={() => router.push('/')}>Trade</Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowCreateModal(true)}>Create</Button>
+              <Button variant="ghost" size="sm" onClick={() => router.push('/portfolio')}>Portfolio</Button>
+              <Button variant="ghost" size="sm" onClick={() => router.push('/analytics')}>Analytics</Button>
+              <Button variant="ghost" size="sm" onClick={() => router.push('/creator')}>Creator</Button>
             </nav>
 
             {/* Wallet Connection */}
-            <WalletConnectButton />
+            <div className="flex items-center space-x-3">
+              <a
+                href="/favorites"
+                className="p-2 rounded-lg text-gray-400 hover:text-yellow-400 hover:bg-gray-800 transition-colors relative"
+                title="Favorites"
+              >
+                <Star size={20} />
+                {favorites.favoriteCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 text-gray-900 rounded-full text-xs font-bold flex items-center justify-center">
+                    {favorites.favoriteCount > 99 ? '99+' : favorites.favoriteCount}
+                  </span>
+                )}
+              </a>
+              <WalletConnectButton />
+            </div>
           </div>
         </div>
       </header>
 
+      {/* Skip to main content link */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
         <motion.section
           className="text-center py-12 mb-12"
@@ -276,39 +411,38 @@ export default function HomePage() {
           </Card>
         </motion.section>
 
+        {/* Trending Tokens Carousel */}
+        {filteredTokens.length > 0 && (
+          <motion.section
+            className="mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
+            <TokenCarousel
+              tokens={filteredTokens
+                .sort((a, b) => b.volume24h - a.volume24h)
+                .slice(0, 10)}
+              title="Trending Now 🔥"
+              subtitle="Top tokens by 24h volume"
+              onTokenClick={(token) => setSelectedToken(token)}
+              autoScroll={true}
+            />
+          </motion.section>
+        )}
+
         {/* Tokens Section */}
         <section id="tokens">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-white mb-4 sm:mb-0">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-white mb-6">
               Live Tokens
             </h2>
             
-            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-              {/* Search */}
-              <div className="relative w-full sm:w-80">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                <Input
-                  placeholder="Search tokens..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-gray-800/50 border-gray-700"
-                />
-              </div>
-              
-              {/* Filter */}
-              <div className="flex space-x-2">
-                {(['all', 'trending', 'new'] as const).map((filterOption) => (
-                  <Button
-                    key={filterOption}
-                    variant={filter === filterOption ? 'primary' : 'ghost'}
-                    size="sm"
-                    onClick={() => setFilter(filterOption)}
-                  >
-                    {filterOption.charAt(0).toUpperCase() + filterOption.slice(1)}
-                  </Button>
-                ))}
-              </div>
-            </div>
+            <TokenSearchFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              tokenCount={filteredTokens.length}
+            />
           </div>
 
           {/* Token Grid */}
@@ -351,6 +485,7 @@ export default function HomePage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: index * 0.1 }}
+                  className="content-visibility-auto"
                 >
                   {isMobile ? (
                     <MobileTokenCard 
@@ -394,10 +529,13 @@ export default function HomePage() {
       {/* Mobile Navigation */}
       {isMobile && (
         <MobileNavigation
-          currentPage={mobileNav.currentPage}
+          currentPage={mobileNav.currentPage as 'home' | 'trading' | 'create' | 'analytics' | 'profile'}
           onNavigate={handleMobileNavigation}
         />
       )}
+
+      {/* PWA Install Banner */}
+      <PWAInstallBanner />
     </div>
   );
 }

@@ -11,7 +11,7 @@ async function main() {
   const balance = await ethers.provider.getBalance(deployer.address);
   console.log("Account balance:", ethers.formatEther(balance), "KAS");
   
-  if (balance === 0n) {
+  if (balance === BigInt(0)) {
     console.log("❌ No balance detected. Please get testnet KAS from the faucet:");
     console.log("   Kasplex Testnet Faucet: https://faucet.kasplextest.xyz");
     process.exit(1);

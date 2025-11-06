@@ -117,7 +117,8 @@ export function getChainMetadata(chainId: number) {
 
 // Check if chain is testnet
 export function isTestnet(chainId: number): boolean {
-  return [bscTestnet.id, arbitrumSepolia.id, baseSepolia.id].includes(chainId);
+  const testnetIds: number[] = [bscTestnet.id, arbitrumSepolia.id, baseSepolia.id];
+  return testnetIds.includes(chainId);
 }
 
 // Get explorer URL for address/tx

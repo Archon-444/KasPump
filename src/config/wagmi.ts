@@ -22,18 +22,18 @@ const chains = [
   baseSepolia,
 ] as const;
 
-// Create wagmi config
+// Create wagmi config with prioritized connectors for EVM wallets
 export const config = createConfig({
   chains,
   connectors: [
-    // MetaMask
+    // MetaMask (highest priority for EVM)
     metaMask({
       dappMetadata: {
         name: 'KasPump',
         url: typeof window !== 'undefined' ? window.location.origin : '',
       },
     }),
-    // WalletConnect
+    // WalletConnect (supports many wallets via QR)
     walletConnect({
       projectId,
       metadata: {
@@ -49,8 +49,10 @@ export const config = createConfig({
       appName: 'KasPump',
       appLogoUrl: typeof window !== 'undefined' ? `${window.location.origin}/logo.png` : undefined,
     }),
-    // Generic injected wallet fallback
-    injected({ shimDisconnect: true }),
+    // Generic injected wallet (Trust Wallet, Rabby, OKX, Binance, etc.)
+    injected({ 
+      shimDisconnect: true,
+    }),
   ],
   transports: {
     [bsc.id]: http(process.env.NEXT_PUBLIC_BSC_RPC_URL),

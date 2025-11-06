@@ -1,6 +1,7 @@
 // Partnership Integration Framework for KasPump
 // Defines interfaces and integration points for Kaspa ecosystem partnerships
 
+import * as React from 'react';
 import { ethers } from 'ethers';
 
 // Types for partnership integrations

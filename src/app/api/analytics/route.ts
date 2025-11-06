@@ -1,26 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 
+const TOKEN_FACTORY_ABI = [
+  "function getAllTokens() external view returns (address[])",
+  "function getTokenConfig(address tokenAddress) external view returns (tuple(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType, uint256 graduationThreshold))",
+  "function getTokenAMM(address tokenAddress) external view returns (address)",
+  "event TokenCreated(address indexed tokenAddress, address indexed creator, string name, string symbol, uint256 totalSupply, address ammAddress)",
+  "event TokenGraduated(address indexed tokenAddress, uint256 finalSupply, uint256 liquidityAdded)"
+];
+
+const BONDING_CURVE_ABI = [
+  "function getTradingInfo() external view returns (uint256 _currentSupply, uint256 _currentPrice, uint256 _totalVolume, uint256 _graduation, bool _isGraduated)"
+];
+
 // Analytics API endpoint - crucial for partnerships and business intelligence
+export const dynamic = 'force-dynamic'; // API routes are always dynamic
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const timeframe = searchParams.get('timeframe') || '24h'; // 24h, 7d, 30d, all
     const metric = searchParams.get('metric'); // Optional: specific metric
 
-    // Initialize provider and contracts
-    const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL);
+    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL;
     const factoryAddress = process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS;
-    
-    if (!factoryAddress) {
+
+    if (!rpcUrl || !factoryAddress) {
       return NextResponse.json({ error: 'Factory contract not deployed' }, { status: 500 });
     }
 
-    const analytics = await getPlatformAnalytics(provider, factoryAddress, timeframe);
+    // Initialize provider and contracts
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, provider);
+    
+    const analytics = await getPlatformAnalytics(provider, factoryContract, timeframe);
 
     if (metric) {
       // Return specific metric
-      return NextResponse.json({ [metric]: analytics[metric] });
+      return NextResponse.json({ [metric]: (analytics as any)[metric] });
     }
 
     // Return all analytics
@@ -35,15 +51,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function getPlatformAnalytics(provider: ethers.JsonRpcProvider, factoryAddress: string, timeframe: string) {
-  const TOKEN_FACTORY_ABI = [
-    "function getAllTokens() external view returns (address[])",
-    "function getTokenConfig(address tokenAddress) external view returns (tuple(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType, uint256 graduationThreshold))",
-    "event TokenCreated(address indexed tokenAddress, address indexed creator, string name, string symbol, uint256 totalSupply, address ammAddress)",
-    "event TokenGraduated(address indexed tokenAddress, uint256 finalSupply, uint256 liquidityAdded)"
-  ];
-
-  const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, provider);
+async function getPlatformAnalytics(
+  provider: ethers.JsonRpcProvider,
+  factoryContract: ethers.Contract,
+  timeframe: string
+) {
   
   try {
     // Get all tokens
@@ -51,9 +63,9 @@ async function getPlatformAnalytics(provider: ethers.JsonRpcProvider, factoryAdd
     
     // Calculate platform metrics
     const totalTokens = allTokens.length;
-    const totalVolume = await calculateTotalVolume(provider, allTokens);
-    const totalMarketCap = await calculateTotalMarketCap(provider, factoryAddress, allTokens);
-    const graduatedTokens = await countGraduatedTokens(provider, allTokens);
+    const totalVolume = await calculateTotalVolume(provider, factoryContract, allTokens);
+    const totalMarketCap = await calculateTotalMarketCap(provider, factoryContract, allTokens);
+    const graduatedTokens = await countGraduatedTokens(provider, factoryContract, allTokens);
     const activeTokens = await countActiveTokens(provider, allTokens, timeframe);
     const totalUsers = await calculateTotalUsers(provider, allTokens);
     
@@ -67,7 +79,7 @@ async function getPlatformAnalytics(provider: ethers.JsonRpcProvider, factoryAdd
     const creatorEarnings = calculateCreatorEarnings(totalVolume);
 
     // Growth metrics
-    const newTokens = await getNewTokensCount(provider, factoryAddress, timeframe);
+    const newTokens = await getNewTokensCount(factoryContract, timeframe);
     const volumeGrowth = await getVolumeGrowth(provider, allTokens, timeframe);
     const userGrowth = await getUserGrowth(provider, allTokens, timeframe);
 
@@ -104,7 +116,7 @@ async function getPlatformAnalytics(provider: ethers.JsonRpcProvider, factoryAdd
 
       // Partnership Data
       partnership: {
-        readyForGraduation: await getGraduationReadyTokens(provider, allTokens),
+        readyForGraduation: await getGraduationReadyTokens(provider, factoryContract, allTokens),
         highVolumeTokens: await getHighVolumeTokens(provider, allTokens),
         topPerformingTokens: await getTopPerformingTokens(provider, allTokens),
         ecosystemValue: totalMarketCap + platformFees // Value created for ecosystem
@@ -125,17 +137,17 @@ async function getPlatformAnalytics(provider: ethers.JsonRpcProvider, factoryAdd
 }
 
 // Helper functions for analytics calculations
-async function calculateTotalVolume(provider: ethers.JsonRpcProvider, tokens: string[]): Promise<number> {
+async function calculateTotalVolume(
+  provider: ethers.JsonRpcProvider,
+  factoryContract: ethers.Contract,
+  tokens: string[]
+): Promise<number> {
   let totalVolume = 0;
-  
-  const BONDING_CURVE_ABI = [
-    "function getTradingInfo() external view returns (uint256 _currentSupply, uint256 _currentPrice, uint256 _totalVolume, uint256 _graduation, bool _isGraduated)"
-  ];
 
   for (const tokenAddress of tokens) {
     try {
       // Get AMM address (simplified - in production would use proper lookup)
-      const ammAddress = await getAMMAddressForToken(tokenAddress);
+      const ammAddress = await getAMMAddressForToken(factoryContract, tokenAddress);
       if (!ammAddress) continue;
 
       const ammContract = new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider);
@@ -150,18 +162,16 @@ async function calculateTotalVolume(provider: ethers.JsonRpcProvider, tokens: st
   return totalVolume;
 }
 
-async function calculateTotalMarketCap(provider: ethers.JsonRpcProvider, factoryAddress: string, tokens: string[]): Promise<number> {
+async function calculateTotalMarketCap(
+  provider: ethers.JsonRpcProvider,
+  factoryContract: ethers.Contract,
+  tokens: string[]
+): Promise<number> {
   let totalMarketCap = 0;
-
-  const TOKEN_FACTORY_ABI = [
-    "function getTokenConfig(address tokenAddress) external view returns (tuple(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType, uint256 graduationThreshold))"
-  ];
-
-  const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, provider);
 
   for (const tokenAddress of tokens) {
     try {
-      const ammAddress = await getAMMAddressForToken(tokenAddress);
+      const ammAddress = await getAMMAddressForToken(factoryContract, tokenAddress);
       if (!ammAddress) continue;
 
       const tradingData = await getTradingDataForAnalytics(provider, ammAddress);
@@ -176,12 +186,16 @@ async function calculateTotalMarketCap(provider: ethers.JsonRpcProvider, factory
   return totalMarketCap;
 }
 
-async function countGraduatedTokens(provider: ethers.JsonRpcProvider, tokens: string[]): Promise<number> {
+async function countGraduatedTokens(
+  provider: ethers.JsonRpcProvider,
+  factoryContract: ethers.Contract,
+  tokens: string[]
+): Promise<number> {
   let graduatedCount = 0;
 
   for (const tokenAddress of tokens) {
     try {
-      const ammAddress = await getAMMAddressForToken(tokenAddress);
+      const ammAddress = await getAMMAddressForToken(factoryContract, tokenAddress);
       if (!ammAddress) continue;
 
       const tradingData = await getTradingDataForAnalytics(provider, ammAddress);
@@ -196,12 +210,12 @@ async function countGraduatedTokens(provider: ethers.JsonRpcProvider, tokens: st
   return graduatedCount;
 }
 
-async function countActiveTokens(provider: ethers.JsonRpcProvider, tokens: string[], timeframe: string): Promise<number> {
+async function countActiveTokens(_provider: ethers.JsonRpcProvider, tokens: string[], _timeframe: string): Promise<number> {
   // Placeholder - would implement based on recent trading activity
   return Math.floor(tokens.length * 0.6); // Assume 60% are active
 }
 
-async function calculateTotalUsers(provider: ethers.JsonRpcProvider, tokens: string[]): Promise<number> {
+async function calculateTotalUsers(_provider: ethers.JsonRpcProvider, tokens: string[]): Promise<number> {
   // Placeholder - would track unique addresses across all tokens
   return tokens.length * 15; // Rough estimate
 }
@@ -214,29 +228,33 @@ function calculateCreatorEarnings(totalVolume: number): number {
   return totalVolume * 0.005; // Approximate creator earnings
 }
 
-async function getNewTokensCount(provider: ethers.JsonRpcProvider, factoryAddress: string, timeframe: string): Promise<number> {
+async function getNewTokensCount(factoryContract: ethers.Contract, timeframe: string): Promise<number> {
   // Placeholder - would query TokenCreated events within timeframe
   const multipliers = { '24h': 0.1, '7d': 0.3, '30d': 0.7, 'all': 1 };
   return Math.floor(10 * (multipliers[timeframe as keyof typeof multipliers] || 1));
 }
 
-async function getVolumeGrowth(provider: ethers.JsonRpcProvider, tokens: string[], timeframe: string): Promise<number> {
+async function getVolumeGrowth(_provider: ethers.JsonRpcProvider, _tokens: string[], _timeframe: string): Promise<number> {
   // Placeholder - would calculate volume growth percentage
   return Math.random() * 50 - 25; // -25% to +25% growth
 }
 
-async function getUserGrowth(provider: ethers.JsonRpcProvider, tokens: string[], timeframe: string): Promise<number> {
+async function getUserGrowth(_provider: ethers.JsonRpcProvider, _tokens: string[], _timeframe: string): Promise<number> {
   // Placeholder - would calculate user growth percentage
   return Math.random() * 30; // 0% to +30% growth
 }
 
-async function getGraduationReadyTokens(provider: ethers.JsonRpcProvider, tokens: string[]): Promise<number> {
+async function getGraduationReadyTokens(
+  provider: ethers.JsonRpcProvider,
+  factoryContract: ethers.Contract,
+  tokens: string[]
+): Promise<number> {
   // Count tokens close to graduation (>70% progress)
   let readyCount = 0;
 
   for (const tokenAddress of tokens) {
     try {
-      const ammAddress = await getAMMAddressForToken(tokenAddress);
+      const ammAddress = await getAMMAddressForToken(factoryContract, tokenAddress);
       if (!ammAddress) continue;
 
       const tradingData = await getTradingDataForAnalytics(provider, ammAddress);
@@ -262,17 +280,28 @@ async function getTopPerformingTokens(provider: ethers.JsonRpcProvider, tokens: 
 }
 
 // Simplified helper functions (would be more robust in production)
-async function getAMMAddressForToken(tokenAddress: string): Promise<string | null> {
-  // Placeholder - would use proper AMM address resolution
-  return `0x${tokenAddress.slice(2)}AMM`; // Mock AMM address
+async function getAMMAddressForToken(factoryContract: ethers.Contract, tokenAddress: string): Promise<string | null> {
+  try {
+    const ammAddress = await factoryContract.getTokenAMM(tokenAddress);
+    if (ammAddress && ammAddress !== ethers.ZeroAddress) {
+      return ammAddress;
+    }
+  } catch {
+    // Method might not exist, fall through to events
+  }
+
+  const filter = factoryContract.filters.TokenCreated(tokenAddress);
+  const events = await factoryContract.queryFilter(filter);
+
+  if (events.length > 0 && 'args' in events[0]) {
+    return events[0].args.ammAddress as string;
+  }
+
+  return null;
 }
 
 async function getTradingDataForAnalytics(provider: ethers.JsonRpcProvider, ammAddress: string) {
   try {
-    const BONDING_CURVE_ABI = [
-      "function getTradingInfo() external view returns (uint256 _currentSupply, uint256 _currentPrice, uint256 _totalVolume, uint256 _graduation, bool _isGraduated)"
-    ];
-
     const ammContract = new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider);
     const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo();
 

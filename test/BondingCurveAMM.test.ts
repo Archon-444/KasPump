@@ -1,13 +1,14 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import hre from "hardhat";
+const { ethers } = hre;
 
-const PRECISION = 10n ** 18n;
+const PRECISION = 1000000000000000000n; // 10^18
 
 async function deployFixture() {
   const [deployer, user] = await ethers.getSigners();
 
   const totalSupply = 1_000_000n * PRECISION;
-  const basePrice = 1_000_000_000n; // 1 gwei
+  const basePrice = 1_000_000_000_000n; // 1e12 wei (0.000001 ETH - minimum allowed)
   const slope = 1_000_000_000n; // 1 gwei
   const graduationThreshold = 800_000n * PRECISION;
 

@@ -2,12 +2,18 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, AlertTriangle, CheckCircle, Loader } from 'lucide-react';
+import { X, Upload, AlertTriangle, CheckCircle, XCircle, Loader, Sparkles, Settings } from 'lucide-react';
 import { Button, Input, Textarea, Select, Card, Alert } from '../ui';
 import { WalletRequired } from './WalletConnectButton';
 import { useContracts } from '../../hooks/useContracts';
 import { TokenCreationForm, ContractError } from '../../types';
-import { isValidTokenName, isValidTokenSymbol, parseErrorMessage } from '../../utils';
+import { isValidTokenName, isValidTokenSymbol, parseErrorMessage, cn } from '../../utils';
+import { WizardProgress, WizardStep1, WizardStep2, WizardStep3 } from './TokenCreationWizard';
+import { MultiChainDeployment } from './MultiChainDeployment';
+import { useMultiChainDeployment } from '../../hooks/useMultiChainDeployment';
+import { ConfettiSuccess } from './ConfettiSuccess';
+import { SuccessToast } from './SuccessToast';
+import { uploadImageToIPFS, isIPFSConfigured } from '../../lib/ipfs';
 
 interface TokenCreationModalProps {
   isOpen: boolean;
@@ -38,6 +44,20 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
   const [creationStep, setCreationStep] = useState<'form' | 'confirm' | 'creating' | 'success' | 'error'>('form');
   const [creationResult, setCreationResult] = useState<any>(null);
   const [creationError, setCreationError] = useState<string>('');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageUploadProgress, setImageUploadProgress] = useState(0);
+  const [ipfsImageUrl, setIpfsImageUrl] = useState<string>('');
+  
+  // Wizard mode state
+  const [mode, setMode] = useState<'beginner' | 'advanced'>('beginner');
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
+  
+  // Multi-chain deployment
+  const [selectedChains, setSelectedChains] = useState<number[]>([]);
+  const [showMultiChain, setShowMultiChain] = useState(false);
+  const multiChainDeployment = useMultiChainDeployment();
 
   // Reset form when modal opens/closes
   React.useEffect(() => {
@@ -47,6 +67,8 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
         setCreationResult(null);
         setCreationError('');
         setErrors({});
+        setWizardStep(1);
+        setMode('beginner');
       }, 300);
     }
   }, [isOpen]);
@@ -107,13 +129,35 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
     setCreationStep('creating');
 
     try {
-      const result = await contracts.createToken({
-        ...formData,
-        symbol: formData.symbol.toUpperCase(),
-      });
+      // Upload image to IPFS first if we have an image and IPFS is configured
+      let finalImageUrl = '';
+      if (formData.image && isIPFSConfigured() && !ipfsImageUrl) {
+        try {
+          setImageUploadProgress(0);
+          const result = await uploadImageToIPFS(formData.image, {
+            onProgress: (progress) => setImageUploadProgress(progress),
+          });
+          finalImageUrl = result.url;
+        } catch (error: any) {
+          console.warn('IPFS upload failed, continuing without image URL:', error);
+          // Continue without IPFS URL
+        }
+      } else {
+        finalImageUrl = ipfsImageUrl;
+      }
+
+      const result = await contracts.createToken(
+        {
+          ...formData,
+          symbol: formData.symbol.toUpperCase(),
+        },
+        finalImageUrl // Pass IPFS URL as second parameter
+      );
 
       setCreationResult(result);
       setCreationStep('success');
+      setShowConfetti(true);
+      setShowSuccessToast(true);
       
       // Call success callback after a delay to show success state
       setTimeout(() => {
@@ -126,10 +170,11 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
       setCreationStep('error');
     } finally {
       setIsCreating(false);
+      setImageUploadProgress(0);
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       // Validate file
@@ -145,46 +190,229 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
 
       setFormData({ ...formData, image: file });
       setErrors({ ...errors, image: undefined });
+
+      // Upload to IPFS if configured
+      if (isIPFSConfigured()) {
+        try {
+          setUploadingImage(true);
+          setImageUploadProgress(0);
+          const result = await uploadImageToIPFS(file, {
+            onProgress: (progress) => setImageUploadProgress(progress),
+          });
+          setIpfsImageUrl(result.url);
+          setErrors({ ...errors, image: undefined });
+        } catch (error: any) {
+          console.error('IPFS upload failed:', error);
+          setErrors({ ...errors, image: `IPFS upload failed: ${error.message}` });
+          // Continue with local file if IPFS fails
+        } finally {
+          setUploadingImage(false);
+        }
+      } else {
+        // Clear IPFS URL if not configured
+        setIpfsImageUrl('');
+      }
     }
   };
 
   const estimatedGasCost = 0.005; // Estimated in KAS
   const totalCost = estimatedGasCost;
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return (
+      <>
+        <ConfettiSuccess trigger={showConfetti} duration={3000} />
+        {creationResult && (
+          <SuccessToast
+            isOpen={showSuccessToast}
+            onClose={() => setShowSuccessToast(false)}
+            title={creationResult?.multiChain 
+              ? 'Multi-Chain Deployment Successful! 🎉'
+              : 'Token Created Successfully! 🎉'
+            }
+            message={creationResult?.multiChain
+              ? `Deployed to ${Array.from(creationResult.results?.values() || []).filter((r: any) => r.success).length} chain(s)`
+              : 'Your token is now live and ready for trading!'
+            }
+            txHash={creationResult?.txHash || Array.from((creationResult?.results as Map<any, any>)?.values() || [])?.[0]?.txHash}
+            explorerUrl={creationResult?.explorerUrl || Array.from((creationResult?.results as Map<any, any>)?.values() || [])?.[0]?.explorerUrl}
+            duration={8000}
+            onAction={() => {
+              if (creationResult?.tokenAddress) {
+                window.location.href = `/tokens/${creationResult.tokenAddress}`;
+              } else {
+                const firstResult = Array.from((creationResult?.results as Map<any, any>)?.values() || [])?.[0] as any;
+                if (firstResult?.tokenAddress) {
+                  window.location.href = `/tokens/${firstResult.tokenAddress}`;
+                }
+              }
+            }}
+            actionLabel="View Token"
+          />
+        )}
+      </>
+    );
+  }
 
   return (
-    <AnimatePresence>
-      <div className="modal-overlay">
-        <motion.div
-          className="modal-content w-full max-w-2xl"
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ duration: 0.2 }}
-        >
-          <Card className="glassmorphism">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold gradient-text">
-                {creationStep === 'form' ? 'Create Token' :
-                 creationStep === 'confirm' ? 'Confirm Creation' :
-                 creationStep === 'creating' ? 'Creating Token...' :
-                 creationStep === 'success' ? 'Token Created!' :
-                 'Creation Failed'}
-              </h2>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
-                disabled={isCreating}
-              >
-                <X size={20} className="text-gray-400" />
-              </button>
-            </div>
+    <>
+      <AnimatePresence mode="wait">
+        {isOpen && (
+          <motion.div
+            key="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={onClose}
+          >
+            <motion.div
+              key="modal-content"
+              className="modal-content w-full max-w-2xl"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Card className="glassmorphism">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold gradient-text">
+                    {creationStep === 'form' ? 'Create Token' :
+                     creationStep === 'confirm' ? 'Confirm Creation' :
+                     creationStep === 'creating' ? 'Creating Token...' :
+                     creationStep === 'success' ? 'Token Created!' :
+                     'Creation Failed'}
+                  </h2>
+                  <div className="flex items-center space-x-3">
+                    {/* Mode Toggle - Only show in form step */}
+                    {creationStep === 'form' && (
+                      <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-1">
+                        <button
+                          onClick={() => setMode('beginner')}
+                          className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                            mode === 'beginner'
+                              ? 'bg-purple-500 text-white'
+                              : 'text-gray-400 hover:text-white'
+                          }`}
+                        >
+                          <Sparkles size={14} className="inline mr-1" />
+                          Beginner
+                        </button>
+                        <button
+                          onClick={() => setMode('advanced')}
+                          className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                            mode === 'advanced'
+                              ? 'bg-purple-500 text-white'
+                              : 'text-gray-400 hover:text-white'
+                          }`}
+                        >
+                          <Settings size={14} className="inline mr-1" />
+                          Advanced
+                        </button>
+                      </div>
+                    )}
+                    <button
+                      onClick={onClose}
+                      className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                      disabled={isCreating}
+                    >
+                      <X size={20} className="text-gray-400" />
+                    </button>
+                  </div>
+                </div>
 
-            {/* Content based on step */}
-            <WalletRequired>
-              {creationStep === 'form' && (
+              {/* Content based on step */}
+              <WalletRequired>
+              {creationStep === 'form' && mode === 'beginner' && (
+                <>
+                  <WizardProgress currentStep={wizardStep} />
+                  <AnimatePresence mode="wait">
+                    {wizardStep === 1 && (
+                      <WizardStep1
+                        key="step1"
+                        formData={formData}
+                        errors={errors}
+                        onFormDataChange={(data) => setFormData({ ...formData, ...data })}
+                        onErrorsChange={(errs) => setErrors(errs)}
+                        onNext={() => setWizardStep(2)}
+                      />
+                    )}
+                    {wizardStep === 2 && (
+                      <WizardStep2
+                        key="step2"
+                        formData={formData}
+                        errors={errors}
+                        onImageUpload={async (file) => {
+                          setFormData({ ...formData, image: file });
+                          setErrors({ ...errors, image: undefined });
+                          // Upload to IPFS if configured
+                          if (isIPFSConfigured()) {
+                            try {
+                              setUploadingImage(true);
+                              setImageUploadProgress(0);
+                              const result = await uploadImageToIPFS(file, {
+                                onProgress: (progress) => setImageUploadProgress(progress),
+                              });
+                              setIpfsImageUrl(result.url);
+                            } catch (error: any) {
+                              console.error('IPFS upload failed:', error);
+                              // Continue with local file if IPFS fails
+                            } finally {
+                              setUploadingImage(false);
+                            }
+                          }
+                        }}
+                        onBack={() => setWizardStep(1)}
+                        onNext={() => {
+                          // Apply defaults for wizard mode
+                          if (!formData.totalSupply) {
+                            setFormData({
+                              ...formData,
+                              totalSupply: 1000000000,
+                              curveType: 'linear',
+                              basePrice: 0.000001,
+                              slope: 0.00000001,
+                            });
+                          }
+                          setWizardStep(3);
+                        }}
+                      />
+                    )}
+                    {wizardStep === 3 && (
+                      <WizardStep3
+                        key="step3"
+                        formData={formData}
+                        onBack={() => setWizardStep(2)}
+                        onComplete={async () => {
+                          // Upload image to IPFS if needed before submitting
+                          if (formData.image && isIPFSConfigured() && !ipfsImageUrl) {
+                            try {
+                              setUploadingImage(true);
+                              setImageUploadProgress(0);
+                              const result = await uploadImageToIPFS(formData.image, {
+                                onProgress: (progress) => setImageUploadProgress(progress),
+                              });
+                              setIpfsImageUrl(result.url);
+                            } catch (error: any) {
+                              console.warn('IPFS upload failed, continuing without image URL:', error);
+                            } finally {
+                              setUploadingImage(false);
+                            }
+                          }
+                          // Validate and proceed to confirmation
+                          if (validateForm()) {
+                            setCreationStep('confirm');
+                          }
+                        }}
+                      />
+                    )}
+                  </AnimatePresence>
+                </>
+              )}
+              
+              {creationStep === 'form' && mode === 'advanced' && (
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Basic Info */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -247,9 +475,9 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                         label="Total Supply *"
                         type="number"
                         placeholder="1000000000"
-                        value={formData.totalSupply}
+                        value={formData.totalSupply.toString()}
                         onChange={(e) => setFormData({ ...formData, totalSupply: parseInt(e.target.value) || 0 })}
-                        error={errors.totalSupply}
+                        error={errors.totalSupply ? String(errors.totalSupply) : undefined}
                       />
                       
                       <Select
@@ -267,7 +495,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                         type="number"
                         step="0.000001"
                         placeholder="0.000001"
-                        value={formData.basePrice}
+                        value={formData.basePrice.toString()}
                         onChange={(e) => setFormData({ ...formData, basePrice: parseFloat(e.target.value) || 0 })}
                         error={errors.basePrice}
                       />
@@ -277,35 +505,126 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                         type="number"
                         step="0.00000001"
                         placeholder="0.00000001"
-                        value={formData.slope}
+                        value={formData.slope.toString()}
                         onChange={(e) => setFormData({ ...formData, slope: parseFloat(e.target.value) || 0 })}
                         error={errors.slope}
                       />
                     </div>
                   </div>
 
-                  {/* Cost Estimate */}
-                  <Alert variant="default">
-                    <div className="flex items-center space-x-2">
-                      <AlertTriangle size={16} />
+                  {/* Multi-Chain Deployment Toggle */}
+                  <div className="border-t border-gray-700 pt-6">
+                    <div className="flex items-center justify-between mb-4">
                       <div>
-                        <p className="font-medium">Estimated Cost</p>
+                        <h3 className="text-lg font-semibold text-white mb-1">Multi-Chain Deployment</h3>
                         <p className="text-sm text-gray-400">
-                          Gas fee: ~{estimatedGasCost} KAS • Total: ~{totalCost} KAS
+                          Deploy your token to multiple blockchains at once
                         </p>
                       </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showMultiChain}
+                          onChange={(e) => {
+                            setShowMultiChain(e.target.checked);
+                            if (!e.target.checked) {
+                              setSelectedChains([]);
+                            }
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                      </label>
                     </div>
-                  </Alert>
+
+                    {showMultiChain && (
+                      <MultiChainDeployment
+                        deployments={multiChainDeployment.deployments}
+                        selectedChains={selectedChains}
+                        onChainToggle={(chainId) => {
+                          setSelectedChains(prev => 
+                            prev.includes(chainId)
+                              ? prev.filter(id => id !== chainId)
+                              : [...prev, chainId]
+                          );
+                        }}
+                        onDeploy={async () => {
+                          if (selectedChains.length === 0) return;
+                          
+                          // Validate form first
+                          if (!validateForm()) return;
+
+                          try {
+                            setIsCreating(true);
+                            setCreationStep('creating');
+                            
+                            // Get image URL (IPFS if configured, otherwise empty)
+                            const imageUrl = ipfsImageUrl || (formData.image ? '' : ''); // IPFS URL or empty
+                            
+                            // Deploy to multiple chains
+                            const results = await multiChainDeployment.deployToMultipleChains(
+                              selectedChains,
+                              formData,
+                              imageUrl
+                            );
+
+                            // Check if at least one succeeded
+                            const successCount = Array.from(results.values()).filter(r => r.success).length;
+                            
+                            if (successCount > 0) {
+                              setCreationResult({ multiChain: true, results });
+                              setCreationStep('success');
+                              setShowConfetti(true);
+                              setShowSuccessToast(true);
+                            } else {
+                              setCreationError('All deployments failed');
+                              setCreationStep('error');
+                            }
+                          } catch (error: any) {
+                            setCreationError(error.message || 'Multi-chain deployment failed');
+                            setCreationStep('error');
+                          } finally {
+                            setIsCreating(false);
+                          }
+                        }}
+                        onCancel={() => {
+                          setShowMultiChain(false);
+                          setSelectedChains([]);
+                          multiChainDeployment.resetDeployments();
+                        }}
+                        isDeploying={multiChainDeployment.isDeploying}
+                        deploymentMode={multiChainDeployment.deploymentMode}
+                        onModeChange={multiChainDeployment.setDeploymentMode}
+                      />
+                    )}
+                  </div>
+
+                  {/* Cost Estimate */}
+                  {!showMultiChain && (
+                    <Alert variant="default">
+                      <div className="flex items-center space-x-2">
+                        <AlertTriangle size={16} />
+                        <div>
+                          <p className="font-medium">Estimated Cost</p>
+                          <p className="text-sm text-gray-400">
+                            Gas fee: ~{estimatedGasCost} KAS • Total: ~{totalCost} KAS
+                          </p>
+                        </div>
+                      </div>
+                    </Alert>
+                  )}
 
                   {/* Submit Button */}
-                  <div className="flex space-x-4">
-                    <Button variant="secondary" onClick={onClose} fullWidth>
-                      Cancel
-                    </Button>
-                    <Button type="submit" variant="primary" fullWidth>
-                      Review & Create
-                    </Button>
-                  </div>
+                  {!showMultiChain && (
+                    <div className="flex space-x-4">
+                      <Button variant="secondary" onClick={onClose} fullWidth>
+                        Cancel
+                      </Button>
+                      <Button type="submit" variant="primary" fullWidth>
+                        Review & Create
+                      </Button>
+                    </div>
+                  )}
                 </form>
               )}
 
@@ -371,23 +690,73 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
               {creationStep === 'success' && (
                 <div className="text-center py-12">
                   <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-6" />
-                  <h3 className="text-xl font-semibold text-white mb-2">Token Created Successfully! 🎉</h3>
+                  <h3 className="text-xl font-semibold text-white mb-2">
+                    {creationResult?.multiChain 
+                      ? 'Multi-Chain Deployment Successful! 🎉'
+                      : 'Token Created Successfully! 🎉'
+                    }
+                  </h3>
                   <p className="text-gray-400 mb-6">
-                    Your token is now live on KasPump and ready for trading!
+                    {creationResult?.multiChain
+                      ? `Your token has been deployed across ${Array.from((creationResult.results as Map<any, any>)?.values() || []).filter((r: any) => r.success).length} chain(s)!`
+                      : 'Your token is now live on KasPump and ready for trading!'
+                    }
                   </p>
                   
                   {creationResult && (
-                    <Card className="bg-gray-800/30 text-left mb-6">
-                      <div className="space-y-2 text-sm">
-                        <div><span className="text-gray-400">Token Address:</span> <span className="text-white font-mono">{creationResult.tokenAddress}</span></div>
-                        <div><span className="text-gray-400">AMM Address:</span> <span className="text-white font-mono">{creationResult.ammAddress}</span></div>
-                        <div><span className="text-gray-400">Transaction:</span> <span className="text-white font-mono">{creationResult.txHash}</span></div>
-                      </div>
-                    </Card>
+                    <div className="space-y-4 mb-6">
+                      {creationResult.multiChain && creationResult.results ? (
+                        // Multi-chain results
+                        <div className="space-y-3">
+                          {Array.from((creationResult.results as Map<any, any>).values()).map((result: any, idx: number) => {
+                            const r = result as { chainId?: number; success: boolean; chainName?: string; txHash?: string; tokenAddress?: string; error?: string };
+                            return (
+                              <Card
+                                key={(r?.chainId as number | undefined) || idx}
+                                className={cn(
+                                  'bg-gray-800/30 text-left',
+                                  r.success ? 'border-green-500/30' : 'border-red-500/30'
+                                )}
+                              >
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-semibold text-white">{r.chainName || `Chain ${r.chainId || idx}`}</span>
+                                {r.success ? (
+                                  <CheckCircle size={20} className="text-green-400" />
+                                ) : (
+                                  <XCircle size={20} className="text-red-400" />
+                                )}
+                              </div>
+                              {r.success ? (
+                                <div className="space-y-1 text-sm">
+                                  {r.tokenAddress && (
+                                    <div><span className="text-gray-400">Token:</span> <span className="text-white font-mono text-xs">{r.tokenAddress.slice(0, 10)}...{r.tokenAddress.slice(-8)}</span></div>
+                                  )}
+                                  {r.txHash && (
+                                    <div><span className="text-gray-400">TX:</span> <span className="text-white font-mono text-xs">{r.txHash.slice(0, 10)}...{r.txHash.slice(-8)}</span></div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-red-400">{r.error || 'Deployment failed'}</div>
+                              )}
+                            </Card>
+                          );
+                        })}
+                        </div>
+                      ) : (
+                        // Single-chain result
+                        <Card className="bg-gray-800/30 text-left">
+                          <div className="space-y-2 text-sm">
+                            <div><span className="text-gray-400">Token Address:</span> <span className="text-white font-mono">{creationResult.tokenAddress}</span></div>
+                            <div><span className="text-gray-400">AMM Address:</span> <span className="text-white font-mono">{creationResult.ammAddress}</span></div>
+                            <div><span className="text-gray-400">Transaction:</span> <span className="text-white font-mono">{creationResult.txHash}</span></div>
+                          </div>
+                        </Card>
+                      )}
+                    </div>
                   )}
                   
                   <Button variant="primary" onClick={onClose} fullWidth>
-                    Start Trading
+                    {creationResult?.multiChain ? 'View Tokens' : 'Start Trading'}
                   </Button>
                 </div>
               )}
@@ -408,10 +777,43 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   </div>
                 </div>
               )}
-            </WalletRequired>
-          </Card>
+              </WalletRequired>
+            </Card>
+          </motion.div>
         </motion.div>
-      </div>
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+      
+      {/* Success Animations - Outside AnimatePresence */}
+      <ConfettiSuccess trigger={showConfetti} duration={3000} />
+      {creationResult && (
+        <SuccessToast
+          isOpen={showSuccessToast}
+          onClose={() => setShowSuccessToast(false)}
+          title={creationResult?.multiChain 
+            ? 'Multi-Chain Deployment Successful! 🎉'
+            : 'Token Created Successfully! 🎉'
+          }
+          message={creationResult?.multiChain
+            ? `Deployed to ${Array.from(creationResult.results?.values() || []).filter((r: any) => r.success).length} chain(s)`
+            : 'Your token is now live and ready for trading!'
+          }
+          txHash={creationResult?.txHash || Array.from((creationResult?.results as Map<any, any>)?.values() || [])?.[0]?.txHash}
+          explorerUrl={creationResult?.explorerUrl || Array.from((creationResult?.results as Map<any, any>)?.values() || [])?.[0]?.explorerUrl}
+          duration={8000}
+          onAction={() => {
+            if (creationResult?.tokenAddress) {
+              window.location.href = `/tokens/${creationResult.tokenAddress}`;
+            } else {
+              const firstResult = Array.from((creationResult?.results as Map<any, any>)?.values() || [])?.[0] as any;
+              if (firstResult?.tokenAddress) {
+                window.location.href = `/tokens/${firstResult.tokenAddress}`;
+              }
+            }
+          }}
+          actionLabel="View Token"
+        />
+      )}
+    </>
   );
 };

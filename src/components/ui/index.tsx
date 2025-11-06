@@ -1,7 +1,7 @@
 // Core UI Components for KasPump
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '../../utils/cn';
+import { cn } from '../../utils';
 import { ButtonProps } from '../../types';
 
 // Button variants using class-variance-authority
@@ -15,6 +15,7 @@ const buttonVariants = cva(
         success: "bg-green-600 text-white hover:bg-green-700",
         danger: "bg-red-600 text-white hover:bg-red-700",
         ghost: "hover:bg-accent hover:text-accent-foreground",
+        outline: "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground",
         gradient: "bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600"
       },
       size: {
@@ -44,6 +45,7 @@ export interface ButtonComponent extends VariantProps<typeof buttonVariants> {
   onClick?: () => void;
   children: React.ReactNode;
   className?: string;
+  type?: 'button' | 'submit' | 'reset';
 }
 
 export const Button: React.FC<ButtonComponent> = ({
@@ -56,10 +58,12 @@ export const Button: React.FC<ButtonComponent> = ({
   onClick,
   children,
   className,
+  type = 'button',
   ...props
 }) => {
   return (
     <button
+      type={type}
       className={cn(buttonVariants({ variant, size, fullWidth }), className)}
       disabled={disabled || loading}
       onClick={onClick}
@@ -99,7 +103,7 @@ export const Card: React.FC<{
 };
 
 // Input component
-export const Input: React.FC<{
+export const Input = forwardRef<HTMLInputElement, {
   type?: string;
   placeholder?: string;
   value?: string;
@@ -108,7 +112,9 @@ export const Input: React.FC<{
   error?: string;
   label?: string;
   disabled?: boolean;
-}> = ({ type = "text", placeholder, value, onChange, className, error, label, disabled }) => {
+  step?: string;
+  'aria-label'?: string;
+}>(({ type = "text", placeholder, value, onChange, className, error, label, disabled, step, 'aria-label': ariaLabel }, ref) => {
   return (
     <div className="space-y-2">
       {label && (
@@ -117,11 +123,14 @@ export const Input: React.FC<{
         </label>
       )}
       <input
+        ref={ref}
         type={type}
         placeholder={placeholder}
         value={value}
         onChange={onChange}
         disabled={disabled}
+        step={step}
+        aria-label={ariaLabel}
         className={cn(
           "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           error && "border-red-500",
@@ -133,7 +142,9 @@ export const Input: React.FC<{
       )}
     </div>
   );
-};
+});
+
+Input.displayName = 'Input';
 
 // Textarea component
 export const Textarea: React.FC<{

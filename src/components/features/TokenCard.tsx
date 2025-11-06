@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Users, Clock } from 'lucide-react';
 import { KasPumpToken, TokenCardProps } from '../../types';
 import { Card, Badge, Progress } from '../ui';
+import { FavoriteButton } from './FavoriteButton';
 import { formatCurrency, formatPercentage, formatTimeAgo, cn } from '../../utils';
 
 export const TokenCard: React.FC<TokenCardProps> = ({ 
@@ -18,19 +19,19 @@ export const TokenCard: React.FC<TokenCardProps> = ({
     <motion.div
       whileHover={{ scale: 1.02, y: -4 }}
       whileTap={{ scale: 0.98 }}
-      className="cursor-pointer"
+      className="cursor-pointer gpu-accelerated"
     >
-      <Card 
-        className={cn(
-          "glassmorphism token-card-glow overflow-hidden transition-all duration-300",
-          "hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/10"
-        )}
-        onClick={onClick}
-      >
+      <div onClick={onClick}>
+        <Card 
+          className={cn(
+            "glassmorphism token-card-glow overflow-hidden transition-all duration-300",
+            "hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/10"
+          )}
+        >
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-lg gpu-accelerated">
               {token.symbol.slice(0, 2)}
             </div>
             <div>
@@ -39,12 +40,19 @@ export const TokenCard: React.FC<TokenCardProps> = ({
             </div>
           </div>
           
-          <Badge variant={isPositive ? 'success' : 'danger'}>
-            <div className="flex items-center space-x-1">
-              {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-              <span>{formatPercentage(token.change24h)}</span>
-            </div>
-          </Badge>
+          <div className="flex items-center space-x-2">
+            <FavoriteButton
+              tokenAddress={token.address}
+              chainId={(token as any).chainId}
+              size="sm"
+            />
+            <Badge variant={isPositive ? 'success' : 'danger'}>
+              <div className="flex items-center space-x-1">
+                {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                <span>{formatPercentage(token.change24h)}</span>
+              </div>
+            </Badge>
+          </div>
         </div>
 
         {/* Description */}
@@ -143,6 +151,7 @@ export const TokenCard: React.FC<TokenCardProps> = ({
           </div>
         </div>
       </Card>
+      </div>
     </motion.div>
   );
 };

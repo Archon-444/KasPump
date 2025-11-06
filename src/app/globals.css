@@ -2,6 +2,200 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Performance optimizations */
+@layer utilities {
+  /* GPU acceleration for animations */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+  
+  /* Optimize font rendering */
+  .optimize-font {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Reduce motion for accessibility and performance */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+  
+  /* Content visibility for off-screen elements */
+  .content-visibility-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 200px;
+  }
+}
+
+/* Hide scrollbar for webkit browsers */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for Firefox */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* Enhanced focus indicators for accessibility */
+*:focus-visible {
+  outline: 2px solid theme('colors.purple.500');
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid theme('colors.purple.500');
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid theme('colors.purple.500');
+  outline-offset: 2px;
+}
+
+/* Skip link for screen readers */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: theme('colors.purple.600');
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  z-index: 100;
+  border-radius: 0 0 4px 0;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* Mobile touch optimizations */
+@media (max-width: 768px) {
+  /* Ensure minimum 48px touch targets */
+  button, a, input[type="button"], input[type="submit"], 
+  [role="button"], [tabindex="0"] {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  
+  /* Touch feedback */
+  button:active, a:active, [role="button"]:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+    transition: transform 0.1s ease, opacity 0.1s ease;
+  }
+  
+  /* Larger tap targets for form inputs */
+  input, textarea, select {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 12px 16px;
+  }
+  
+  /* Mobile-friendly spacing */
+  .mobile-touch-safe {
+    padding: 12px;
+    margin: 8px;
+  }
+  
+  /* Prevent text selection on interactive elements */
+  button, [role="button"] {
+    -webkit-tap-highlight-color: rgba(147, 51, 234, 0.3);
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+}
+
+/* Desktop hover states (disable on mobile) */
+@media (hover: hover) and (pointer: fine) {
+  button:hover, a:hover {
+    transition: all 0.2s ease;
+  }
+}
+
+/* Mobile-specific utility classes */
+@media (max-width: 768px) {
+  .mobile-hide {
+    display: none !important;
+  }
+  
+  .mobile-show {
+    display: block !important;
+  }
+  
+  .mobile-full-width {
+    width: 100%;
+  }
+  
+  .mobile-safe-area {
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Touch optimization */
+.touch-manipulation {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Performance optimizations */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Reduce animations on mobile for better performance */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Lazy loading placeholder */
+img[loading="lazy"] {
+  background: linear-gradient(90deg, #1a1a2e 25%, #16213e 50%, #1a1a2e 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (min-width: 769px) {
+  .desktop-hide {
+    display: none !important;
+  }
+  
+  .desktop-show {
+    display: block !important;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

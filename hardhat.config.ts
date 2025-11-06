@@ -1,6 +1,10 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
-import "dotenv/config";
+import * as dotenv from "dotenv";
+
+// Load .env.local first, then .env (local takes precedence)
+dotenv.config({ path: '.env.local' });
+dotenv.config();
 
 const config: HardhatUserConfig = {
   solidity: {

@@ -49,13 +49,13 @@ const ERC20_ABI = [
 
 // Contract addresses from environment
 const CONTRACT_ADDRESSES = {
-  tokenFactory: process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS!,
-  feeRecipient: process.env.NEXT_PUBLIC_FEE_RECIPIENT!,
+  tokenFactory: process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS ?? '',
+  feeRecipient: process.env.NEXT_PUBLIC_FEE_RECIPIENT ?? '',
 };
 
 const NETWORK_CONFIG = {
-  chainId: parseInt(process.env.NEXT_PUBLIC_CHAIN_ID!),
-  rpcUrl: process.env.NEXT_PUBLIC_RPC_URL!,
+  chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? '0'),
+  rpcUrl: process.env.NEXT_PUBLIC_RPC_URL ?? '',
 };
 
 // AMM address cache for performance
@@ -64,19 +64,82 @@ const ammAddressCache = new Map<string, string>();
 export function useContracts() {
   const wallet = useMultichainWallet();
   const [isInitialized, setIsInitialized] = useState(false);
+  const [browserProvider, setBrowserProvider] = useState<ethers.BrowserProvider | null>(null);
+  const [signer, setSigner] = useState<ethers.Signer | null>(null);
 
-  // Create ethers provider and signer
-  const { provider, signer } = useMemo(() => {
-    const provider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
-    const signer = wallet.connected && wallet.address ? 
-      provider.getSigner(wallet.address) : null;
-    
-    return { provider, signer };
-  }, [wallet.connected, wallet.address]);
+  // Create ethers provider
+  const provider = useMemo(() => {
+    if (!NETWORK_CONFIG.rpcUrl) {
+      console.warn('NEXT_PUBLIC_RPC_URL is not set. Read-only blockchain access disabled.');
+      return null;
+    }
+
+    try {
+      return new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
+    } catch (error) {
+      console.error('Failed to create RPC provider:', error);
+      return null;
+    }
+  }, []);
+
+  // Create signer when wallet is connected
+  useEffect(() => {
+    let cancelled = false;
+
+    const initializeSigner = async () => {
+      if (!wallet.connected || !wallet.address) {
+        setBrowserProvider(null);
+        setSigner(null);
+        return;
+      }
+
+      try {
+        let externalProvider: any | null = null;
+
+        if (wallet.connector?.getProvider) {
+          externalProvider = await wallet.connector.getProvider();
+        }
+
+        if (!externalProvider && typeof window !== 'undefined') {
+          externalProvider = (window as any)?.ethereum ?? null;
+        }
+
+        if (!externalProvider) {
+          throw new Error('Wallet provider not available');
+        }
+
+        const targetChainId = wallet.chainId ?? (NETWORK_CONFIG.chainId || undefined);
+        const browser = new ethers.BrowserProvider(externalProvider, targetChainId);
+        const signerInstance = await browser.getSigner();
+
+        if (!cancelled) {
+          setBrowserProvider(browser);
+          setSigner(signerInstance);
+        }
+      } catch (error) {
+        console.error('Failed to initialize wallet signer:', error);
+        if (!cancelled) {
+          setBrowserProvider(null);
+          setSigner(null);
+        }
+      }
+    };
+
+    initializeSigner();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [wallet.connected, wallet.connector, wallet.address, wallet.chainId]);
 
   // Initialize contract validation
   useEffect(() => {
     const validateContracts = async () => {
+      if (!provider) {
+        console.warn('RPC provider not available; skipping contract validation.');
+        return;
+      }
+
       try {
         if (!CONTRACT_ADDRESSES.tokenFactory) {
           console.warn('Token factory address not configured');
@@ -98,21 +161,41 @@ export function useContracts() {
 
   // Get contract instances
   const getTokenFactoryContract = useCallback(() => {
+    if (!CONTRACT_ADDRESSES.tokenFactory) {
+      throw new Error('Token factory address not configured');
+    }
     if (!signer) throw new Error('Wallet not connected');
     return new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, signer);
   }, [signer]);
 
+  const getRunnerOrThrow = useCallback((): ethers.Signer | ethers.AbstractProvider => {
+    if (signer) return signer;
+    if (provider) return provider;
+    if (browserProvider) return browserProvider;
+    throw new Error('Blockchain provider not available');
+  }, [signer, provider, browserProvider]);
+
+  const getReadProviderOrThrow = useCallback((): ethers.AbstractProvider => {
+    if (provider) return provider;
+    if (browserProvider) return browserProvider;
+    throw new Error('Blockchain provider not available');
+  }, [provider, browserProvider]);
+
   const getBondingCurveContract = useCallback((ammAddress: string) => {
-    if (!provider) throw new Error('Provider not available');
-    const signerOrProvider = signer || provider;
-    return new ethers.Contract(ammAddress, BONDING_CURVE_AMM_ABI, signerOrProvider);
-  }, [provider, signer]);
+    if (!ammAddress) {
+      throw new Error('AMM address is required');
+    }
+    const runner = getRunnerOrThrow();
+    return new ethers.Contract(ammAddress, BONDING_CURVE_AMM_ABI, runner);
+  }, [getRunnerOrThrow]);
 
   const getTokenContract = useCallback((tokenAddress: string) => {
-    if (!provider) throw new Error('Provider not available');
-    const signerOrProvider = signer || provider;
-    return new ethers.Contract(tokenAddress, ERC20_ABI, signerOrProvider);
-  }, [provider, signer]);
+    if (!tokenAddress) {
+      throw new Error('Token address is required');
+    }
+    const runner = getRunnerOrThrow();
+    return new ethers.Contract(tokenAddress, ERC20_ABI, runner);
+  }, [getRunnerOrThrow]);
 
   // Resolve AMM address for a token (with caching)
   const getTokenAMMAddress = useCallback(async (tokenAddress: string): Promise<string> => {
@@ -122,23 +205,33 @@ export function useContracts() {
     }
 
     try {
-      const factoryContract = new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, provider);
+      if (!CONTRACT_ADDRESSES.tokenFactory) {
+        throw new Error('Token factory address not configured');
+      }
+
+      const runner = getReadProviderOrThrow();
+      const factoryContract = new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, runner);
       
       // Check if we have a getTokenAMM function (newer factory version)
       try {
         const ammAddress = await factoryContract.getTokenAMM(tokenAddress);
+        if (!ammAddress || ammAddress === ethers.ZeroAddress) {
+          throw new Error('AMM address not found');
+        }
         ammAddressCache.set(tokenAddress, ammAddress);
         return ammAddress;
       } catch (error) {
         // Fallback: search TokenCreated events
         const filter = factoryContract.filters.TokenCreated(tokenAddress);
-        const events = await factoryContract.queryFilter(filter, 0, 'latest');
+        const events = await factoryContract.queryFilter(filter);
         
         if (events.length > 0) {
           const event = events[0];
-          const ammAddress = event.args.ammAddress;
-          ammAddressCache.set(tokenAddress, ammAddress);
-          return ammAddress;
+          if ('args' in event && event.args) {
+            const ammAddress = (event.args as any).ammAddress as string;
+            ammAddressCache.set(tokenAddress, ammAddress);
+            return ammAddress;
+          }
         }
         
         throw new Error('AMM address not found for token');
@@ -147,10 +240,10 @@ export function useContracts() {
       console.error('Failed to resolve AMM address:', error);
       throw new Error(`Failed to resolve AMM address for token ${tokenAddress}`);
     }
-  }, [provider]);
+  }, [getReadProviderOrThrow]);
 
   // Create a new token with bonding curve
-  const createToken = useCallback(async (tokenData: TokenCreationForm): Promise<{ tokenAddress: string; ammAddress: string; txHash: string }> => {
+  const createToken = useCallback(async (tokenData: TokenCreationForm, imageUrl?: string): Promise<{ tokenAddress: string; ammAddress: string; txHash: string }> => {
     if (!wallet.connected) throw new Error('Wallet not connected');
     if (!isInitialized) throw new Error('Contracts not initialized');
     
@@ -164,11 +257,12 @@ export function useContracts() {
       const curveType = tokenData.curveType === 'linear' ? 0 : 1;
       
       // Estimate gas
+      const imageUrlToUse = imageUrl || ''; // Use provided IPFS URL or empty string
       const gasEstimate = await contract.createToken.estimateGas(
         tokenData.name,
         tokenData.symbol,
         tokenData.description,
-        '', // Image URL placeholder - would be IPFS hash in production
+        imageUrlToUse, // IPFS hash if available
         totalSupply,
         basePrice,
         slope,
@@ -176,14 +270,14 @@ export function useContracts() {
       );
 
       // Add 20% buffer to gas estimate
-      const gasLimit = (gasEstimate * 120n) / 100n;
+      const gasLimit = (gasEstimate * BigInt(120)) / BigInt(100);
 
       // Execute transaction
       const tx = await contract.createToken(
         tokenData.name,
         tokenData.symbol,
         tokenData.description,
-        '', // Image URL
+        imageUrlToUse, // IPFS hash if available
         totalSupply,
         basePrice,
         slope,
@@ -208,8 +302,11 @@ export function useContracts() {
       }
 
       const decodedEvent = contract.interface.parseLog(tokenCreatedEvent);
-      const tokenAddress = decodedEvent.args.tokenAddress;
-      const ammAddress = decodedEvent.args.ammAddress;
+      if (!decodedEvent || !decodedEvent.args) {
+        throw new Error('Unable to decode TokenCreated event');
+      }
+      const tokenAddress = decodedEvent.args.tokenAddress as string;
+      const ammAddress = decodedEvent.args.ammAddress as string;
       
       // Cache the AMM address
       ammAddressCache.set(tokenAddress, ammAddress);
@@ -230,6 +327,7 @@ export function useContracts() {
   const executeTrade = useCallback(async (trade: TradeData): Promise<string> => {
     if (!wallet.connected) throw new Error('Wallet not connected');
     if (!isInitialized) throw new Error('Contracts not initialized');
+    if (!wallet.address) throw new Error('Wallet address not available');
     
     try {
       // Get AMM address for the token
@@ -242,7 +340,7 @@ export function useContracts() {
 
         // Estimate gas
         const gasEstimate = await ammContract.buyTokens.estimateGas(minTokensOut, { value: nativeAmount });
-        const gasLimit = (gasEstimate * 120n) / 100n;
+        const gasLimit = (gasEstimate * BigInt(120)) / BigInt(100);
 
         const tx = await ammContract.buyTokens(minTokensOut, {
           value: nativeAmount,
@@ -265,7 +363,7 @@ export function useContracts() {
         
         // Execute sell
         const gasEstimate = await ammContract.sellTokens.estimateGas(tokenAmount, minNativeOut);
-        const gasLimit = (gasEstimate * 120n) / 100n;
+        const gasLimit = (gasEstimate * BigInt(120)) / BigInt(100);
 
         const tx = await ammContract.sellTokens(tokenAmount, minNativeOut, { gasLimit });
         const receipt = await tx.wait();
@@ -329,18 +427,26 @@ export function useContracts() {
   // Get all tokens created through the factory
   const getAllTokens = useCallback(async (): Promise<string[]> => {
     try {
-      const contract = new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, provider);
+      if (!CONTRACT_ADDRESSES.tokenFactory) {
+        throw new Error('Token factory address not configured');
+      }
+      const runner = getReadProviderOrThrow();
+      const contract = new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, runner);
       return await contract.getAllTokens();
     } catch (error: any) {
       console.error('Failed to fetch tokens:', error);
       throw parseContractError(error);
     }
-  }, [provider]);
+  }, [getReadProviderOrThrow]);
 
   // Get detailed token information with real blockchain data
   const getTokenInfo = useCallback(async (tokenAddress: string): Promise<KasPumpToken | null> => {
     try {
-      const factoryContract = new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, provider);
+      if (!CONTRACT_ADDRESSES.tokenFactory) {
+        throw new Error('Token factory address not configured');
+      }
+      const runner = getReadProviderOrThrow();
+      const factoryContract = new ethers.Contract(CONTRACT_ADDRESSES.tokenFactory, TOKEN_FACTORY_ABI, runner);
       const tokenContract = getTokenContract(tokenAddress);
       
       // Check if it's a KasPump token
@@ -392,7 +498,7 @@ export function useContracts() {
       console.error('Failed to fetch token info:', error);
       return null;
     }
-  }, [provider, getTokenContract, getTokenAMMAddress, getBondingCurveContract]);
+  }, [getReadProviderOrThrow, getTokenContract, getTokenAMMAddress, getBondingCurveContract]);
 
   return {
     createToken,
@@ -401,6 +507,10 @@ export function useContracts() {
     getAllTokens,
     getTokenInfo,
     getTokenAMMAddress,
+    getTokenContract,
+    getBondingCurveContract,
+    readProvider: provider ?? browserProvider,
+    hasSigner: Boolean(signer),
     isConnected: wallet.connected,
     walletAddress: wallet.address,
     isInitialized,
@@ -454,12 +564,19 @@ function parseContractError(error: any): ContractError {
 // Enhanced token operations hook
 export function useTokenOperations() {
   const contracts = useContracts();
+  const {
+    getTokenContract,
+    isConnected,
+    hasSigner,
+  } = contracts;
   
   const approveToken = useCallback(async (tokenAddress: string, spenderAddress: string, amount: string): Promise<string> => {
-    if (!contracts.isConnected) throw new Error('Wallet not connected');
+    if (!isConnected || !hasSigner) {
+      throw new Error('Wallet not connected');
+    }
 
     try {
-      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, await new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl).getSigner(contracts.walletAddress!));
+      const tokenContract = getTokenContract(tokenAddress);
       const amountWei = ethers.parseEther(amount);
 
       const tx = await tokenContract.approve(spenderAddress, amountWei);
@@ -469,33 +586,29 @@ export function useTokenOperations() {
     } catch (error) {
       throw parseContractError(error);
     }
-  }, [contracts]);
+  }, [getTokenContract, isConnected, hasSigner]);
 
   const getTokenBalance = useCallback(async (tokenAddress: string, userAddress: string): Promise<number> => {
     try {
-      const provider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
-      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-
+      const tokenContract = getTokenContract(tokenAddress);
       const balance = await tokenContract.balanceOf(userAddress);
       return parseFloat(ethers.formatEther(balance));
     } catch (error) {
       console.error('Failed to fetch token balance:', error);
       return 0;
     }
-  }, []);
+  }, [getTokenContract]);
 
   const getAllowance = useCallback(async (tokenAddress: string, owner: string, spender: string): Promise<number> => {
     try {
-      const provider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
-      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-      
+      const tokenContract = getTokenContract(tokenAddress);
       const allowance = await tokenContract.allowance(owner, spender);
       return parseFloat(ethers.formatEther(allowance));
     } catch (error) {
       console.error('Failed to fetch allowance:', error);
       return 0;
     }
-  }, []);
+  }, [getTokenContract]);
   
   return {
     approveToken,

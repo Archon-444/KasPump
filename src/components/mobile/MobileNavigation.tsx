@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { cn } from '../../utils';
+import { useHapticFeedback } from '../../hooks/useHapticFeedback';
 
 export interface MobileNavigationProps {
   currentPage?: 'home' | 'trading' | 'create' | 'analytics' | 'profile';
@@ -30,6 +31,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [showQuickActions, setShowQuickActions] = useState(false);
+  const haptic = useHapticFeedback();
 
   const navigationItems = [
     { id: 'home', label: 'Home', icon: Home, color: 'text-blue-400' },
@@ -66,6 +68,8 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
   }, [lastScrollY]);
 
   const handleNavigation = (pageId: string) => {
+    haptic.trigger('selection');
+    
     if (pageId === 'create' && !showQuickActions) {
       setShowQuickActions(true);
       return;
@@ -76,6 +80,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
   };
 
   const handleQuickAction = (actionId: string) => {
+    haptic.trigger('medium');
     onNavigate?.(actionId);
     setShowQuickActions(false);
   };

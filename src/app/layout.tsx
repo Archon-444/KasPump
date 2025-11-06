@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Web3Provider } from '../providers/Web3Provider';
+import { ServiceWorkerRegistration } from '../components/features/ServiceWorkerRegistration';
+import { PerformanceMonitor } from '../components/features/PerformanceMonitor';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -56,12 +58,14 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={inter.className}>
-        <Web3Provider>
-          <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
-            {children}
-          </div>
-        </Web3Provider>
-      </body>
-    </html>
-  );
-}
+        <ServiceWorkerRegistration />
+              <Web3Provider>
+                <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
+                  {children}
+                  <PerformanceMonitor />
+                </div>
+              </Web3Provider>
+            </body>
+          </html>
+        );
+      }

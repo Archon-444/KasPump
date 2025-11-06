@@ -1,5 +1,10 @@
 import hre from "hardhat";
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
+import * as dotenv from "dotenv";
+
+// Load environment variables from .env.local first, then .env
+dotenv.config({ path: '.env.local' });
+dotenv.config();
 
 const { ethers, network } = hre;
 
@@ -18,8 +23,11 @@ const { ethers, network } = hre;
 
 // CRITICAL: This salt MUST be the same across all deployments
 // Change this only if you want completely different addresses
-const DEPLOYMENT_SALT = process.env.DEPLOYMENT_SALT ||
-    "0x4b617350756d704d756c7469436861696e4c61756e636865723230323500"; // "KasPumpMultiChainLauncher2025"
+// Convert string salt to bytes32 (hash the string to ensure it's exactly 32 bytes)
+const DEFAULT_SALT_STRING = "KasPumpMultiChainLauncher2025";
+const DEPLOYMENT_SALT = process.env.DEPLOYMENT_SALT ? 
+    ethers.zeroPadValue(ethers.hexlify(process.env.DEPLOYMENT_SALT), 32) :
+    ethers.id(DEFAULT_SALT_STRING); // keccak256 hash to get bytes32
 
 const CHAIN_CONFIGS = {
     bsc: { chainId: 56, name: "BNB Smart Chain" },
@@ -43,7 +51,11 @@ async function main() {
     console.log(`📡 Network: ${chainConfig.name} (${chainConfig.chainId})`);
     console.log(`🔑 Deployment Salt: ${DEPLOYMENT_SALT}\n`);
 
-    const [deployer] = await ethers.getSigners();
+    const signers = await ethers.getSigners();
+    if (signers.length === 0) {
+        throw new Error("No signers found! Please ensure PRIVATE_KEY is set in .env.local");
+    }
+    const deployer = signers[0];
     console.log("👤 Deployer:", deployer.address);
 
     const balance = await ethers.provider.getBalance(deployer.address);

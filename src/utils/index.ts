@@ -6,6 +6,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Re-export hooks for convenience
+export * from '../hooks/useMultichainWallet';
+export * from '../hooks/useContracts';
+
 // Crypto-secure random number generator (replaces Math.random() security issue)
 export function secureRandom(): number {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {

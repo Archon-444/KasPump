@@ -15,6 +15,7 @@ import {
   Calculator
 } from 'lucide-react';
 import { Card, Button, Badge, Progress } from '../ui';
+import { TransactionPreviewModal } from './TransactionPreviewModal';
 import { KasPumpToken } from '../../types';
 import { formatCurrency, formatPercentage, cn } from '../../utils';
 
@@ -42,6 +43,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const [minimumReceived, setMinimumReceived] = useState(0);
   const [fees, setFees] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const slippagePresets = [0.1, 0.5, 1.0, 3.0];
   const amountPresets = [25, 50, 75, 100];
@@ -86,9 +88,15 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
     setAmount(quickAmount);
   };
 
-  const handleTrade = async () => {
+  const handleTradeClick = () => {
+    if (!amount || parseFloat(amount) <= 0 || isInsufficientBalance()) return;
+    setShowPreview(true);
+  };
+
+  const handleConfirmTrade = async () => {
     if (!amount || parseFloat(amount) <= 0) return;
     
+    setShowPreview(false);
     setLoading(true);
     try {
       await onTrade?.(tradeType, amount, slippage);
@@ -113,77 +121,90 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
 
   return (
     <Card className={cn('p-6 space-y-6', className)}>
-      {/* Trade Type Selector */}
-      <div className=\"flex items-center space-x-2 bg-gray-800/50 p-1 rounded-lg\">
+      {/* Trade Type Selector - Mobile optimized */}
+      <div className="flex items-center space-x-2 bg-gray-800/50 p-1 rounded-lg">
         <button
           onClick={() => setTradeType('buy')}
           className={cn(
-            'flex-1 px-4 py-3 rounded-md font-medium transition-all duration-200',
+            'flex-1 px-4 py-4 rounded-md font-semibold transition-all duration-200',
+            'min-h-[56px]', // Larger touch target for mobile
+            'touch-manipulation', // Optimize touch response
             tradeType === 'buy'
-              ? 'bg-green-600 text-white shadow-lg shadow-green-600/20'
-              : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              ? 'bg-green-600 text-white shadow-lg shadow-green-600/20 active:bg-green-700'
+              : 'text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600'
           )}
         >
-          <div className=\"flex items-center justify-center space-x-2\">
-            <TrendingUp size={18} />
-            <span>Buy</span>
+          <div className="flex items-center justify-center space-x-2">
+            <TrendingUp size={20} />
+            <span className="text-base sm:text-sm">Buy</span>
           </div>
         </button>
         <button
           onClick={() => setTradeType('sell')}
           className={cn(
-            'flex-1 px-4 py-3 rounded-md font-medium transition-all duration-200',
+            'flex-1 px-4 py-4 rounded-md font-semibold transition-all duration-200',
+            'min-h-[56px]', // Larger touch target for mobile
+            'touch-manipulation', // Optimize touch response
             tradeType === 'sell'
-              ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
-              : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              ? 'bg-red-600 text-white shadow-lg shadow-red-600/20 active:bg-red-700'
+              : 'text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600'
           )}
         >
-          <div className=\"flex items-center justify-center space-x-2\">
-            <TrendingDown size={18} />
-            <span>Sell</span>
+          <div className="flex items-center justify-center space-x-2">
+            <TrendingDown size={20} />
+            <span className="text-base sm:text-sm">Sell</span>
           </div>
         </button>
       </div>
 
       {/* Amount Input */}
-      <div className=\"space-y-3\">
-        <div className=\"flex items-center justify-between\">
-          <label className=\"text-sm font-medium text-gray-300\">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-gray-300">
             {tradeType === 'buy' ? 'You pay' : 'You sell'}
           </label>
-          <div className=\"text-sm text-gray-400\">
+          <div className="text-sm text-gray-400">
             Balance: {formatCurrency(tradeType === 'buy' ? userBalance : userTokenBalance, tradeType === 'buy' ? 'KAS' : token.symbol)}
           </div>
         </div>
 
-        <div className=\"relative\">
+        <div className="relative">
           <input
-            type=\"number\"
+            type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            placeholder=\"0.00\"
+            placeholder="0.00"
+            inputMode="decimal" // Better mobile keyboard
             className={cn(
-              'w-full px-4 py-4 bg-gray-800/50 border border-gray-600 rounded-lg',
-              'text-2xl font-mono text-white placeholder-gray-500',
-              'focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500',
+              'w-full px-4 py-5 sm:py-4 bg-gray-800/50 border border-gray-600 rounded-lg',
+              'text-2xl sm:text-xl font-mono text-white placeholder-gray-500',
+              'focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50',
               'transition-all duration-200',
-              isInsufficientBalance() && 'border-red-500 focus:border-red-500 focus:ring-red-500'
+              'min-h-[56px]', // Mobile touch target
+              'touch-manipulation', // Optimize touch response
+              isInsufficientBalance() && 'border-red-500 focus:border-red-500 focus:ring-red-500/50'
             )}
           />
-          <div className=\"absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium\">
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm sm:text-base">
             {tradeType === 'buy' ? 'KAS' : token.symbol}
           </div>
         </div>
 
-        {/* Quick Amount Buttons */}
-        <div className=\"flex items-center space-x-2\">
+        {/* Quick Amount Buttons - Mobile optimized */}
+        <div className="grid grid-cols-4 gap-2">
           {amountPresets.map((preset) => (
             <button
               key={preset}
               onClick={() => handleQuickAmount(preset)}
-              className=\"px-3 py-1 bg-gray-700/50 hover:bg-gray-600 text-gray-300 text-xs rounded-md transition-colors\"
+              className={cn(
+                'px-4 py-3 bg-gray-700/50 hover:bg-gray-600 active:bg-gray-500',
+                'text-gray-300 font-medium rounded-lg transition-all',
+                'text-sm sm:text-xs',
+                'min-h-[48px]', // Mobile touch target
+                'touch-manipulation' // Optimize touch response
+              )}
             >
-              {preset}%
+              {preset === 100 ? 'Max' : `${preset}%`}
             </button>
           ))}
         </div>
@@ -194,21 +215,21 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className=\"space-y-3 p-4 bg-gray-800/20 rounded-lg border border-gray-700/30\"
+          className="space-y-3 p-4 bg-gray-800/20 rounded-lg border border-gray-700/30"
         >
-          <div className=\"flex items-center justify-between\">
-            <span className=\"text-sm text-gray-400\">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-400">
               {tradeType === 'buy' ? 'You receive (est.)' : 'You receive'}
             </span>
-            <span className=\"text-lg font-mono text-white\">
+            <span className="text-lg font-mono text-white">
               {formatCurrency(expectedOutput, tradeType === 'buy' ? token.symbol : 'KAS')}
             </span>
           </div>
 
-          <div className=\"grid grid-cols-2 gap-4 text-xs\">
-            <div className=\"flex items-center justify-between\">
-              <span className=\"text-gray-400 flex items-center\">
-                <Percent size={12} className=\"mr-1\" />
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 flex items-center">
+                <Percent size={12} className="mr-1" />
                 Price Impact
               </span>
               <span className={cn(
@@ -219,32 +240,32 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
               </span>
             </div>
 
-            <div className=\"flex items-center justify-between\">
-              <span className=\"text-gray-400 flex items-center\">
-                <Shield size={12} className=\"mr-1\" />
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 flex items-center">
+                <Shield size={12} className="mr-1" />
                 Min. Received
               </span>
-              <span className=\"text-gray-300 font-mono\">
+              <span className="text-gray-300 font-mono">
                 {formatCurrency(minimumReceived, tradeType === 'buy' ? token.symbol : 'KAS', 6)}
               </span>
             </div>
 
-            <div className=\"flex items-center justify-between\">
-              <span className=\"text-gray-400 flex items-center\">
-                <DollarSign size={12} className=\"mr-1\" />
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 flex items-center">
+                <DollarSign size={12} className="mr-1" />
                 Platform Fee
               </span>
-              <span className=\"text-gray-300 font-mono\">
+              <span className="text-gray-300 font-mono">
                 {formatCurrency(fees, 'KAS', 6)}
               </span>
             </div>
 
-            <div className=\"flex items-center justify-between\">
-              <span className=\"text-gray-400 flex items-center\">
-                <Clock size={12} className=\"mr-1\" />
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 flex items-center">
+                <Clock size={12} className="mr-1" />
                 Est. Time
               </span>
-              <span className=\"text-green-400 font-medium\">
+              <span className="text-green-400 font-medium">
                 ~10s
               </span>
             </div>
@@ -253,15 +274,15 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
       )}
 
       {/* Slippage Settings */}
-      <div className=\"space-y-3\">
-        <div className=\"flex items-center justify-between\">
-          <span className=\"text-sm font-medium text-gray-300 flex items-center\">
-            <Settings size={16} className=\"mr-2\" />
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-300 flex items-center">
+            <Settings size={16} className="mr-2" />
             Slippage Tolerance
           </span>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className=\"text-purple-400 hover:text-purple-300 transition-colors\"
+            className="text-purple-400 hover:text-purple-300 transition-colors"
           >
             <Settings size={16} />
           </button>
@@ -273,9 +294,9 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className=\"space-y-3\"
+              className="space-y-3"
             >
-              <div className=\"flex items-center space-x-2\">
+              <div className="flex items-center space-x-2">
                 {slippagePresets.map((preset) => (
                   <button
                     key={preset}
@@ -291,24 +312,24 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
                   </button>
                 ))}
                 
-                <div className=\"relative\">
+                <div className="relative">
                   <input
-                    type=\"number\"
+                    type="number"
                     value={slippage}
                     onChange={(e) => setSlippage(parseFloat(e.target.value) || 0)}
-                    className=\"w-20 px-2 py-2 bg-gray-700 border border-gray-600 rounded-md text-sm text-white text-center focus:outline-none focus:border-purple-500\"
-                    step=\"0.1\"
-                    min=\"0.1\"
-                    max=\"50\"
+                    className="w-20 px-2 py-2 bg-gray-700 border border-gray-600 rounded-md text-sm text-white text-center focus:outline-none focus:border-purple-500"
+                    step="0.1"
+                    min="0.1"
+                    max="50"
                   />
-                  <span className=\"absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 text-xs\">%</span>
+                  <span className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
                 </div>
               </div>
 
               {slippage > 5 && (
-                <div className=\"flex items-center space-x-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg\">
-                  <AlertTriangle size={16} className=\"text-yellow-400\" />
-                  <span className=\"text-yellow-400 text-sm\">
+                <div className="flex items-center space-x-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <AlertTriangle size={16} className="text-yellow-400" />
+                  <span className="text-yellow-400 text-sm">
                     High slippage tolerance may result in unfavorable trades
                   </span>
                 </div>
@@ -318,23 +339,25 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
         </AnimatePresence>
       </div>
 
-      {/* Trade Button */}
+      {/* Trade Button - Mobile optimized */}
       <Button
-        onClick={handleTrade}
+        onClick={handleTradeClick}
         disabled={!amount || parseFloat(amount) <= 0 || isInsufficientBalance() || loading}
         className={cn(
-          'w-full h-14 text-lg font-semibold transition-all duration-200',
+          'w-full min-h-[56px] text-base sm:text-lg font-bold transition-all duration-200',
+          'touch-manipulation', // Optimize touch response
           tradeType === 'buy'
-            ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/20'
-            : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/20',
-          'disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none'
+            ? 'bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-lg shadow-green-600/20'
+            : 'bg-red-600 hover:bg-red-700 active:bg-red-800 shadow-lg shadow-red-600/20',
+          'disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none',
+          'transform active:scale-[0.98]' // Touch feedback
         )}
       >
-        <div className=\"flex items-center justify-center space-x-2\">
+        <div className="flex items-center justify-center space-x-2">
           {loading ? (
-            <div className=\"animate-spin rounded-full h-5 w-5 border-b-2 border-white\" />
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
           ) : (
-            <Zap size={20} />
+            <Zap size={22} />
           )}
           <span>{getTradeButtonText()}</span>
         </div>
@@ -345,16 +368,31 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className=\"flex items-center space-x-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg\"
+          className="flex items-center space-x-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg"
         >
-          <AlertTriangle size={16} className=\"text-red-400\" />
-          <span className=\"text-red-400 text-sm\">
+          <AlertTriangle size={16} className="text-red-400" />
+          <span className="text-red-400 text-sm">
             High price impact ({priceImpact.toFixed(1)}%). Consider reducing trade size.
           </span>
         </motion.div>
       )}
 
-      {/* Trade Success/Error Toast would go here */}
+      {/* Transaction Preview Modal */}
+      <TransactionPreviewModal
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        onConfirm={handleConfirmTrade}
+        token={token}
+        type={tradeType}
+        amount={amount}
+        expectedOutput={expectedOutput}
+        priceImpact={priceImpact}
+        slippage={slippage}
+        minimumReceived={minimumReceived}
+        fees={fees}
+        chainId={undefined} // Will be determined from wallet
+        loading={loading}
+      />
     </Card>
   );
 };
