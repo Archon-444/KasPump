@@ -6,6 +6,8 @@ import { CheckCircle, Upload } from 'lucide-react';
 import { Input, Textarea } from '../ui';
 import { TokenCreationForm } from '../../types';
 import { isValidTokenName, isValidTokenSymbol } from '../../utils';
+import { useAccount } from 'wagmi';
+import { getChainById } from '../../config/chains';
 
 export interface TokenCreationWizardProps {
   formData: TokenCreationForm;
@@ -250,6 +252,11 @@ export const WizardStep3: React.FC<{
   onBack: () => void;
   onComplete: () => void;
 }> = ({ formData, onBack, onComplete }) => {
+  // Get current chain's native currency symbol
+  const { chainId } = useAccount();
+  const currentChain = chainId ? getChainById(chainId) : null;
+  const nativeCurrencySymbol = currentChain?.nativeCurrency?.symbol || 'BNB'; // Default to BNB for BSC
+
   // Default values for wizard mode (simplified)
   const defaults = {
     totalSupply: 1000000000,
@@ -312,7 +319,7 @@ export const WizardStep3: React.FC<{
           </div>
           <div>
             <span className="text-gray-400">Base Price:</span>{' '}
-            <span className="text-white">{finalFormData.basePrice} KAS</span>
+            <span className="text-white">{finalFormData.basePrice} {nativeCurrencySymbol}</span>
           </div>
           <div>
             <span className="text-gray-400">Slope:</span>{' '}

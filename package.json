@@ -20,6 +20,7 @@
     "deploy:deterministic:base-sepolia": "hardhat run scripts/deploy-deterministic.ts --network baseSepolia",
     "test": "hardhat test",
     "test:bsc": "hardhat run scripts/test-deployed-bsc.ts --network bscTestnet",
+    "verify:deployment": "hardhat run scripts/verify-deployment.ts --network bscTestnet",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

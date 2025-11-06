@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, AlertTriangle, CheckCircle, XCircle, Loader, Sparkles, Settings } from 'lucide-react';
 import { Button, Input, Textarea, Select, Card, Alert } from '../ui';
@@ -14,6 +15,9 @@ import { useMultiChainDeployment } from '../../hooks/useMultiChainDeployment';
 import { ConfettiSuccess } from './ConfettiSuccess';
 import { SuccessToast } from './SuccessToast';
 import { uploadImageToIPFS, isIPFSConfigured } from '../../lib/ipfs';
+import { useAccount } from 'wagmi';
+import { getChainById, formatNativeCurrency, getChainMetadata } from '../../config/chains';
+import { areContractsDeployed } from '../../config/contracts';
 
 interface TokenCreationModalProps {
   isOpen: boolean;
@@ -27,6 +31,15 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
   onSuccess,
 }) => {
   const contracts = useContracts();
+  const { chainId } = useAccount();
+  
+  // Get current chain's native currency symbol
+  const currentChain = chainId ? getChainById(chainId) : null;
+  const nativeCurrencySymbol = currentChain?.nativeCurrency?.symbol || 'BNB'; // Default to BNB for BSC
+  
+  // Check if contracts are deployed on current chain
+  const contractsDeployed = chainId ? areContractsDeployed(chainId) : false;
+  const chainMetadata = chainId ? getChainMetadata(chainId) : null;
   
   const [formData, setFormData] = useState<TokenCreationForm>({
     name: '',
@@ -35,7 +48,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
     image: null,
     totalSupply: 1000000000, // 1 billion default
     curveType: 'linear',
-    basePrice: 0.000001, // 1 micro KAS
+    basePrice: 0.000001, // Default base price
     slope: 0.00000001, // Small slope for linear curve
   });
 
@@ -58,6 +71,13 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
   const [selectedChains, setSelectedChains] = useState<number[]>([]);
   const [showMultiChain, setShowMultiChain] = useState(false);
   const multiChainDeployment = useMultiChainDeployment();
+
+  // Portal mounting state (must be before any conditional returns - Rules of Hooks)
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Reset form when modal opens/closes
   React.useEffect(() => {
@@ -101,7 +121,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
     if (formData.basePrice <= 0) {
       newErrors.basePrice = 'Base price must be positive';
     } else if (formData.basePrice > 1) {
-      newErrors.basePrice = 'Base price too high (max 1 KAS)';
+      newErrors.basePrice = `Base price too high (max 1 ${nativeCurrencySymbol})`;
     }
 
     // Slope validation
@@ -117,6 +137,11 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!contractsDeployed) {
+      setCreationError(`Token creation is not available on ${chainMetadata?.name || 'this chain'}. Please switch to BSC Testnet (chain 97) where contracts are deployed.`);
+      setCreationStep('error');
+      return;
+    }
     if (validateForm()) {
       setCreationStep('confirm');
     }
@@ -124,6 +149,12 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
 
   const handleConfirmCreation = async () => {
     if (!contracts.isConnected) return;
+    
+    if (!contractsDeployed) {
+      setCreationError(`Token creation is not available on ${chainMetadata?.name || 'this chain'}. Please switch to BSC Testnet (chain 97) where contracts are deployed.`);
+      setCreationStep('error');
+      return;
+    }
 
     setIsCreating(true);
     setCreationStep('creating');
@@ -215,7 +246,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
     }
   };
 
-  const estimatedGasCost = 0.005; // Estimated in KAS
+  const estimatedGasCost = 0.005; // Estimated gas cost
   const totalCost = estimatedGasCost;
 
   if (!isOpen) {
@@ -254,30 +285,68 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
     );
   }
 
-  return (
-    <>
-      <AnimatePresence mode="wait">
-        {isOpen && (
+  // Don't render portal on server side or if not mounted
+  if (!mounted || typeof window === 'undefined' || !isOpen) {
+    return null;
+  }
+
+  const modalContent = (
+    <AnimatePresence mode="wait">
+      {isOpen && (
+        <motion.div
+          key="modal-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 overflow-hidden"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 99999,
+            pointerEvents: 'auto',
+            maxWidth: '100vw',
+            maxHeight: '100vh',
+          }}
+          onClick={onClose}
+        >
+          {/* Backdrop */}
           <motion.div
-            key="modal-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            onClick={onClose}
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
+          />
+
+          {/* Modal Content */}
+          <motion.div
+            key="modal-content"
+            className="relative w-full overflow-hidden"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.2 }}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 'min(42rem, calc(100vw - 2rem))',
+              maxHeight: 'calc(100vh - 2rem)',
+              margin: 'auto',
+              position: 'relative',
+              zIndex: 1,
+            }}
           >
-            <motion.div
-              key="modal-content"
-              className="modal-content w-full max-w-2xl"
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.2 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Card className="glassmorphism">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+            <Card className="glassmorphism h-full flex flex-col overflow-hidden">
+              {/* Header - Fixed */}
+              <div className="flex items-center justify-between mb-6 flex-shrink-0 px-6 pt-6">
                   <h2 className="text-2xl font-bold gradient-text">
                     {creationStep === 'form' ? 'Create Token' :
                      creationStep === 'confirm' ? 'Confirm Creation' :
@@ -323,8 +392,25 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   </div>
                 </div>
 
-              {/* Content based on step */}
-              <WalletRequired>
+              {/* Content based on step - Scrollable */}
+              <div className="flex-1 overflow-y-auto px-6 pb-6" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+                <WalletRequired>
+              {/* Contract Deployment Warning */}
+              {!contractsDeployed && chainId && (
+                <Alert variant="danger" className="mb-6">
+                  <AlertTriangle size={16} />
+                  <div className="ml-2">
+                    <p className="font-medium">Contracts Not Deployed</p>
+                    <p className="text-sm mt-1">
+                      Token creation is not available on <strong>{chainMetadata?.name || `Chain ${chainId}`}</strong> because the smart contracts have not been deployed yet.
+                    </p>
+                    <p className="text-sm mt-2">
+                      <strong>Please switch to BSC Testnet (Chain ID: 97)</strong> where contracts are deployed and ready to use.
+                    </p>
+                  </div>
+                </Alert>
+              )}
+              
               {creationStep === 'form' && mode === 'beginner' && (
                 <>
                   <WizardProgress currentStep={wizardStep} />
@@ -400,6 +486,12 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                             } finally {
                               setUploadingImage(false);
                             }
+                          }
+                          // Check if contracts are deployed
+                          if (!contractsDeployed) {
+                            setCreationError(`Token creation is not available on ${chainMetadata?.name || 'this chain'}. Please switch to BSC Testnet (chain 97) where contracts are deployed.`);
+                            setCreationStep('error');
+                            return;
                           }
                           // Validate and proceed to confirmation
                           if (validateForm()) {
@@ -491,7 +583,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                       />
                       
                       <Input
-                        label="Base Price (KAS) *"
+                        label={`Base Price (${nativeCurrencySymbol}) *`}
                         type="number"
                         step="0.000001"
                         placeholder="0.000001"
@@ -607,7 +699,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                         <div>
                           <p className="font-medium">Estimated Cost</p>
                           <p className="text-sm text-gray-400">
-                            Gas fee: ~{estimatedGasCost} KAS • Total: ~{totalCost} KAS
+                            Gas fee: ~{estimatedGasCost} {nativeCurrencySymbol} • Total: ~{totalCost} {nativeCurrencySymbol}
                           </p>
                         </div>
                       </div>
@@ -620,8 +712,13 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                       <Button variant="secondary" onClick={onClose} fullWidth>
                         Cancel
                       </Button>
-                      <Button type="submit" variant="primary" fullWidth>
-                        Review & Create
+                      <Button 
+                        type="submit" 
+                        variant="primary" 
+                        fullWidth
+                        disabled={!contractsDeployed}
+                      >
+                        {contractsDeployed ? 'Review & Create' : 'Contracts Not Deployed'}
                       </Button>
                     </div>
                   )}
@@ -655,7 +752,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div><span className="text-gray-400">Supply:</span> <span className="text-white">{formData.totalSupply.toLocaleString()}</span></div>
                       <div><span className="text-gray-400">Curve:</span> <span className="text-white">{formData.curveType}</span></div>
-                      <div><span className="text-gray-400">Base Price:</span> <span className="text-white">{formData.basePrice} KAS</span></div>
+                      <div><span className="text-gray-400">Base Price:</span> <span className="text-white">{formData.basePrice} {nativeCurrencySymbol}</span></div>
                       <div><span className="text-gray-400">Slope:</span> <span className="text-white">{formData.slope}</span></div>
                     </div>
                   </Card>
@@ -670,8 +767,9 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                       loading={isCreating}
                       fullWidth
                       className="btn-glow-purple"
+                      disabled={!contractsDeployed}
                     >
-                      Create Token
+                      {contractsDeployed ? 'Create Token' : 'Contracts Not Deployed'}
                     </Button>
                   </div>
                 </div>
@@ -777,12 +875,25 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   </div>
                 </div>
               )}
-              </WalletRequired>
+                </WalletRequired>
+              </div>
             </Card>
           </motion.div>
         </motion.div>
         )}
       </AnimatePresence>
+    );
+
+  // Render modal in portal at document body level
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
+  
+  if (!portalTarget) {
+    return null;
+  }
+
+  return (
+    <>
+      {createPortal(modalContent, portalTarget)}
       
       {/* Success Animations - Outside AnimatePresence */}
       <ConfettiSuccess trigger={showConfetti} duration={3000} />

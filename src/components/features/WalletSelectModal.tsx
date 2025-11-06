@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Wallet, X, ExternalLink, QrCode, Smartphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useConnect } from 'wagmi';
@@ -27,16 +28,32 @@ interface WalletOption {
 export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, onClose }) => {
   const wallet = useMultichainWallet();
   const { connect, connectors, isPending } = useConnect();
+  
+  // Use portal to render modal at root level (above everything)
+  // MUST be called before any conditional returns (Rules of Hooks)
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleConnect = async (connectorId: string) => {
     try {
       const connector = connectors.find(c => c.id === connectorId);
-      if (connector) {
-        await connect({ connector });
-        onClose();
+      if (!connector) {
+        console.error(`Connector ${connectorId} not found. Available connectors:`, connectors.map(c => c.id));
+        alert(`Wallet connector "${connectorId}" is not available. Please try another option.`);
+        return;
       }
-    } catch (error) {
+      
+      console.log(`Attempting to connect with ${connectorId}...`);
+      await connect({ connector });
+      console.log(`Successfully connected with ${connectorId}`);
+      onClose();
+    } catch (error: any) {
       console.error('Failed to connect:', error);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      alert(`Failed to connect wallet: ${errorMessage}`);
     }
   };
 
@@ -70,7 +87,7 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
       icon: '🔗',
       description: 'Scan QR code with any WalletConnect-compatible wallet',
       onClick: () => handleConnect('walletConnect'),
-      isAvailable: connectors.some(c => c.id === 'walletConnect') || true,
+      isAvailable: connectors.some(c => c.id === 'walletConnect'),
     },
     {
       id: 'coinbaseWallet',
@@ -130,11 +147,37 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
   const availableWallets = walletOptions.filter(w => w.isAvailable);
   const installableWallets = walletOptions.filter(w => !w.isAvailable && w.installUrl);
 
-  if (!isOpen) return null;
+  // Debug logging
+  useEffect(() => {
+    if (isOpen) {
+      console.log('WalletSelectModal opened');
+      console.log('Available connectors:', connectors.map(c => c.id));
+      console.log('Available wallets:', availableWallets.map(w => w.name));
+    }
+  }, [isOpen, connectors, availableWallets]);
 
-  return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
+  // Don't render portal on server side or if not mounted
+  if (!mounted || typeof window === 'undefined' || !isOpen) {
+    return null;
+  }
+
+  const modalContent = (
+    <AnimatePresence mode="wait">
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 overflow-hidden"
+          style={{ 
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 99999,
+            pointerEvents: 'auto',
+            maxWidth: '100vw',
+            maxHeight: '100vh',
+          }}
+        >
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -142,6 +185,13 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
           exit={{ opacity: 0 }}
           onClick={onClose}
           className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
         />
 
         {/* Modal */}
@@ -149,7 +199,15 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+          className="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full overflow-hidden"
+          style={{
+            maxWidth: 'min(28rem, calc(100vw - 2rem))',
+            maxHeight: 'calc(100vh - 2rem)',
+            margin: 'auto',
+            position: 'relative',
+            zIndex: 1,
+          }}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-700">
@@ -163,7 +221,7 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
           </div>
 
           {/* Content */}
-          <div className="p-6">
+          <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
             <p className="text-gray-400 text-sm mb-6">
               Choose a wallet to connect to KasPump
             </p>
@@ -230,8 +288,19 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
             )}
           </div>
         </motion.div>
-      </div>
+        </div>
+      )}
     </AnimatePresence>
   );
+
+  // Render modal in portal at document body level
+  // This ensures it's above all other content including headers
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
+  
+  if (!portalTarget) {
+    return null;
+  }
+
+  return createPortal(modalContent, portalTarget);
 };
 

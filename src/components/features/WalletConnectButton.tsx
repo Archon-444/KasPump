@@ -43,7 +43,9 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
 
   const handleConnect = async () => {
     // Show wallet selection modal instead of auto-connecting
+    console.log('Connect button clicked, opening wallet modal...');
     setShowWalletModal(true);
+    console.log('showWalletModal state:', true);
   };
 
   const handleDisconnect = async () => {
@@ -56,42 +58,54 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
   };
 
   // Check if any wallet is available
+  // Always show connect button - let the modal handle wallet detection
   const hasAvailableWallet = wallet.availableConnectors && wallet.availableConnectors.length > 0;
+  
+  // Debug logging
+  React.useEffect(() => {
+    console.log('WalletConnectButton - Available connectors:', wallet.availableConnectors?.map(c => c.id) || []);
+    console.log('WalletConnectButton - Has available wallet:', hasAvailableWallet);
+    console.log('WalletConnectButton - Wallet connected:', wallet.connected);
+    console.log('WalletConnectButton - showWalletModal state:', showWalletModal);
+  }, [wallet.availableConnectors, hasAvailableWallet, wallet.connected, showWalletModal]);
 
-  if (!hasAvailableWallet) {
-    return (
-      <div className={cn("relative", className)}>
-        <Button
-          variant="secondary"
-          onClick={() => window.open('https://metamask.io/download/', '_blank')}
-          className="flex items-center space-x-2"
-        >
-          <Wallet size={16} />
-          <span>Install Wallet</span>
-        </Button>
-      </div>
-    );
-  }
-
+  // Always show connect button - connectors might load asynchronously
   if (!wallet.connected) {
     return (
-      <div className={cn("relative", className)}>
-        <Button
-          onClick={handleConnect}
-          loading={wallet.isConnecting}
-          disabled={wallet.isConnecting}
-          icon={<Wallet size={16} />}
-          variant="primary"
-        >
-          {wallet.isConnecting ? 'Connecting...' : 'Connect Wallet'}
-        </Button>
+      <>
+        <div className={cn("relative", className)}>
+          <Button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Button clicked! Current showWalletModal:', showWalletModal);
+              handleConnect();
+              console.log('After handleConnect, showWalletModal should be true');
+            }}
+            loading={wallet.isConnecting}
+            disabled={wallet.isConnecting}
+            icon={<Wallet size={16} />}
+            variant="primary"
+          >
+            {wallet.isConnecting ? 'Connecting...' : 'Connect Wallet'}
+          </Button>
+          
+          {wallet.error && (
+            <div className="absolute top-full mt-2 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800 max-w-sm">
+              {wallet.error}
+            </div>
+          )}
+        </div>
         
-        {wallet.error && (
-          <div className="absolute top-full mt-2 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800 max-w-sm">
-            {wallet.error}
-          </div>
-        )}
-      </div>
+        {/* Wallet Selection Modal - Always render, let modal handle visibility */}
+        <WalletSelectModal
+          isOpen={showWalletModal}
+          onClose={() => {
+            console.log('Closing wallet modal');
+            setShowWalletModal(false);
+          }}
+        />
+      </>
     );
   }
 
@@ -204,10 +218,13 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
         />
       )}
 
-      {/* Wallet Selection Modal */}
+      {/* Wallet Selection Modal - for connected state */}
       <WalletSelectModal
         isOpen={showWalletModal}
-        onClose={() => setShowWalletModal(false)}
+        onClose={() => {
+          console.log('Closing wallet modal');
+          setShowWalletModal(false);
+        }}
       />
     </div>
   );
