@@ -26,6 +26,11 @@ export function useMultichainWallet() {
   });
   const { switchChain, isPending: isSwitching } = useSwitchChain();
 
+  // Ensure all required functions exist
+  if (!connect || !disconnect) {
+    console.warn('Wagmi hooks not fully initialized. Some wallet functions may not work.');
+  }
+
   const [walletState, setWalletState] = useState<MultichainWalletState>({
     connected: false,
     address: null,
@@ -101,6 +106,10 @@ export function useMultichainWallet() {
 
   // Disconnect wallet
   const disconnectWallet = useCallback(async () => {
+    if (!disconnect) {
+      console.warn('Disconnect function not available');
+      return;
+    }
     try {
       await disconnect();
     } catch (error) {

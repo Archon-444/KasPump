@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, TrendingUp, Zap, Users, Search, Star } from 'lucide-react';
 import { WalletConnectButton } from '../components/features/WalletConnectButton';
@@ -13,15 +13,43 @@ import { PWAInstallBanner } from '../components/features/PWAInstallBanner';
 import { MobileNavigation, MobileHeader, useMobileNavigation, MobileTokenCard } from '../components/mobile';
 
 // Lazy load heavy components for better mobile performance
-const TokenTradingPage = dynamic(() => import('../components/features/TokenTradingPage').then(mod => ({ default: mod.TokenTradingPage })), {
-  loading: () => <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div></div>,
-  ssr: false,
-});
+const TokenTradingPage = dynamic(
+  () => import('../components/features/TokenTradingPage').then((mod) => {
+    if (!mod || !mod.TokenTradingPage) {
+      throw new Error('TokenTradingPage component not found');
+    }
+    return { default: mod.TokenTradingPage };
+  }).catch((error) => {
+    console.error('Failed to load TokenTradingPage:', error);
+    // Return a fallback component
+    return { 
+      default: () => <div className="flex items-center justify-center min-h-screen text-red-400">Failed to load trading page</div>
+    };
+  }),
+  {
+    loading: () => <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div></div>,
+    ssr: false,
+  }
+);
 
-const TokenCarousel = dynamic(() => import('../components/features/TokenCarousel').then(mod => ({ default: mod.TokenCarousel })), {
-  loading: () => <div className="h-64 flex items-center justify-center"><div className="animate-pulse text-gray-400">Loading trending tokens...</div></div>,
-  ssr: false,
-});
+const TokenCarousel = dynamic(
+  () => import('../components/features/TokenCarousel').then((mod) => {
+    if (!mod || !mod.TokenCarousel) {
+      throw new Error('TokenCarousel component not found');
+    }
+    return { default: mod.TokenCarousel };
+  }).catch((error) => {
+    console.error('Failed to load TokenCarousel:', error);
+    // Return a fallback component
+    return { 
+      default: () => <div className="h-64 flex items-center justify-center text-gray-400">Failed to load carousel</div>
+    };
+  }),
+  {
+    loading: () => <div className="h-64 flex items-center justify-center"><div className="animate-pulse text-gray-400">Loading trending tokens...</div></div>,
+    ssr: false,
+  }
+);
 import { Button, Input, Card } from '../components/ui';
 import { useRouter } from 'next/navigation';
 import { useContracts } from '../hooks/useContracts';
@@ -66,13 +94,23 @@ export default function HomePage() {
   }, []);
 
   // Load tokens function
-  const loadTokens = async () => {
+  const loadTokens = useCallback(async () => {
     try {
       setLoading(true);
-      const tokenAddresses = await contracts.getAllTokens();
+      
+      // Try to fetch real tokens if contracts are initialized
+      let tokenAddresses: string[] = [];
+      if (contracts.isInitialized && contracts.getAllTokens) {
+        try {
+          tokenAddresses = await contracts.getAllTokens();
+        } catch (error) {
+          console.warn('Failed to fetch tokens from contract, using mock data:', error);
+        }
+      }
       
       // For now, we'll create mock data since the full token info fetching
       // requires AMM address resolution which we noted needs implementation
+      // Use mock data if no tokens found or contracts not initialized
       const mockTokens: KasPumpToken[] = [
         {
           address: '0x1234567890123456789012345678901234567890',
@@ -122,15 +160,21 @@ export default function HomePage() {
       cacheTokenList({ tokens: mockTokens });
     } catch (error) {
       console.error('Failed to load tokens:', error);
+      // Set empty array on error to show empty state
+      setTokens([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [contracts.isInitialized, contracts.getAllTokens, cacheTokenList]);
 
-  // Load tokens on mount
+  // Load tokens on mount and when contracts are initialized
   useEffect(() => {
-    loadTokens();
-  }, []);
+    // Small delay to ensure contracts are ready
+    const timer = setTimeout(() => {
+      loadTokens();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [loadTokens]);
 
   // Pull-to-refresh support (mobile) - must be after loadTokens is defined
   const { elementRef: pullRefreshRef, isPulling, pullProgress } = usePullToRefresh({

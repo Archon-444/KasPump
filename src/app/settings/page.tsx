@@ -172,7 +172,13 @@ export default function SettingsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => wallet.disconnectWallet()}
+                        onClick={() => {
+                          if (wallet.disconnectWallet) {
+                            wallet.disconnectWallet();
+                          } else {
+                            console.warn('Disconnect function not available');
+                          }
+                        }}
                       >
                         Disconnect
                       </Button>

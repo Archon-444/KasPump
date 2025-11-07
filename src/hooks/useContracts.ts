@@ -169,20 +169,25 @@ export function useContracts() {
     if (!factoryAddress) {
       throw new Error(`Token factory address not configured for chain ${currentChainId}`);
     }
-    if (!signer) throw new Error('Wallet not connected');
+    if (!signer) {
+      throw new Error('Wallet not connected');
+    }
+    if (!signer || typeof signer !== 'object') {
+      throw new Error('Invalid signer');
+    }
     return new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
   }, [signer, currentChainId]);
 
   const getRunnerOrThrow = useCallback((): ethers.Signer | ethers.AbstractProvider => {
-    if (signer) return signer;
-    if (provider) return provider;
-    if (browserProvider) return browserProvider;
+    if (signer && typeof signer === 'object') return signer;
+    if (provider && typeof provider === 'object') return provider;
+    if (browserProvider && typeof browserProvider === 'object') return browserProvider;
     throw new Error('Blockchain provider not available');
   }, [signer, provider, browserProvider]);
 
   const getReadProviderOrThrow = useCallback((): ethers.AbstractProvider => {
-    if (provider) return provider;
-    if (browserProvider) return browserProvider;
+    if (provider && typeof provider === 'object') return provider;
+    if (browserProvider && typeof browserProvider === 'object') return browserProvider;
     throw new Error('Blockchain provider not available');
   }, [provider, browserProvider]);
 

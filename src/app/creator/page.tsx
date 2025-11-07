@@ -2,13 +2,14 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, Plus, Filter, Search, Award, TrendingUp } from 'lucide-react';
+import { RefreshCw, Plus, Filter, Search, Award, TrendingUp, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
 import { useCreatorTokens } from '../../hooks/useCreatorTokens';
 import { WalletRequired } from '../../components/features/WalletConnectButton';
 import { CreatorStatsCard } from '../../components/features/CreatorStatsCard';
 import { CreatorTokenCard } from '../../components/features/CreatorTokenCard';
+import { TokenCreationModal } from '../../components/features/TokenCreationModal';
 import { Button, Card, Input } from '../../components/ui';
 import { cn } from '../../utils';
 import { MobileNavigation } from '../../components/mobile';
@@ -21,6 +22,7 @@ export default function CreatorDashboardPage() {
   const [filterBy, setFilterBy] = useState<'all' | 'active' | 'graduated'>('all');
   const [sortBy, setSortBy] = useState<'volume' | 'marketCap' | 'earnings' | 'created'>('volume');
   const [isMobile, setIsMobile] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Mobile detection
   React.useEffect(() => {
@@ -71,9 +73,20 @@ export default function CreatorDashboardPage() {
   }, [tokens, searchQuery, filterBy, sortBy]);
 
   const handleCreateToken = () => {
-    // Open token creation modal or navigate to create page
-    // For now, just scroll to top where create button would be
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Validate wallet is connected before opening modal
+    if (!wallet.connected) {
+      console.warn('Wallet not connected. Please connect your wallet first.');
+      // The WalletRequired component should handle this, but we'll add a check anyway
+      return;
+    }
+    
+    // Check if contracts are available
+    try {
+      setShowCreateModal(true);
+    } catch (error) {
+      console.error('Failed to open token creation modal:', error);
+      alert('Unable to open token creation. Please ensure your wallet is connected and try again.');
+    }
   };
 
   return (
@@ -83,6 +96,17 @@ export default function CreatorDashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
+              {/* Back to Home Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/')}
+                className="flex items-center space-x-2 text-gray-400 hover:text-white"
+                title="Back to Home"
+              >
+                <ArrowLeft size={16} />
+                <span className="hidden sm:inline">Home</span>
+              </Button>
               <Award className="text-purple-400" size={24} />
               <h1 className="text-xl font-bold gradient-text">Creator Dashboard</h1>
             </div>
@@ -102,7 +126,9 @@ export default function CreatorDashboardPage() {
                 variant="primary"
                 size="sm"
                 onClick={handleCreateToken}
+                disabled={!wallet.connected}
                 className="flex items-center space-x-2 btn-glow-purple"
+                title={wallet.connected ? 'Create a new token' : 'Connect wallet to create token'}
               >
                 <Plus size={16} />
                 <span className="hidden sm:inline">Create Token</span>
@@ -218,7 +244,13 @@ export default function CreatorDashboardPage() {
                     <p className="text-gray-400 mb-6">
                       Start your journey as a token creator! Launch your first token and watch it grow.
                     </p>
-                    <Button onClick={handleCreateToken} variant="primary" className="btn-glow-purple">
+                    <Button 
+                      onClick={handleCreateToken} 
+                      variant="primary" 
+                      className="btn-glow-purple"
+                      disabled={!wallet.connected}
+                      title={wallet.connected ? 'Create your first token' : 'Connect wallet to create token'}
+                    >
                       <Plus size={16} className="mr-2" />
                       Create Your First Token
                     </Button>
@@ -258,14 +290,27 @@ export default function CreatorDashboardPage() {
         </WalletRequired>
       </main>
 
+      {/* Token Creation Modal */}
+      <TokenCreationModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={(tokenData) => {
+          console.log('Token created successfully:', tokenData);
+          setShowCreateModal(false);
+          // Refresh the token list to show the new token
+          refresh();
+        }}
+      />
+
       {/* Mobile Navigation */}
       {isMobile && (
         <MobileNavigation
           currentPage="profile"
           onNavigate={(page) => {
             if (page === 'home') router.push('/');
-            else if (page === 'create') router.push('/');
-            else if (page === 'profile') router.push('/portfolio');
+            else if (page === 'create') {
+              handleCreateToken();
+            } else if (page === 'profile') router.push('/portfolio');
           }}
         />
       )}

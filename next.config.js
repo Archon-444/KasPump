@@ -1,13 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: [
-      'ipfs.io',
-      'gateway.ipfs.io',
-      'gateway.pinata.cloud',
-      'ipfs.filebase.io',
-      'nftstorage.link',
-      'dweb.link',
+    remotePatterns: [
+      { protocol: 'https', hostname: 'ipfs.io' },
+      { protocol: 'https', hostname: 'gateway.ipfs.io' },
+      { protocol: 'https', hostname: 'gateway.pinata.cloud' },
+      { protocol: 'https', hostname: 'ipfs.filebase.io' },
+      { protocol: 'https', hostname: 'nftstorage.link' },
+      { protocol: 'https', hostname: 'dweb.link' },
     ],
     // Optimize images for mobile
     formats: ['image/avif', 'image/webp'],
@@ -90,8 +90,6 @@ const nextConfig = {
   },
   // Compression
   compress: true,
-  // Enable SWC minification
-  swcMinify: true,
   // Output standalone for better deployment
   output: 'standalone',
   // Power optimization

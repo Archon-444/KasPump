@@ -14,7 +14,14 @@ import {
   DollarSign,
   BarChart3
 } from 'lucide-react';
-import { TradingChart, TradingInterface, TokenSocialShare, PriceAlertModal, FavoriteButton, RecentTradesFeed, HolderList } from '../features';
+// Import directly to avoid circular dependency with index.ts
+import { TradingChart } from './TradingChart';
+import { TradingInterface } from './TradingInterface';
+import { TokenSocialShare } from './TokenSocialShare';
+import { PriceAlertModal } from './PriceAlertModal';
+import { FavoriteButton } from './FavoriteButton';
+import { RecentTradesFeed } from './RecentTradesFeed';
+import { HolderList } from './HolderList';
 import { MobileTradingInterface } from '../mobile';
 import { Card, Button, Badge, Progress } from '../ui';
 import { KasPumpToken } from '../../types';
