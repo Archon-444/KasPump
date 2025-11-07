@@ -6,9 +6,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Re-export hooks for convenience
-export * from '../hooks/useMultichainWallet';
-export * from '../hooks/useContracts';
+// Note: Hooks should be imported directly from their modules, not re-exported
+// Re-exporting hooks can cause SSR issues when utils are imported by server components
 
 // Crypto-secure random number generator (replaces Math.random() security issue)
 export function secureRandom(): number {

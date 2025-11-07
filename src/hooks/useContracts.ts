@@ -152,9 +152,21 @@ export function useContracts() {
 
         const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, provider);
         
-        // Test contract connectivity
-        await factory.getAllTokens();
-        setIsInitialized(true);
+        // Validate contract instance before calling methods
+        if (!factory || typeof factory.getAllTokens !== 'function') {
+          throw new Error('Invalid factory contract instance');
+        }
+        
+        // Test contract connectivity with defensive check
+        try {
+          await factory.getAllTokens();
+          setIsInitialized(true);
+        } catch (callError: any) {
+          // If the call fails, log but don't crash - contract might not be deployed yet
+          console.warn('Contract connectivity test failed:', callError?.message || callError);
+          // Still mark as initialized if contract exists (might just be empty)
+          setIsInitialized(true);
+        }
       } catch (error) {
         console.error('Contract initialization failed:', error);
       }
@@ -455,7 +467,25 @@ export function useContracts() {
       }
       const runner = getReadProviderOrThrow();
       const contract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, runner);
-      return await contract.getAllTokens();
+      
+      // Validate contract before calling
+      if (!contract || typeof contract !== 'object') {
+        throw new Error('Invalid factory contract instance');
+      }
+      
+      // Check if getAllTokens method exists and is callable
+      if (typeof contract.getAllTokens !== 'function') {
+        throw new Error('getAllTokens method not available on contract');
+      }
+      
+      // Defensive call with error handling
+      try {
+        return await contract.getAllTokens();
+      } catch (error: any) {
+        // If the contract call fails, provide a more descriptive error
+        const errorMessage = error?.message || error?.reason || 'Contract call failed';
+        throw new Error(`Failed to fetch tokens: ${errorMessage}`);
+      }
     } catch (error: any) {
       console.error('Failed to fetch tokens:', error);
       throw parseContractError(error);

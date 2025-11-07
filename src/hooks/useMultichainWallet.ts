@@ -18,6 +18,7 @@ export interface MultichainWalletState {
 }
 
 export function useMultichainWallet() {
+  // Call wagmi hooks unconditionally (Rules of Hooks)
   const { address, isConnected, chainId, connector } = useAccount();
   const { connect, connectors, isPending: isConnecting, error: connectError } = useConnect();
   const { disconnect } = useDisconnect();
