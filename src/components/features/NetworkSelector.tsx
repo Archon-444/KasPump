@@ -61,18 +61,18 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
         className={cn(
           "min-w-[160px] flex items-center justify-between gap-3 px-4 py-2.5",
           "bg-gray-800/50 border border-gray-700 rounded-lg",
-          "hover:bg-gray-800 hover:border-purple-500/30",
+          "hover:bg-gray-800 hover:border-yellow-500/30",
           "transition-all duration-200",
           "disabled:opacity-50 disabled:cursor-not-allowed",
           wallet.isSwitchingNetwork && "cursor-wait"
         )}
       >
         <div className="flex items-center space-x-2.5 flex-1 min-w-0">
-          <Network size={16} className="text-purple-400 flex-shrink-0" />
+          <Network size={16} className="text-yellow-400 flex-shrink-0" />
           {currentChainMeta ? (
             <>
               <div
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-purple-500/30"
+                className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-yellow-500/30"
                 style={{ backgroundColor: currentChainMeta.color }}
               />
               <span className="text-sm font-medium text-white truncate">
@@ -84,12 +84,12 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
           )}
         </div>
         {wallet.isSwitchingNetwork ? (
-          <Loader2 size={16} className="text-purple-400 animate-spin flex-shrink-0" />
+          <Loader2 size={16} className="text-yellow-400 animate-spin flex-shrink-0" />
         ) : (
           <ChevronDown
             className={cn(
               "h-4 w-4 text-gray-400 transition-transform duration-200 flex-shrink-0",
-              showDropdown && "rotate-180 text-purple-400"
+              showDropdown && "rotate-180 text-yellow-400"
             )}
           />
         )}
@@ -114,7 +114,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
             >
               <div className="p-4 border-b border-gray-700/50">
                 <h3 className="font-semibold text-white text-lg flex items-center space-x-2">
-                  <Network size={18} className="text-purple-400" />
+                  <Network size={18} className="text-yellow-400" />
                   <span>Select Network</span>
                 </h3>
                 <p className="text-xs text-gray-400 mt-1">
@@ -147,7 +147,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                             "w-full flex items-center justify-between p-4 rounded-lg transition-all duration-200",
                             "border-2",
                             isActive
-                              ? "bg-purple-500/20 border-purple-500/50 shadow-lg shadow-purple-500/20"
+                              ? "bg-yellow-500/20 border-yellow-500/50 shadow-lg shadow-yellow-500/20"
                               : "border-transparent hover:border-gray-600 hover:bg-gray-800/50",
                             (isSwitching && !isActive) && "opacity-50 cursor-not-allowed"
                           )}
@@ -156,7 +156,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                             <div
                               className={cn(
                                 "w-4 h-4 rounded-full ring-2 ring-offset-2 ring-offset-gray-900 transition-all",
-                                isActive && "ring-purple-500/50 scale-110"
+                                isActive && "ring-yellow-500/50 scale-110"
                               )}
                               style={{ 
                                 backgroundColor: meta.color
@@ -169,7 +169,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                                   <motion.span
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
-                                    className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full"
+                                    className="text-xs bg-yellow-500 text-white px-2 py-0.5 rounded-full"
                                   >
                                     Active
                                   </motion.span>
@@ -188,11 +188,11 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                               animate={{ scale: 1 }}
                               className="flex-shrink-0"
                             >
-                              <Check size={20} className="text-purple-400" />
+                              <Check size={20} className="text-yellow-400" />
                             </motion.div>
                           )}
                           {isSwitching && chain.id === currentChain && (
-                            <Loader2 size={20} className="text-purple-400 animate-spin flex-shrink-0" />
+                            <Loader2 size={20} className="text-yellow-400 animate-spin flex-shrink-0" />
                           )}
                         </motion.button>
                       );
@@ -225,7 +225,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                               "w-full flex items-center justify-between p-4 rounded-lg transition-all duration-200",
                               "border-2",
                               isActive
-                                ? "bg-purple-500/20 border-purple-500/50 shadow-lg shadow-purple-500/20"
+                                ? "bg-yellow-500/20 border-yellow-500/50 shadow-lg shadow-yellow-500/20"
                                 : "border-transparent hover:border-gray-600 hover:bg-gray-800/50"
                             )}
                           >
@@ -233,7 +233,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                               <div
                                 className={cn(
                                   "w-4 h-4 rounded-full ring-2 ring-offset-2 ring-offset-gray-900 transition-all",
-                                  isActive && "ring-purple-500/50 scale-110"
+                                  isActive && "ring-yellow-500/50 scale-110"
                                 )}
                                 style={{ 
                                   backgroundColor: meta.color
@@ -249,7 +249,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                                     <motion.span
                                       initial={{ scale: 0 }}
                                       animate={{ scale: 1 }}
-                                      className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full"
+                                      className="text-xs bg-yellow-500 text-white px-2 py-0.5 rounded-full"
                                     >
                                       Active
                                     </motion.span>
@@ -264,7 +264,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                                 animate={{ scale: 1 }}
                                 className="flex-shrink-0"
                               >
-                                <Check size={20} className="text-purple-400" />
+                                <Check size={20} className="text-yellow-400" />
                               </motion.div>
                             )}
                           </motion.button>
@@ -283,7 +283,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                 >
                   <div className="text-xs">
                     <div className="font-medium text-white mb-2 flex items-center space-x-2">
-                      <Shield size={14} className="text-purple-400" />
+                      <Shield size={14} className="text-yellow-400" />
                       <span>Network Features</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -295,7 +295,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                           transition={{ delay: index * 0.05 }}
                           className="inline-flex items-center space-x-1 px-2.5 py-1 bg-gray-700/50 border border-gray-600 rounded-lg text-xs text-gray-300"
                         >
-                          <Zap size={10} className="text-purple-400" />
+                          <Zap size={10} className="text-yellow-400" />
                           <span>{feature}</span>
                         </motion.span>
                       ))}
@@ -324,12 +324,12 @@ export const NetworkIndicator: React.FC<{ className?: string }> = ({ className }
       className={cn(
         "flex items-center space-x-2 text-sm px-3 py-1.5",
         "bg-gray-800/50 border border-gray-700 rounded-lg",
-        "hover:border-purple-500/30 transition-colors",
+        "hover:border-yellow-500/30 transition-colors",
         className
       )}
     >
       <div
-        className="w-2.5 h-2.5 rounded-full ring-2 ring-purple-500/20"
+        className="w-2.5 h-2.5 rounded-full ring-2 ring-yellow-500/20"
         style={{ backgroundColor: chainMeta.color }}
       />
       <span className="font-medium text-white">{chainMeta.shortName}</span>

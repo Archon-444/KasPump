@@ -105,7 +105,7 @@ export const TokenCarousel: React.FC<TokenCarouselProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold gradient-text flex items-center space-x-2">
-            <TrendingUp className="text-purple-400" size={24} />
+            <TrendingUp className="text-yellow-400" size={24} />
             <span>{title}</span>
           </h2>
           {subtitle && (

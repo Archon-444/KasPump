@@ -83,7 +83,7 @@ export const HolderList: React.FC<HolderListProps> = ({
     return (
       <Card className={cn('glassmorphism p-6', className)}>
         <div className="flex items-center space-x-3 mb-4">
-          <Users className="text-purple-400" size={20} />
+          <Users className="text-yellow-400" size={20} />
           <h3 className="text-lg font-semibold text-white">Top Holders</h3>
         </div>
         <div className="space-y-3">
@@ -108,7 +108,7 @@ export const HolderList: React.FC<HolderListProps> = ({
     return (
       <Card className={cn('glassmorphism p-6', className)}>
         <div className="flex items-center space-x-3 mb-4">
-          <Users className="text-purple-400" size={20} />
+          <Users className="text-yellow-400" size={20} />
           <h3 className="text-lg font-semibold text-white">Top Holders</h3>
         </div>
         <div className="text-center py-8 text-gray-400">
@@ -123,7 +123,7 @@ export const HolderList: React.FC<HolderListProps> = ({
     <Card className={cn('glassmorphism p-6', className)}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <Users className="text-purple-400" size={20} />
+          <Users className="text-yellow-400" size={20} />
           <h3 className="text-lg font-semibold text-white">Top Holders</h3>
         </div>
         <span className="text-xs text-gray-400">
@@ -180,7 +180,7 @@ export const HolderList: React.FC<HolderListProps> = ({
                         className="p-1 hover:bg-gray-700 rounded transition-colors"
                         title="View on explorer"
                       >
-                        <ExternalLink size={12} className="text-gray-400 hover:text-purple-400" />
+                        <ExternalLink size={12} className="text-gray-400 hover:text-yellow-400" />
                       </a>
                     )}
                   </div>

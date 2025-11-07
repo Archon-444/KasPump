@@ -86,7 +86,7 @@ export const MobileTokenCard: React.FC<MobileTokenCardProps> = ({
       whileTap={{ scale: 0.98 }}
       className={cn(
         'relative bg-gray-800/40 backdrop-blur-sm rounded-2xl overflow-hidden',
-        'border border-gray-700/30 hover:border-purple-500/30 transition-all duration-300',
+        'border border-gray-700/30 hover:border-yellow-500/30 transition-all duration-300',
         className
       )}
       onClick={() => onClick?.(token)}
@@ -97,9 +97,9 @@ export const MobileTokenCard: React.FC<MobileTokenCardProps> = ({
         <span className="text-xs text-green-400 mt-1">Buy</span>
       </div>
       
-      <div className="absolute inset-y-0 right-0 w-20 bg-purple-600/20 flex items-center justify-center">
-        <Share2 className="text-purple-400" size={24} />
-        <span className="text-xs text-purple-400 mt-1">More</span>
+      <div className="absolute inset-y-0 right-0 w-20 bg-yellow-600/20 flex items-center justify-center">
+        <Share2 className="text-yellow-400" size={24} />
+        <span className="text-xs text-yellow-400 mt-1">More</span>
       </div>
 
       {/* Main Card Content */}
@@ -107,7 +107,7 @@ export const MobileTokenCard: React.FC<MobileTokenCardProps> = ({
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
+            <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold">
               {token.symbol.slice(0, 2)}
             </div>
             <div>
@@ -139,16 +139,16 @@ export const MobileTokenCard: React.FC<MobileTokenCardProps> = ({
         {/* Price Display */}
         <div className="mb-4">
           <div className="text-2xl font-mono font-bold text-white mb-1">
-            {formatCurrency(token.price, 'KAS', 8)}
+            {formatCurrency(token.price, 'BNB', 8)}
           </div>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-400">Market Cap</span>
-              <div className="text-white font-medium">{formatCurrency(token.marketCap, 'KAS')}</div>
+              <div className="text-white font-medium">{formatCurrency(token.marketCap, 'BNB')}</div>
             </div>
             <div>
               <span className="text-gray-400">24h Volume</span>
-              <div className="text-white font-medium">{formatCurrency(token.volume24h, 'KAS')}</div>
+              <div className="text-white font-medium">{formatCurrency(token.volume24h, 'BNB')}</div>
             </div>
           </div>
         </div>
@@ -247,7 +247,7 @@ export const MobileTokenCard: React.FC<MobileTokenCardProps> = ({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleShare}
-              className="flex flex-col items-center space-y-2 p-4 bg-purple-600 rounded-xl text-white"
+              className="flex flex-col items-center space-y-2 p-4 bg-yellow-600 rounded-xl text-white"
             >
               <Share2 size={24} />
               <span className="text-sm font-medium">Share</span>
@@ -300,7 +300,7 @@ export const CompactMobileTokenCard: React.FC<CompactMobileTokenCardProps> = ({
       onClick={() => onClick?.(token)}
       className={cn(
         'flex items-center space-x-3 p-3 bg-gray-800/30 rounded-xl',
-        'border border-gray-700/30 hover:border-purple-500/30',
+        'border border-gray-700/30 hover:border-yellow-500/30',
         'transition-all duration-200 cursor-pointer',
         className
       )}
@@ -313,7 +313,7 @@ export const CompactMobileTokenCard: React.FC<CompactMobileTokenCardProps> = ({
       )}
 
       {/* Token Icon */}
-      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+      <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
         {token.symbol.slice(0, 2)}
       </div>
 
@@ -327,7 +327,7 @@ export const CompactMobileTokenCard: React.FC<CompactMobileTokenCardProps> = ({
           
           <div className="text-right">
             <div className="text-white font-mono text-sm">
-              {formatCurrency(token.price, 'KAS', 6)}
+              {formatCurrency(token.price, 'BNB', 6)}
             </div>
             <div className={cn(
               'text-xs font-medium',

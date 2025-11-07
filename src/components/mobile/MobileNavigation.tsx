@@ -36,13 +36,13 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
   const navigationItems = [
     { id: 'home', label: 'Home', icon: Home, color: 'text-blue-400' },
     { id: 'trading', label: 'Trading', icon: TrendingUp, color: 'text-green-400' },
-    { id: 'create', label: 'Create', icon: Plus, color: 'text-purple-400', isAction: true },
+    { id: 'create', label: 'Create', icon: Plus, color: 'text-yellow-400', isAction: true },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, color: 'text-orange-400' },
     { id: 'profile', label: 'Profile', icon: User, color: 'text-pink-400' }
   ];
 
   const quickActions = [
-    { id: 'create-token', label: 'Create Token', icon: Plus, color: 'bg-purple-500' },
+    { id: 'create-token', label: 'Create Token', icon: Plus, color: 'bg-yellow-500' },
     { id: 'quick-trade', label: 'Quick Trade', icon: TrendingUp, color: 'bg-green-500' },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet, color: 'bg-blue-500' },
     { id: 'notifications', label: 'Notifications', icon: Bell, color: 'bg-yellow-500' }
@@ -172,7 +172,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
                     'relative flex flex-col items-center py-2 px-3 rounded-xl transition-all duration-200',
                     'min-w-[60px] min-h-[60px] justify-center',
                     isCreateButton
-                      ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/25'
+                      ? 'bg-yellow-600 text-white shadow-lg shadow-yellow-600/25'
                       : isActive
                       ? 'bg-gray-800/60 text-white'
                       : 'text-gray-500 hover:text-gray-300'
@@ -182,7 +182,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
                   {isActive && !isCreateButton && (
                     <motion.div
                       layoutId="activeTab"
-                      className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-purple-500 rounded-full"
+                      className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-yellow-500 rounded-full"
                     />
                   )}
                   

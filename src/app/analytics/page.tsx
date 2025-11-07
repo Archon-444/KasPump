@@ -91,7 +91,7 @@ export default function AnalyticsPage() {
                 <ArrowLeft size={16} />
                 <span>Back</span>
               </Button>
-              <BarChart3 className="text-purple-400" size={24} />
+              <BarChart3 className="text-yellow-400" size={24} />
               <h1 className="text-xl font-bold gradient-text">Analytics</h1>
             </div>
 
@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
                     className={cn(
                       'px-3 py-1.5 rounded text-sm font-medium transition-all',
                       timeframe === tf
-                        ? 'bg-purple-500 text-white'
+                        ? 'bg-yellow-500 text-white'
                         : 'text-gray-400 hover:text-white'
                     )}
                   >
@@ -144,7 +144,7 @@ export default function AnalyticsPage() {
         {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mb-4"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500 mb-4"></div>
             <div className="text-gray-400">Loading analytics...</div>
           </div>
         )}
@@ -204,10 +204,10 @@ export default function AnalyticsPage() {
                 <div className={cn('text-gray-400', isMobile ? 'text-xs' : 'text-sm')}>Creator Earnings</div>
               </Card>
 
-              <Card className={cn('glassmorphism border-2 border-purple-500/30', isMobile && 'p-4')}>
+              <Card className={cn('glassmorphism border-2 border-yellow-500/30', isMobile && 'p-4')}>
                 <div className="flex items-center justify-between mb-2">
-                  <Users className="text-purple-400" size={isMobile ? 18 : 20} />
-                  <span className={cn('bg-purple-500/20 text-purple-400 px-2 py-1 rounded', isMobile ? 'text-[10px]' : 'text-xs')}>Ecosystem</span>
+                  <Users className="text-yellow-400" size={isMobile ? 18 : 20} />
+                  <span className={cn('bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded', isMobile ? 'text-[10px]' : 'text-xs')}>Ecosystem</span>
                 </div>
                 <div className={cn('font-bold text-white mb-1', isMobile ? 'text-xl' : 'text-2xl')}>
                   ${(analytics.partnership?.ecosystemValue || 0).toLocaleString()}

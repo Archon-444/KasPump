@@ -110,7 +110,7 @@ export default function SettingsPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
-              <SettingsIcon className="text-purple-400" size={24} />
+              <SettingsIcon className="text-yellow-400" size={24} />
               <h1 className="text-xl font-bold gradient-text">Settings</h1>
             </div>
             <Button
@@ -136,7 +136,7 @@ export default function SettingsPage() {
           >
             <Card className="glassmorphism p-6">
               <div className="flex items-center space-x-3 mb-6">
-                <Wallet className="text-purple-400" size={20} />
+                <Wallet className="text-yellow-400" size={20} />
                 <h2 className="text-lg font-semibold text-white">Wallet Settings</h2>
               </div>
 
@@ -280,7 +280,7 @@ export default function SettingsPage() {
                         onChange={(e) => updateNestedSetting('notifications', key as any, e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                      <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-600"></div>
                     </label>
                   </div>
                 ))}
@@ -320,7 +320,7 @@ export default function SettingsPage() {
                         onChange={(e) => updateNestedSetting('privacy', key as any, e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                      <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-600"></div>
                     </label>
                   </div>
                 ))}

@@ -76,13 +76,13 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       crosshair: {
         mode: isMobile ? 0 : 1, // Disable crosshair on mobile for better touch interaction
         vertLine: {
-          color: 'rgba(168, 85, 247, 0.5)',
-          labelBackgroundColor: '#a855f7',
+          color: 'rgba(243, 186, 47, 0.5)',
+          labelBackgroundColor: '#F3BA2F',
           visible: !isMobile,
         },
         horzLine: {
-          color: 'rgba(168, 85, 247, 0.5)',
-          labelBackgroundColor: '#a855f7',
+          color: 'rgba(243, 186, 47, 0.5)',
+          labelBackgroundColor: '#F3BA2F',
         },
       },
       rightPriceScale: {
@@ -225,7 +225,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     return (
       <Card className={cn('p-6', className)}>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
           <span className="ml-3 text-gray-400">Loading chart...</span>
         </div>
       </Card>
@@ -250,8 +250,8 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <BarChart3 className="text-purple-500" size={20} />
-              <h3 className="font-semibold text-white">{token.symbol}/KAS</h3>
+              <BarChart3 className="text-yellow-500" size={20} />
+              <h3 className="font-semibold text-white">{token.symbol}/BNB</h3>
             </div>
             
             <div className="flex items-center space-x-2">
@@ -278,7 +278,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
                   className={cn(
                     'px-2 py-1 text-xs rounded transition-colors',
                     timeframe === tf.value
-                      ? 'bg-purple-500 text-white'
+                      ? 'bg-yellow-500 text-white'
                       : 'text-gray-400 hover:text-white hover:bg-gray-700'
                   )}
                 >

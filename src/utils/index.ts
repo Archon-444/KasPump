@@ -61,7 +61,7 @@ export function formatNumber(num: number, decimals = 2): string {
 }
 
 // Format currency values
-export function formatCurrency(amount: number, symbol = 'KAS', decimals = 6): string {
+export function formatCurrency(amount: number, symbol = 'BNB', decimals = 6): string {
   const formatted = formatNumber(amount, decimals);
   return `${formatted} ${symbol}`;
 }

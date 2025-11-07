@@ -188,7 +188,7 @@ class KasPumpAnalytics {
   trackRevenue(revenueData: {
     source: 'launch_fee' | 'premium_feature' | 'api_subscription' | 'partnership';
     amount: number;
-    currency: 'KAS' | 'USD';
+    currency: 'BNB' | 'USD';
     tokenAddress?: string;
     userId?: string;
   }) {

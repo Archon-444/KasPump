@@ -48,7 +48,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
     return (
       <div
         className={cn(
-          'bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold',
+          'bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold',
           className
         )}
         style={{ width, height }}

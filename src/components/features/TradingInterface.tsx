@@ -71,13 +71,13 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
       setMinimumReceived(tokensReceived * (1 - slippage / 100));
       setFees(platformFee);
     } else {
-      const kasReceived = inputAmount * token.price;
-      const impact = Math.min((kasReceived / token.volume24h) * 100, 5);
-      const platformFee = kasReceived * 0.01; // 1% platform fee
+      const bnbReceived = inputAmount * token.price;
+      const impact = Math.min((bnbReceived / token.volume24h) * 100, 5);
+      const platformFee = bnbReceived * 0.01; // 1% platform fee
       
-      setExpectedOutput(kasReceived - platformFee);
+      setExpectedOutput(bnbReceived - platformFee);
       setPriceImpact(impact);
-      setMinimumReceived((kasReceived - platformFee) * (1 - slippage / 100));
+      setMinimumReceived((bnbReceived - platformFee) * (1 - slippage / 100));
       setFees(platformFee);
     }
   }, [amount, slippage, tradeType, token.price, token.volume24h]);
@@ -113,7 +113,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   };
 
   const getTradeButtonText = () => {
-    if (!amount || parseFloat(amount) <= 0) return `Enter ${tradeType === 'buy' ? 'KAS' : token.symbol} amount`;
+    if (!amount || parseFloat(amount) <= 0) return `Enter ${tradeType === 'buy' ? 'BNB' : token.symbol} amount`;
     if (isInsufficientBalance()) return 'Insufficient Balance';
     if (loading) return `${tradeType === 'buy' ? 'Buying' : 'Selling'}...`;
     return `${tradeType === 'buy' ? 'Buy' : 'Sell'} ${token.symbol}`;
@@ -164,7 +164,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
             {tradeType === 'buy' ? 'You pay' : 'You sell'}
           </label>
           <div className="text-sm text-gray-400">
-            Balance: {formatCurrency(tradeType === 'buy' ? userBalance : userTokenBalance, tradeType === 'buy' ? 'KAS' : token.symbol)}
+            Balance: {formatCurrency(tradeType === 'buy' ? userBalance : userTokenBalance, tradeType === 'buy' ? 'BNB' : token.symbol)}
           </div>
         </div>
 
@@ -178,7 +178,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
             className={cn(
               'w-full px-4 py-5 sm:py-4 bg-gray-800/50 border border-gray-600 rounded-lg',
               'text-2xl sm:text-xl font-mono text-white placeholder-gray-500',
-              'focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50',
+              'focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/50',
               'transition-all duration-200',
               'min-h-[56px]', // Mobile touch target
               'touch-manipulation', // Optimize touch response
@@ -186,7 +186,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
             )}
           />
           <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm sm:text-base">
-            {tradeType === 'buy' ? 'KAS' : token.symbol}
+            {tradeType === 'buy' ? 'BNB' : token.symbol}
           </div>
         </div>
 
@@ -222,7 +222,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
               {tradeType === 'buy' ? 'You receive (est.)' : 'You receive'}
             </span>
             <span className="text-lg font-mono text-white">
-              {formatCurrency(expectedOutput, tradeType === 'buy' ? token.symbol : 'KAS')}
+              {formatCurrency(expectedOutput, tradeType === 'buy' ? token.symbol : 'BNB')}
             </span>
           </div>
 
@@ -246,7 +246,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
                 Min. Received
               </span>
               <span className="text-gray-300 font-mono">
-                {formatCurrency(minimumReceived, tradeType === 'buy' ? token.symbol : 'KAS', 6)}
+                {formatCurrency(minimumReceived, tradeType === 'buy' ? token.symbol : 'BNB', 6)}
               </span>
             </div>
 
@@ -256,7 +256,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
                 Platform Fee
               </span>
               <span className="text-gray-300 font-mono">
-                {formatCurrency(fees, 'KAS', 6)}
+                {formatCurrency(fees, 'BNB', 6)}
               </span>
             </div>
 
@@ -282,7 +282,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
           </span>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="text-purple-400 hover:text-purple-300 transition-colors"
+            className="text-yellow-400 hover:text-yellow-300 transition-colors"
           >
             <Settings size={16} />
           </button>
@@ -304,7 +304,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
                     className={cn(
                       'px-3 py-2 rounded-md text-sm font-medium transition-all',
                       slippage === preset
-                        ? 'bg-purple-600 text-white'
+                        ? 'bg-yellow-600 text-white'
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     )}
                   >
@@ -317,7 +317,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
                     type="number"
                     value={slippage}
                     onChange={(e) => setSlippage(parseFloat(e.target.value) || 0)}
-                    className="w-20 px-2 py-2 bg-gray-700 border border-gray-600 rounded-md text-sm text-white text-center focus:outline-none focus:border-purple-500"
+                    className="w-20 px-2 py-2 bg-gray-700 border border-gray-600 rounded-md text-sm text-white text-center focus:outline-none focus:border-yellow-500"
                     step="0.1"
                     min="0.1"
                     max="50"

@@ -38,7 +38,7 @@ export const Spinner: React.FC<SpinnerProps> = ({
       <motion.div
         animate={{ rotate: 360 }}
         transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        className={cn('border-2 border-purple-500 border-t-transparent rounded-full', sizeClasses[size])}
+        className={cn('border-2 border-yellow-500 border-t-transparent rounded-full', sizeClasses[size])}
         aria-label="Loading"
         role="status"
       />
@@ -248,7 +248,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={action.onClick}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-medium hover:from-purple-600 hover:to-pink-600 transition-all"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg font-medium hover:from-yellow-600 hover:to-orange-600 transition-all"
           >
             {action.icon}
             {action.label}
@@ -265,7 +265,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 export const InlineLoading: React.FC<{ text?: string }> = ({ text }) => {
   return (
     <div className="flex items-center justify-center gap-2 py-4">
-      <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+      <Loader2 className="h-4 w-4 animate-spin text-yellow-400" />
       {text && <span className="text-sm text-gray-400">{text}</span>}
     </div>
   );

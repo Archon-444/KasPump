@@ -25,13 +25,13 @@ export const TokenCard: React.FC<TokenCardProps> = ({
         <Card 
           className={cn(
             "glassmorphism token-card-glow overflow-hidden transition-all duration-300",
-            "hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/10"
+            "hover:border-yellow-500/30 hover:shadow-lg hover:shadow-yellow-500/10"
           )}
         >
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-lg gpu-accelerated">
+            <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg gpu-accelerated">
               {token.symbol.slice(0, 2)}
             </div>
             <div>
@@ -65,19 +65,19 @@ export const TokenCard: React.FC<TokenCardProps> = ({
           <div>
             <p className="text-gray-400 text-xs">Price</p>
             <p className="text-white font-semibold">
-              {formatCurrency(token.price, 'KAS', 8)}
+              {formatCurrency(token.price, 'BNB', 8)}
             </p>
           </div>
           <div>
             <p className="text-gray-400 text-xs">Market Cap</p>
             <p className="text-white font-semibold">
-              {formatCurrency(token.marketCap, 'KAS')}
+              {formatCurrency(token.marketCap, 'BNB')}
             </p>
           </div>
           <div>
             <p className="text-gray-400 text-xs">24h Volume</p>
             <p className="text-white font-semibold">
-              {formatCurrency(token.volume24h, 'KAS')}
+              {formatCurrency(token.volume24h, 'BNB')}
             </p>
           </div>
           <div>

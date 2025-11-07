@@ -53,7 +53,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
     { label: '25%', value: 25, color: 'bg-blue-500' },
     { label: '50%', value: 50, color: 'bg-green-500' },
     { label: '75%', value: 75, color: 'bg-orange-500' },
-    { label: 'MAX', value: 100, color: 'bg-purple-500' }
+    { label: 'MAX', value: 100, color: 'bg-yellow-500' }
   ];
 
   // Calculate trade details
@@ -73,10 +73,10 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
       setExpectedOutput(tokensReceived);
       setPriceImpact(impact);
     } else {
-      const kasReceived = inputAmount * token.price;
-      const impact = Math.min((kasReceived / token.volume24h) * 100, 5);
+      const bnbReceived = inputAmount * token.price;
+      const impact = Math.min((bnbReceived / token.volume24h) * 100, 5);
       
-      setExpectedOutput(kasReceived * 0.99); // 1% fee
+      setExpectedOutput(bnbReceived * 0.99); // 1% fee
       setPriceImpact(impact);
     }
   }, [amount, tradeType, token.price, token.volume24h]);
@@ -133,8 +133,8 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
     <div className={cn('bg-gray-900/50 backdrop-blur-sm rounded-2xl p-6 space-y-6', className)}>
       {/* Token Info Header */}
       <div className="text-center">
-        <h3 className="text-xl font-bold text-white">{token.symbol}/KAS</h3>
-        <p className="text-2xl font-mono text-purple-400 mt-1">
+        <h3 className="text-xl font-bold text-white">{token.symbol}/BNB</h3>
+        <p className="text-2xl font-mono text-yellow-400 mt-1">
           {token.price.toFixed(8)}
         </p>
         <p className={cn(
@@ -199,7 +199,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
       <div className="space-y-4">
         <div className="text-center">
           <label className="text-sm text-gray-400 block mb-2">
-            {tradeType === 'buy' ? 'You Pay (KAS)' : `You Sell (${token.symbol})`}
+            {tradeType === 'buy' ? 'You Pay (BNB)' : `You Sell (${token.symbol})`}
           </label>
           <input
             type="number"
@@ -212,7 +212,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
               'pb-2 border-b-2 transition-colors',
               isInsufficientBalance() 
                 ? 'border-red-500' 
-                : 'border-purple-500/30 focus:border-purple-500'
+                : 'border-yellow-500/30 focus:border-yellow-500'
             )}
           />
         </div>
@@ -239,7 +239,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
 
         {/* Balance Display */}
         <div className="text-center text-sm text-gray-400">
-          Available: {(tradeType === 'buy' ? userBalance : userTokenBalance).toFixed(4)} {tradeType === 'buy' ? 'KAS' : token.symbol}
+          Available: {(tradeType === 'buy' ? userBalance : userTokenBalance).toFixed(4)} {tradeType === 'buy' ? 'BNB' : token.symbol}
         </div>
       </div>
 
@@ -255,7 +255,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
             <span className="text-white font-mono text-lg">
               {expectedOutput.toFixed(tradeType === 'buy' ? 2 : 6)}
               <span className="text-gray-400 ml-1">
-                {tradeType === 'buy' ? token.symbol : 'KAS'}
+                {tradeType === 'buy' ? token.symbol : 'BNB'}
               </span>
             </span>
           </div>
@@ -303,7 +303,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
                 className={cn(
                   'py-2 px-3 rounded-lg text-sm font-medium transition-colors',
                   slippage === preset
-                    ? 'bg-purple-600 text-white'
+                    ? 'bg-yellow-600 text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 )}
               >

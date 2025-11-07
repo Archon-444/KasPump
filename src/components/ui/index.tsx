@@ -16,7 +16,7 @@ const buttonVariants = cva(
         danger: "bg-red-600 text-white hover:bg-red-700",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         outline: "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground",
-        gradient: "bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600"
+        gradient: "bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600"
       },
       size: {
         xs: "h-7 px-2 text-xs",

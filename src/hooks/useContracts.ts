@@ -10,7 +10,7 @@ import {
   BondingCurveConfig 
 } from '../types';
 import { useMultichainWallet } from './useMultichainWallet';
-import { getTokenFactoryAddress, getFeeRecipientAddress } from '../config/contracts';
+import { getTokenFactoryAddress, getFeeRecipientAddress, getChainName, getSupportedChains } from '../config/contracts';
 
 // Enhanced ABI definitions with events
 const TOKEN_FACTORY_ABI = [
@@ -167,7 +167,13 @@ export function useContracts() {
   const getTokenFactoryContract = useCallback(() => {
     const factoryAddress = getTokenFactoryAddress(currentChainId);
     if (!factoryAddress) {
-      throw new Error(`Token factory address not configured for chain ${currentChainId}`);
+      const chainName = getChainName(currentChainId);
+      const supportedChains = getSupportedChains();
+      throw new Error(
+        `Token factory not deployed on ${chainName} (chain ${currentChainId}). ` +
+        `Please switch to a supported chain or deploy the contracts first. ` +
+        `Supported chains: ${supportedChains.join(', ')}`
+      );
     }
     if (!signer) {
       throw new Error('Wallet not connected');
@@ -440,7 +446,12 @@ export function useContracts() {
     try {
       const factoryAddress = getTokenFactoryAddress(currentChainId);
       if (!factoryAddress) {
-        throw new Error(`Token factory address not configured for chain ${currentChainId}`);
+        const chainName = getChainName(currentChainId);
+        const supportedChains = getSupportedChains();
+        throw new Error(
+          `Token factory not deployed on ${chainName} (chain ${currentChainId}). ` +
+          `Supported chains: ${supportedChains.join(', ')}`
+        );
       }
       const runner = getReadProviderOrThrow();
       const contract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, runner);

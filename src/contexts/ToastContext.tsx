@@ -225,7 +225,7 @@ const InfoToast: React.FC<{
                 action.onClick();
                 onDismiss();
               }}
-              className="mt-2 text-sm text-purple-400 hover:text-purple-300 font-medium"
+              className="mt-2 text-sm text-yellow-400 hover:text-yellow-300 font-medium"
             >
               {action.icon} {action.label}
             </button>

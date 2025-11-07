@@ -233,17 +233,17 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
                 <motion.button
                   key={wallet.id}
                   onClick={wallet.onClick}
-                  className="w-full flex items-center space-x-4 p-4 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 rounded-xl transition-all hover:border-purple-500/50 group"
+                  className="w-full flex items-center space-x-4 p-4 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 rounded-xl transition-all hover:border-yellow-500/50 group"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   disabled={isPending}
                 >
                   <div className="text-3xl">{wallet.icon}</div>
                   <div className="flex-1 text-left">
-                    <div className="font-semibold text-white group-hover:text-purple-400 transition-colors flex items-center gap-2">
+                    <div className="font-semibold text-white group-hover:text-yellow-400 transition-colors flex items-center gap-2">
                       {wallet.name}
                       {isPending && (
-                        <span className="text-xs text-purple-400 animate-pulse">Connecting...</span>
+                        <span className="text-xs text-yellow-400 animate-pulse">Connecting...</span>
                       )}
                     </div>
                     <div className="text-xs text-gray-400">{wallet.description}</div>

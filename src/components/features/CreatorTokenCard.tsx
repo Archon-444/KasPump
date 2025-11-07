@@ -35,7 +35,7 @@ export const CreatorTokenCard: React.FC<CreatorTokenCardProps> = ({
       <Card
         className={cn(
           'glassmorphism p-6 transition-all duration-300',
-          'hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/10',
+          'hover:border-yellow-500/30 hover:shadow-lg hover:shadow-yellow-500/10',
           onClick && 'cursor-pointer'
         )}
       >
@@ -43,7 +43,7 @@ export const CreatorTokenCard: React.FC<CreatorTokenCardProps> = ({
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
             <div
-              className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg"
+              className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg"
               style={{ border: `2px solid ${chainColor}` }}
             >
               {token.symbol.slice(0, 2)}
@@ -130,7 +130,7 @@ export const CreatorTokenCard: React.FC<CreatorTokenCardProps> = ({
                 initial={{ width: 0 }}
                 animate={{ width: `${token.bondingCurveProgress}%` }}
                 transition={{ duration: 0.5 }}
-                className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+                className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full"
               />
             </div>
           </div>
@@ -143,7 +143,7 @@ export const CreatorTokenCard: React.FC<CreatorTokenCardProps> = ({
             className="flex-1"
             onClick={(e) => e.stopPropagation()}
           >
-            <button className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors">
+            <button className="w-full px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium transition-colors">
               View Token
             </button>
           </Link>

@@ -28,7 +28,7 @@ export const PortfolioStatsCard: React.FC<PortfolioStatsCardProps> = ({
       <Card className="glassmorphism">
         <div className="flex items-center justify-between mb-2">
           <div className="text-gray-400 text-sm">Total Value</div>
-          <Wallet size={20} className="text-purple-400" />
+          <Wallet size={20} className="text-yellow-400" />
         </div>
         <div className="text-2xl font-bold text-white mb-1">
           {stats.totalValueFormatted}

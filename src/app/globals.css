@@ -49,21 +49,21 @@
 
 /* Enhanced focus indicators for accessibility */
 *:focus-visible {
-  outline: 2px solid theme('colors.purple.500');
+  outline: 2px solid theme('colors.yellow.500');
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid theme('colors.purple.500');
+  outline: 2px solid theme('colors.yellow.500');
   outline-offset: 2px;
 }
 
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid theme('colors.purple.500');
+  outline: 2px solid theme('colors.yellow.500');
   outline-offset: 2px;
 }
 
@@ -72,8 +72,8 @@ select:focus-visible {
   position: absolute;
   top: -40px;
   left: 0;
-  background: theme('colors.purple.600');
-  color: white;
+  background: theme('colors.yellow.600');
+  color: black;
   padding: 8px;
   text-decoration: none;
   z-index: 100;
@@ -114,7 +114,7 @@ select:focus-visible {
   
   /* Prevent text selection on interactive elements */
   button, [role="button"] {
-    -webkit-tap-highlight-color: rgba(147, 51, 234, 0.3);
+    -webkit-tap-highlight-color: rgba(243, 186, 47, 0.3);
     -webkit-touch-callout: none;
     user-select: none;
   }
@@ -260,12 +260,12 @@ img[loading="lazy"] {
   
   .glow-effect::before {
     content: '';
-    @apply absolute inset-0 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 blur-sm;
+    @apply absolute inset-0 rounded-lg bg-gradient-to-r from-yellow-500/20 to-orange-500/20 blur-sm;
     z-index: -1;
   }
   
   .token-card-glow {
-    @apply transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/25;
+    @apply transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/25;
   }
   
   .success-glow {
@@ -281,7 +281,7 @@ img[loading="lazy"] {
   }
   
   .gradient-text {
-    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+    background: linear-gradient(135deg, #F3BA2F 0%, #FCD535 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -292,17 +292,17 @@ img[loading="lazy"] {
   /* Fallback for browsers that don't support background-clip */
   @supports not (background-clip: text) {
     .gradient-text {
-      color: #a855f7;
+      color: #F3BA2F;
       background: none;
     }
   }
   
   .gradient-text-bold {
-    @apply bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 bg-clip-text text-transparent font-bold;
+    @apply bg-gradient-to-r from-yellow-500 via-yellow-400 to-orange-500 bg-clip-text text-transparent font-bold;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
+    text-shadow: 0 0 30px rgba(243, 186, 47, 0.5);
   }
   
   .scrollbar-hide {
@@ -420,7 +420,11 @@ img[loading="lazy"] {
 }
 
 .btn-glow-purple:hover {
-  box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
+  box-shadow: 0 0 20px rgba(243, 186, 47, 0.4);
+}
+
+.btn-glow-yellow:hover {
+  box-shadow: 0 0 20px rgba(243, 186, 47, 0.4);
 }
 
 /* Modal and overlay styles */

@@ -11,7 +11,7 @@ interface GlobalErrorProps {
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-4">
+      <body className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-yellow-900 to-orange-900 p-4">
         <div className="max-w-md w-full glassmorphism rounded-2xl p-8 text-center">
           <div className="mb-6">
             <AlertTriangle className="mx-auto h-16 w-16 text-red-500 mb-4" />
@@ -28,7 +28,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
 
           <button
             onClick={reset}
-            className="px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mx-auto"
+            className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mx-auto"
           >
             <RefreshCw size={16} />
             Try Again

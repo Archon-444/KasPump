@@ -95,7 +95,7 @@ export const SuccessToast: React.FC<SuccessToastProps> = ({
                         className="p-1 hover:bg-gray-700 rounded transition-colors"
                         title="View on explorer"
                       >
-                        <ExternalLink size={14} className="text-gray-400 hover:text-purple-400" />
+                        <ExternalLink size={14} className="text-gray-400 hover:text-yellow-400" />
                       </a>
                     )}
                   </div>
@@ -108,7 +108,7 @@ export const SuccessToast: React.FC<SuccessToastProps> = ({
                       onAction();
                       onClose();
                     }}
-                    className="mt-2 text-sm text-purple-400 hover:text-purple-300 font-medium"
+                    className="mt-2 text-sm text-yellow-400 hover:text-yellow-300 font-medium"
                   >
                     {actionLabel} →
                   </button>

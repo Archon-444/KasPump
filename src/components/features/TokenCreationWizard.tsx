@@ -39,7 +39,7 @@ export const WizardProgress: React.FC<{ currentStep: 1 | 2 | 3 }> = ({ currentSt
                 currentStep > step.number
                   ? 'bg-green-500 text-white'
                   : currentStep === step.number
-                  ? 'bg-purple-500 text-white scale-110'
+                  ? 'bg-yellow-500 text-white scale-110'
                   : 'bg-gray-700 text-gray-400'
               }`}
             >
@@ -148,7 +148,7 @@ export const WizardStep1: React.FC<{
       <div className="flex justify-end pt-4">
         <button
           onClick={handleNext}
-          className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg shadow-purple-500/25"
+          className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 shadow-lg shadow-yellow-500/25"
         >
           Next: Upload Logo →
         </button>
@@ -194,7 +194,7 @@ export const WizardStep2: React.FC<{
       </div>
 
       <div className="space-y-4">
-        <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-purple-500/50 transition-colors">
+        <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-yellow-500/50 transition-colors">
           <input
             type="file"
             accept="image/*"
@@ -237,7 +237,7 @@ export const WizardStep2: React.FC<{
         </button>
         <button
           onClick={onNext}
-          className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg shadow-purple-500/25"
+          className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 shadow-lg shadow-yellow-500/25"
         >
           Next: Review →
         </button>
@@ -294,7 +294,7 @@ export const WizardStep3: React.FC<{
               className="w-16 h-16 rounded-full"
             />
           ) : (
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
+            <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
               {formData.symbol.slice(0, 2)}
             </div>
           )}
@@ -344,7 +344,7 @@ export const WizardStep3: React.FC<{
         </button>
         <button
           onClick={onComplete}
-          className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg shadow-purple-500/25"
+          className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 shadow-lg shadow-yellow-500/25"
         >
           Create Token 🚀
         </button>

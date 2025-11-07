@@ -52,9 +52,9 @@ export const PlatformStatsCard: React.FC<PlatformStatsCardProps> = ({
       label: 'Total Tokens',
       value: data.platform.totalTokens.toLocaleString(),
       icon: Coins,
-      color: 'text-purple-400',
-      bgColor: 'bg-purple-500/10',
-      borderColor: 'border-purple-500/30',
+      color: 'text-yellow-400',
+      bgColor: 'bg-yellow-500/10',
+      borderColor: 'border-yellow-500/30',
     },
     {
       label: 'Graduated',

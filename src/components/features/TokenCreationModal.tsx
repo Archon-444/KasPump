@@ -17,7 +17,7 @@ import { SuccessToast } from './SuccessToast';
 import { uploadImageToIPFS, isIPFSConfigured } from '../../lib/ipfs';
 import { useAccount } from 'wagmi';
 import { getChainById, formatNativeCurrency, getChainMetadata } from '../../config/chains';
-import { areContractsDeployed } from '../../config/contracts';
+import { areContractsDeployed, getSupportedChains, getChainName } from '../../config/contracts';
 
 interface TokenCreationModalProps {
   isOpen: boolean;
@@ -362,7 +362,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                           onClick={() => setMode('beginner')}
                           className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
                             mode === 'beginner'
-                              ? 'bg-purple-500 text-white'
+                              ? 'bg-yellow-500 text-white'
                               : 'text-gray-400 hover:text-white'
                           }`}
                         >
@@ -373,7 +373,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                           onClick={() => setMode('advanced')}
                           className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
                             mode === 'advanced'
-                              ? 'bg-purple-500 text-white'
+                              ? 'bg-yellow-500 text-white'
                               : 'text-gray-400 hover:text-white'
                           }`}
                         >
@@ -402,11 +402,24 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   <div className="ml-2">
                     <p className="font-medium">Contracts Not Deployed</p>
                     <p className="text-sm mt-1">
-                      Token creation is not available on <strong>{chainMetadata?.name || `Chain ${chainId}`}</strong> because the smart contracts have not been deployed yet.
+                      Token creation is not available on <strong>{getChainName(chainId)}</strong> (Chain ID: {chainId}) because the smart contracts have not been deployed yet.
                     </p>
-                    <p className="text-sm mt-2">
-                      <strong>Please switch to BSC Testnet (Chain ID: 97)</strong> where contracts are deployed and ready to use.
-                    </p>
+                    {(() => {
+                      const supported = getSupportedChains();
+                      if (supported.length > 0) {
+                        const supportedNames = supported.map(id => `${getChainName(id)} (${id})`).join(', ');
+                        return (
+                          <p className="text-sm mt-2">
+                            <strong>Please switch to one of these supported chains:</strong> {supportedNames}
+                          </p>
+                        );
+                      }
+                      return (
+                        <p className="text-sm mt-2">
+                          <strong>No contracts are currently deployed.</strong> Please deploy the TokenFactory contract first.
+                        </p>
+                      );
+                    })()}
                   </div>
                 </Alert>
               )}
@@ -625,7 +638,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                        <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-600"></div>
                       </label>
                     </div>
 
@@ -738,7 +751,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   {/* Token Preview */}
                   <Card className="bg-gray-800/30">
                     <div className="flex items-center space-x-4 mb-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
+                      <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
                         {formData.symbol.slice(0, 2)}
                       </div>
                       <div>
@@ -777,7 +790,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
 
               {creationStep === 'creating' && (
                 <div className="text-center py-12">
-                  <Loader className="mx-auto h-16 w-16 animate-spin text-purple-500 mb-6" />
+                  <Loader className="mx-auto h-16 w-16 animate-spin text-yellow-500 mb-6" />
                   <h3 className="text-xl font-semibold text-white mb-2">Creating your token...</h3>
                   <p className="text-gray-400">
                     Please confirm the transaction in your wallet and wait for confirmation.

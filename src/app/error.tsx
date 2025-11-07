@@ -60,7 +60,7 @@ export default function Error({ error, reset }: ErrorProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-yellow-900 to-orange-900 p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -90,7 +90,7 @@ export default function Error({ error, reset }: ErrorProps) {
           <ul className="space-y-1 text-xs text-gray-400">
             {getErrorSuggestions().map((suggestion, index) => (
               <li key={index} className="flex items-start">
-                <span className="text-purple-400 mr-2">•</span>
+                <span className="text-yellow-400 mr-2">•</span>
                 <span>{suggestion}</span>
               </li>
             ))}

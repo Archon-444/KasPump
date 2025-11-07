@@ -65,7 +65,7 @@ export const TokenSearchFilters: React.FC<TokenSearchFiltersProps> = ({
           placeholder="Search tokens by name, symbol, or address... (Press '/' to focus)"
           value={filters.searchQuery}
           onChange={(e) => updateFilter('searchQuery', e.target.value)}
-          className="pl-12 pr-4 h-12 text-lg bg-gray-800/50 border-gray-700 focus:border-purple-500 focus:ring-purple-500"
+          className="pl-12 pr-4 h-12 text-lg bg-gray-800/50 border-gray-700 focus:border-yellow-500 focus:ring-yellow-500"
           aria-label="Search tokens"
         />
         {filters.searchQuery && (
@@ -95,7 +95,7 @@ export const TokenSearchFilters: React.FC<TokenSearchFiltersProps> = ({
               className={cn(
                 'flex items-center space-x-1.5 px-3 py-1.5 rounded text-sm font-medium transition-all',
                 filters.status === key
-                  ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/30'
+                  ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/30'
                   : 'text-gray-400 hover:text-white'
               )}
             >
@@ -111,7 +111,7 @@ export const TokenSearchFilters: React.FC<TokenSearchFiltersProps> = ({
           <select
             value={filters.sortBy}
             onChange={(e) => updateFilter('sortBy', e.target.value as any)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-purple-500 focus:border-purple-500"
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-yellow-500 focus:border-yellow-500"
           >
             <option value="volume">Volume</option>
             <option value="marketCap">Market Cap</option>
@@ -139,13 +139,13 @@ export const TokenSearchFilters: React.FC<TokenSearchFiltersProps> = ({
           className={cn(
             'flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
             'bg-gray-800 hover:bg-gray-700 text-gray-300',
-            showAdvancedFilters && 'bg-purple-600 text-white'
+            showAdvancedFilters && 'bg-yellow-600 text-white'
           )}
         >
           <Filter size={16} />
           <span>Advanced</span>
           {hasActiveFilters && (
-            <span className="ml-1 px-1.5 py-0.5 bg-purple-500 rounded text-xs">
+            <span className="ml-1 px-1.5 py-0.5 bg-yellow-500 rounded text-xs">
               {[
                 filters.chains.length,
                 filters.status !== 'all' ? 1 : 0,
@@ -202,7 +202,7 @@ export const TokenSearchFilters: React.FC<TokenSearchFiltersProps> = ({
                         className={cn(
                           'flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all',
                           isSelected
-                            ? 'bg-purple-600 text-white shadow-lg'
+                            ? 'bg-yellow-600 text-white shadow-lg'
                             : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                         )}
                       >
@@ -235,7 +235,7 @@ export const TokenSearchFilters: React.FC<TokenSearchFiltersProps> = ({
                       className={cn(
                         'px-3 py-2 rounded-lg text-sm font-medium transition-all',
                         filters.volumeRange === key
-                          ? 'bg-purple-600 text-white'
+                          ? 'bg-yellow-600 text-white'
                           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       )}
                     >

@@ -104,14 +104,14 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-400">You {type === 'buy' ? 'pay' : 'receive'}</span>
                   <span className="text-lg font-semibold text-white">
-                    {amount} {type === 'buy' ? 'KAS' : token.symbol}
+                    {amount} {type === 'buy' ? 'BNB' : token.symbol}
                   </span>
                 </div>
                 <div className="border-t border-gray-700" />
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-400">You {type === 'buy' ? 'receive' : 'get'}</span>
                   <span className="text-lg font-semibold text-white">
-                    ~{expectedOutput.toLocaleString(undefined, { maximumFractionDigits: 6 })} {type === 'buy' ? token.symbol : 'KAS'}
+                    ~{expectedOutput.toLocaleString(undefined, { maximumFractionDigits: 6 })} {type === 'buy' ? token.symbol : 'BNB'}
                   </span>
                 </div>
               </div>
@@ -147,7 +147,7 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Price per token</span>
                   <span className="text-white">
-                    {formatCurrency(token.price, 'KAS', 8)}
+                    {formatCurrency(token.price, 'BNB', 8)}
                   </span>
                 </div>
 
@@ -164,7 +164,7 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Platform fee</span>
                   <span className="text-white">
-                    {formatCurrency(fees, 'KAS', 6)}
+                    {formatCurrency(fees, 'BNB', 6)}
                   </span>
                 </div>
 
@@ -178,7 +178,7 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Minimum {type === 'buy' ? 'received' : 'paid'}</span>
                   <span className="text-white">
-                    {minimumReceived.toLocaleString(undefined, { maximumFractionDigits: 6 })} {type === 'buy' ? token.symbol : 'KAS'}
+                    {minimumReceived.toLocaleString(undefined, { maximumFractionDigits: 6 })} {type === 'buy' ? token.symbol : 'BNB'}
                   </span>
                 </div>
 

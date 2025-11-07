@@ -107,7 +107,7 @@ export default function CreatorDashboardPage() {
                 <ArrowLeft size={16} />
                 <span className="hidden sm:inline">Home</span>
               </Button>
-              <Award className="text-purple-400" size={24} />
+              <Award className="text-yellow-400" size={24} />
               <h1 className="text-xl font-bold gradient-text">Creator Dashboard</h1>
             </div>
 
@@ -144,7 +144,7 @@ export default function CreatorDashboardPage() {
           {/* Loading State */}
           {loading && (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mb-4"></div>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500 mb-4"></div>
               <div className="text-gray-400">Loading your tokens...</div>
             </div>
           )}
@@ -204,7 +204,7 @@ export default function CreatorDashboardPage() {
                         className={cn(
                           'px-4 py-2 rounded-lg text-sm font-medium transition-all',
                           filterBy === filter
-                            ? 'bg-purple-500 text-white'
+                            ? 'bg-yellow-500 text-white'
                             : 'bg-gray-800 text-gray-400 hover:text-white'
                         )}
                       >
@@ -219,7 +219,7 @@ export default function CreatorDashboardPage() {
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as any)}
-                        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-purple-500 focus:border-purple-500"
+                        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-yellow-500 focus:border-yellow-500"
                       >
                         <option value="volume">Volume</option>
                         <option value="marketCap">Market Cap</option>

@@ -35,8 +35,8 @@ export const PWAInstallBanner: React.FC<{ className?: string }> = ({ className }
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           className={cn(
             'fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-md',
-            'bg-gradient-to-r from-purple-600 to-pink-600',
-            'rounded-xl shadow-2xl border-2 border-purple-400/30',
+            'bg-gradient-to-r from-yellow-600 to-orange-600',
+            'rounded-xl shadow-2xl border-2 border-yellow-400/30',
             'p-4 mobile-safe-area',
             className
           )}
@@ -62,7 +62,7 @@ export const PWAInstallBanner: React.FC<{ className?: string }> = ({ className }
               <div className="flex space-x-2">
                 <Button
                   onClick={install}
-                  className="flex-1 bg-white text-purple-600 hover:bg-gray-100 font-semibold min-h-[44px]"
+                  className="flex-1 bg-white text-yellow-600 hover:bg-gray-100 font-semibold min-h-[44px]"
                   icon={<Download size={18} />}
                 >
                   Install Now

@@ -169,7 +169,7 @@ export const ErrorToast: React.FC<ErrorToastProps> = ({
                 <Button
                   onClick={() => {
                     const txHash = (errorObject as any).txHash;
-                    const explorerUrl = `https://explorer.kaspa.org/tx/${txHash}`;
+                    const explorerUrl = `https://bscscan.com/tx/${txHash}`;
                     window.open(explorerUrl, '_blank');
                   }}
                   size="sm"

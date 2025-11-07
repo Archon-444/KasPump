@@ -61,7 +61,7 @@ export interface UserProfile {
 export interface WalletState {
   connected: boolean;
   address: string | null;
-  kasBalance: number;
+  bnbBalance: number;
   isConnecting: boolean;
   error: string | null;
 }
@@ -98,7 +98,7 @@ export interface TradingViewProps {
   token: KasPumpToken;
   onTrade: (trade: TradeData) => Promise<void>;
   walletConnected: boolean;
-  kasBalance: number;
+  bnbBalance: number;
 }
 
 export interface BondingCurveConfig {
@@ -129,11 +129,11 @@ export interface TokenFactoryContract {
 
 export interface BondingCurveAMMContract {
   buyTokens: (minTokensOut: bigint, options: { value: bigint }) => Promise<any>;
-  sellTokens: (tokenAmount: bigint, minKasOut: bigint) => Promise<any>;
+  sellTokens: (tokenAmount: bigint, minBnbOut: bigint) => Promise<any>;
   getCurrentPrice: () => Promise<bigint>;
   getTradingInfo: () => Promise<[bigint, bigint, bigint, bigint, boolean]>;
-  calculateTokensOut: (kasIn: bigint, supply: bigint) => Promise<bigint>;
-  calculateKasOut: (tokensIn: bigint, supply: bigint) => Promise<bigint>;
+  calculateTokensOut: (bnbIn: bigint, supply: bigint) => Promise<bigint>;
+  calculateBnbOut: (tokensIn: bigint, supply: bigint) => Promise<bigint>;
   getPriceImpact: (amount: bigint, isBuy: boolean) => Promise<bigint>;
 }
 
@@ -183,7 +183,7 @@ export interface TradeEvent {
   tokenAddress: string;
   trader: string;
   action: 'buy' | 'sell';
-  kasAmount: number;
+  bnbAmount: number;
   tokenAmount: number;
   price: number;
   txHash: string;

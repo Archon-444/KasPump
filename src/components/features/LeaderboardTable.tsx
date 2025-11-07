@@ -87,7 +87,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
                 className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg border border-gray-700/50"
               >
                 <div className="flex items-center space-x-3 flex-1 min-w-0">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-xs font-bold text-purple-400">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center text-xs font-bold text-yellow-400">
                     {index + 1}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -166,14 +166,14 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
                   <td className="py-4 px-4">
                     <div className={cn(
                       'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold',
-                      index < 3 ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white' : 'bg-gray-700 text-gray-400'
+                      index < 3 ? 'bg-gradient-to-br from-yellow-500 to-orange-500 text-white' : 'bg-gray-700 text-gray-400'
                     )}>
                       {index + 1}
                     </div>
                   </td>
                   <td className="py-4 px-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
+                      <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold">
                         {token.symbol.slice(0, 2)}
                       </div>
                       <div>

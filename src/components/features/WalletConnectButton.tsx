@@ -13,7 +13,7 @@ interface WalletConnectButtonProps {
 }
 
 // Helper functions
-const formatKasBalance = (balance: string): string => {
+const formatBnbBalance = (balance: string): string => {
   const num = parseFloat(balance);
   if (num === 0) return '0.0000';
   if (num < 0.0001) return num.toExponential(2);
@@ -184,7 +184,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
               </button>
             </div>
             <div className="text-lg font-semibold text-gray-900 mt-1">
-              {wallet.balanceFormatted || formatKasBalance(wallet.balance)}
+              {wallet.balanceFormatted || formatBnbBalance(wallet.balance)}
             </div>
           </div>
 

@@ -27,7 +27,7 @@ const TokenTradingPage = dynamic(
     };
   }),
   {
-    loading: () => <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div></div>,
+    loading: () => <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div></div>,
     ssr: false,
   }
 );
@@ -114,9 +114,9 @@ export default function HomePage() {
       const mockTokens: KasPumpToken[] = [
         {
           address: '0x1234567890123456789012345678901234567890',
-          name: 'Kaspa Moon',
-          symbol: 'KMOON',
-          description: 'First meme coin on Kasplex! 🌙',
+          name: 'BNB Moon',
+          symbol: 'BNBMOON',
+          description: 'First meme coin on BSC! 🌙',
           image: '',
           creator: '0xabcd...efgh',
           totalSupply: 1000000000,
@@ -134,8 +134,8 @@ export default function HomePage() {
         },
         {
           address: '0x2345678901234567890123456789012345678901',
-          name: 'KaspaBot',
-          symbol: 'KBOT',
+          name: 'BNB Bot',
+          symbol: 'BNBBOT',
           description: 'AI-powered meme machine 🤖',
           image: '',
           creator: '0xdcba...hgfe',
@@ -317,7 +317,7 @@ export default function HomePage() {
       {/* Pull-to-refresh indicator */}
       {isMobile && isPulling && (
         <motion.div
-          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center bg-purple-600/20 backdrop-blur-sm"
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center bg-yellow-600/20 backdrop-blur-sm"
           style={{ height: `${Math.min(pullProgress * 60, 60)}px` }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -325,9 +325,9 @@ export default function HomePage() {
           <div className="flex items-center space-x-2">
             <motion.div
               animate={{ rotate: pullProgress * 360 }}
-              className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full"
+              className="w-6 h-6 border-2 border-yellow-400 border-t-transparent rounded-full"
             />
-            <span className="text-purple-400 text-sm font-medium">
+            <span className="text-yellow-400 text-sm font-medium">
               {pullProgress >= 1 ? 'Release to refresh' : 'Pull to refresh'}
             </span>
           </div>
@@ -352,7 +352,7 @@ export default function HomePage() {
                 <span>KasPump</span>
               </motion.a>
               <div className="hidden sm:block text-sm text-gray-400">
-                Meme coins on Kasplex L2
+                Meme coins on BSC
               </div>
             </div>
 
@@ -405,7 +405,7 @@ export default function HomePage() {
             <span>🚀</span>
           </h1>
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Fair launch, bonding curve trading, instant liquidity on Kasplex Layer 2. 
+            Fair launch, bonding curve trading, instant liquidity on BNB Smart Chain. 
             No presale, no team allocation, just pure meme magic! 🚀
           </p>
           
@@ -443,7 +443,7 @@ export default function HomePage() {
         >
           <Card className="text-center glassmorphism">
             <div className="flex items-center justify-center mb-2">
-              <Zap className="w-8 h-8 text-purple-400" />
+              <Zap className="w-8 h-8 text-yellow-400" />
             </div>
             <div className="text-2xl font-bold text-white">{stats.totalTokens}</div>
             <div className="text-gray-400">Tokens Launched</div>
@@ -570,7 +570,7 @@ export default function HomePage() {
       <footer className="border-t border-gray-800/50 bg-gray-900/30 mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-gray-400">
-            <p>&copy; 2025 KasPump. Built on Kasplex Layer 2.</p>
+            <p>&copy; 2025 KasPump. Built on BNB Smart Chain.</p>
           </div>
         </div>
       </footer>

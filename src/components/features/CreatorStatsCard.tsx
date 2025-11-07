@@ -21,8 +21,8 @@ export const CreatorStatsCard: React.FC<CreatorStatsCardProps> = ({
       label: 'Total Tokens',
       value: stats.totalTokens.toLocaleString(),
       icon: Coins,
-      color: 'text-purple-400',
-      bgColor: 'bg-purple-500/10',
+      color: 'text-yellow-400',
+      bgColor: 'bg-yellow-500/10',
     },
     {
       label: 'Total Earnings',

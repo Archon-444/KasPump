@@ -204,7 +204,7 @@ export const usePushNotifications = () => {
     
     return showNotification({
       title: `${emoji} Price Alert: ${tokenSymbol}`,
-      body: `Price ${reached ? 'reached' : 'is approaching'} ${direction === 'above' ? 'above' : 'below'} ${targetPrice.toFixed(8)} KAS`,
+      body: `Price ${reached ? 'reached' : 'is approaching'} ${direction === 'above' ? 'above' : 'below'} ${targetPrice.toFixed(8)} BNB`,
       tag: `price-alert-${tokenSymbol}`,
       data: { type: 'price-alert', tokenSymbol, currentPrice, targetPrice },
     });

@@ -46,12 +46,41 @@ export function getContractAddresses(chainId: number): ContractAddresses {
 
 // Get TokenFactory address for current chain
 export function getTokenFactoryAddress(chainId: number): string | undefined {
-  return contractAddresses[chainId]?.TokenFactory;
+  const address = contractAddresses[chainId]?.TokenFactory;
+  // Return undefined if address is empty string (not configured)
+  return address && address.trim() !== '' ? address : undefined;
 }
 
 // Get FeeRecipient address for current chain
 export function getFeeRecipientAddress(chainId: number): string | undefined {
-  return contractAddresses[chainId]?.FeeRecipient;
+  const address = contractAddresses[chainId]?.FeeRecipient;
+  // Return undefined if address is empty string (not configured)
+  return address && address.trim() !== '' ? address : undefined;
+}
+
+// Get list of chains with deployed contracts
+export function getSupportedChains(): number[] {
+  return Object.keys(contractAddresses)
+    .map(Number)
+    .filter(chainId => {
+      const addresses = contractAddresses[chainId];
+      return !!(addresses?.TokenFactory && addresses?.TokenFactory.trim() !== '');
+    });
+}
+
+// Get chain name for better error messages
+export function getChainName(chainId: number): string {
+  const chainNames: Record<number, string> = {
+    1: 'Ethereum Mainnet',
+    56: 'BNB Smart Chain (BSC)',
+    97: 'BSC Testnet',
+    137: 'Polygon',
+    42161: 'Arbitrum One',
+    421614: 'Arbitrum Sepolia',
+    8453: 'Base',
+    84532: 'Base Sepolia',
+  };
+  return chainNames[chainId] || `Chain ${chainId}`;
 }
 
 // Check if contracts are deployed on a chain

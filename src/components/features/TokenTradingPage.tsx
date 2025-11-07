@@ -42,7 +42,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
   const [timeframe, setTimeframe] = useState('1h');
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(token.holders || 0);
-  const [userBalance] = useState(1000); // Mock user KAS balance
+  const [userBalance] = useState(1000); // Mock user BNB balance
   const [userTokenBalance] = useState(0); // Mock user token balance
   const [isMobile, setIsMobile] = useState(false);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
@@ -74,7 +74,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
   const isPositive = token.change24h >= 0;
 
   return (
-    <div className={cn('min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900', className)}>
+    <div className={cn('min-h-screen bg-gradient-to-br from-gray-900 via-yellow-900/20 to-gray-900', className)}>
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <motion.div
@@ -96,7 +96,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
             )}
 
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+              <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
                 {token.symbol.slice(0, 2)}
               </div>
               <div>
@@ -157,7 +157,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
         >
           <Card className="p-4 text-center">
             <div className="text-2xl font-bold text-white mb-1">
-              {formatCurrency(token.price, 'KAS', 8)}
+              {formatCurrency(token.price, 'BNB', 8)}
             </div>
             <div className="text-sm text-gray-400">Current Price</div>
             <div className={cn(
@@ -171,17 +171,17 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
 
           <Card className="p-4 text-center">
             <div className="text-2xl font-bold text-white mb-1">
-              {formatCurrency(token.marketCap, 'KAS')}
+              {formatCurrency(token.marketCap, 'BNB')}
             </div>
             <div className="text-sm text-gray-400">Market Cap</div>
-            <div className="text-sm text-purple-400 mt-2">
+            <div className="text-sm text-yellow-400 mt-2">
               Rank #{Math.floor(Math.random() * 1000) + 1}
             </div>
           </Card>
 
           <Card className="p-4 text-center">
             <div className="text-2xl font-bold text-white mb-1">
-              {formatCurrency(token.volume24h, 'KAS')}
+              {formatCurrency(token.volume24h, 'BNB')}
             </div>
             <div className="text-sm text-gray-400">24h Volume</div>
             <div className="text-sm text-blue-400 mt-2 flex items-center justify-center">
@@ -264,7 +264,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
           >
             <Card className="p-6">
               <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-                <DollarSign className="mr-2 text-purple-500" />
+                <DollarSign className="mr-2 text-yellow-500" />
                 Token Information
               </h3>
 
@@ -279,7 +279,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm text-gray-400">Contract Address</label>
-                    <div className="text-sm text-purple-400 mt-1 font-mono break-all">
+                    <div className="text-sm text-yellow-400 mt-1 font-mono break-all">
                       {token.address.slice(0, 8)}...{token.address.slice(-8)}
                     </div>
                   </div>

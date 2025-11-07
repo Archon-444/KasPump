@@ -134,7 +134,7 @@ export default function PortfolioPage() {
           {/* Loading State */}
           {loading && (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mb-4"></div>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500 mb-4"></div>
               <div className="text-gray-400">Loading portfolio...</div>
             </div>
           )}

@@ -7,10 +7,10 @@ import { Button } from '../components/ui';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-yellow-900 to-orange-900 p-4">
       <div className="max-w-md w-full glassmorphism rounded-2xl p-8 text-center">
         <div className="mb-6">
-          <div className="text-6xl font-bold text-purple-500 mb-4">404</div>
+          <div className="text-6xl font-bold text-yellow-500 mb-4">404</div>
           <h1 className="text-2xl font-bold text-white mb-2">Page Not Found</h1>
           <p className="text-gray-400 text-sm">
             The page you're looking for doesn't exist or has been moved.

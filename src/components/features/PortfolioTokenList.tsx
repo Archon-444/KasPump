@@ -91,7 +91,7 @@ export const PortfolioTokenList: React.FC<PortfolioTokenListProps> = ({
       onClick={() => handleSort(field)}
       className={cn(
         'flex items-center space-x-1 text-xs text-gray-400 hover:text-white transition-colors',
-        sortField === field && 'text-purple-400'
+        sortField === field && 'text-yellow-400'
       )}
     >
       <span>{label}</span>
@@ -120,7 +120,7 @@ export const PortfolioTokenList: React.FC<PortfolioTokenListProps> = ({
           <select
             value={filterChain}
             onChange={(e) => setFilterChain(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500"
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-yellow-500"
           >
             <option value="all">All Chains</option>
             {uniqueChains.map(({ chainId, name }) => (
@@ -159,12 +159,12 @@ export const PortfolioTokenList: React.FC<PortfolioTokenListProps> = ({
               className="cursor-pointer"
               onClick={() => onTokenClick?.(portfolioToken)}
             >
-              <Card className="glassmorphism hover:border-purple-500/30 transition-all duration-300">
+              <Card className="glassmorphism hover:border-yellow-500/30 transition-all duration-300">
                 <div className="flex items-center justify-between p-4">
                   {/* Token Info */}
                   <div className="flex items-center space-x-4 flex-1">
                     <div 
-                      className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold"
+                      className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold"
                       style={{ 
                         border: `2px solid ${chainMetadata?.color || '#6B7280'}` 
                       }}

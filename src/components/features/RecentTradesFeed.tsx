@@ -86,7 +86,7 @@ export const RecentTradesFeed: React.FC<RecentTradesFeedProps> = ({
                 className={cn(
                   'flex items-center justify-between p-3 rounded-lg transition-all',
                   isOwnTrade
-                    ? 'bg-purple-500/10 border border-purple-500/30'
+                    ? 'bg-yellow-500/10 border border-yellow-500/30'
                     : 'bg-gray-800/30 hover:bg-gray-800/50'
                 )}
               >
@@ -118,7 +118,7 @@ export const RecentTradesFeed: React.FC<RecentTradesFeedProps> = ({
                         })}
                       </span>
                       {isOwnTrade && (
-                        <span className="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-400 rounded">
+                        <span className="text-xs px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded">
                           You
                         </span>
                       )}
@@ -142,7 +142,7 @@ export const RecentTradesFeed: React.FC<RecentTradesFeedProps> = ({
                     className="flex-shrink-0 ml-2 p-1.5 hover:bg-gray-700 rounded transition-colors"
                     title="View on explorer"
                   >
-                    <ExternalLink size={14} className="text-gray-400 hover:text-purple-400" />
+                    <ExternalLink size={14} className="text-gray-400 hover:text-yellow-400" />
                   </a>
                 )}
               </motion.div>

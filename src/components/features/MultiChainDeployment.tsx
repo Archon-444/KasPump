@@ -45,7 +45,7 @@ export const MultiChainDeployment: React.FC<MultiChainDeploymentProps> = ({
         return <XCircle size={20} className="text-red-400" />;
       case 'deploying':
       case 'switching':
-        return <Loader2 size={20} className="text-purple-400 animate-spin" />;
+        return <Loader2 size={20} className="text-yellow-400 animate-spin" />;
       default:
         return <div className="w-5 h-5 rounded-full border-2 border-gray-600" />;
     }
@@ -59,7 +59,7 @@ export const MultiChainDeployment: React.FC<MultiChainDeploymentProps> = ({
         return 'border-red-500/50 bg-red-500/10';
       case 'deploying':
       case 'switching':
-        return 'border-purple-500/50 bg-purple-500/10';
+        return 'border-yellow-500/50 bg-yellow-500/10';
       default:
         return 'border-gray-700 bg-gray-800/30';
     }
@@ -87,7 +87,7 @@ export const MultiChainDeployment: React.FC<MultiChainDeploymentProps> = ({
             className={cn(
               'px-3 py-1.5 rounded text-sm font-medium transition-all',
               deploymentMode === 'sequential'
-                ? 'bg-purple-500 text-white'
+                ? 'bg-yellow-500 text-white'
                 : 'text-gray-400 hover:text-white'
             )}
           >
@@ -98,7 +98,7 @@ export const MultiChainDeployment: React.FC<MultiChainDeploymentProps> = ({
             className={cn(
               'px-3 py-1.5 rounded text-sm font-medium transition-all',
               deploymentMode === 'parallel'
-                ? 'bg-purple-500 text-white'
+                ? 'bg-yellow-500 text-white'
                 : 'text-gray-400 hover:text-white'
             )}
           >
@@ -127,7 +127,7 @@ export const MultiChainDeployment: React.FC<MultiChainDeploymentProps> = ({
                     className={cn(
                       'p-4 rounded-lg border-2 transition-all',
                       isSelected
-                        ? 'border-purple-500 bg-purple-500/20'
+                        ? 'border-yellow-500 bg-yellow-500/20'
                         : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
                     )}
                   >
@@ -138,7 +138,7 @@ export const MultiChainDeployment: React.FC<MultiChainDeploymentProps> = ({
                       />
                       <span className="font-semibold text-white">{chain.name}</span>
                       {isSelected && (
-                        <CheckCircle size={16} className="text-purple-400 ml-auto" />
+                        <CheckCircle size={16} className="text-yellow-400 ml-auto" />
                       )}
                     </div>
                     <div className="text-xs text-gray-400">
@@ -205,10 +205,10 @@ export const MultiChainDeployment: React.FC<MultiChainDeploymentProps> = ({
                     <span className="text-gray-400">Waiting to deploy...</span>
                   )}
                   {deployment.status === 'switching' && (
-                    <span className="text-purple-400">Switching network...</span>
+                    <span className="text-yellow-400">Switching network...</span>
                   )}
                   {deployment.status === 'deploying' && (
-                    <span className="text-purple-400">Deploying token contract...</span>
+                    <span className="text-yellow-400">Deploying token contract...</span>
                   )}
                   {deployment.status === 'success' && deployment.result && (
                     <div className="space-y-1">
@@ -221,7 +221,7 @@ export const MultiChainDeployment: React.FC<MultiChainDeploymentProps> = ({
                             href={explorerUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-purple-400 hover:text-purple-300 underline"
+                            className="text-yellow-400 hover:text-yellow-300 underline"
                           >
                             View on explorer →
                           </a>
@@ -268,7 +268,7 @@ export const MultiChainDeployment: React.FC<MultiChainDeploymentProps> = ({
           className="p-4 bg-gray-800/50 border border-gray-700 rounded-lg"
         >
           <div className="flex items-center space-x-2 mb-3">
-            <Network size={20} className="text-purple-400" />
+            <Network size={20} className="text-yellow-400" />
             <span className="font-semibold text-white">Deployment Complete</span>
           </div>
           <div className="text-sm text-gray-400 space-y-1">
