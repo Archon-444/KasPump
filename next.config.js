@@ -1,5 +1,62 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Security headers including Content Security Policy
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              // Script sources
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+              // Style sources
+              "style-src 'self' 'unsafe-inline'",
+              // Image sources - allow IPFS gateways and data URIs
+              "img-src 'self' data: blob: https://ipfs.io https://gateway.ipfs.io https://gateway.pinata.cloud https://ipfs.filebase.io https://nftstorage.link https://dweb.link",
+              // Font sources
+              "font-src 'self' data:",
+              // Connect sources - allow blockchain RPC endpoints and IPFS
+              "connect-src 'self' https://*.bsc.nodereal.io https://*.nodereal.io https://bsc-dataseed.binance.org https://bsc-dataseed1.defibit.io https://bsc-dataseed1.ninicoin.io https://rpc.ankr.com https://arbitrum-mainnet.infura.io https://arb1.arbitrum.io https://base.llamarpc.com https://mainnet.base.org https://ipfs.io https://gateway.ipfs.io https://gateway.pinata.cloud https://api.pinata.cloud https://api.web3.storage https://api.nft.storage wss://*.bsc.nodereal.io wss://*.nodereal.io wss://bsc-dataseed.binance.org",
+              // Frame sources - restrict to same origin only
+              "frame-src 'self'",
+              // Object sources - disallow plugins
+              "object-src 'none'",
+              // Base URI
+              "base-uri 'self'",
+              // Form action
+              "form-action 'self'",
+              // Frame ancestors - prevent clickjacking
+              "frame-ancestors 'none'",
+              // Upgrade insecure requests in production
+              process.env.NODE_ENV === 'production' ? 'upgrade-insecure-requests' : '',
+            ].filter(Boolean).join('; '),
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+        ],
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'ipfs.io' },

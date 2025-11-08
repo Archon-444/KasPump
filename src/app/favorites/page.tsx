@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Star, Trash2, TrendingUp, Zap } from 'lucide-react';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useContracts } from '../../hooks/useContracts';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { TokenCard } from '../../components/features/TokenCard';
 import { Card, Button, Alert } from '../../components/ui';
 import { KasPumpToken } from '../../types';
@@ -16,17 +17,9 @@ export default function FavoritesPage() {
   const router = useRouter();
   const { favorites, isLoading, clearFavorites, removeFavorite } = useFavorites();
   const contracts = useContracts();
+  const isMobile = useIsMobile();
   const [tokens, setTokens] = useState<KasPumpToken[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Mobile detection
-  React.useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   // Load token details for favorites
   React.useEffect(() => {

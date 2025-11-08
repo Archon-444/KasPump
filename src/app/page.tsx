@@ -57,6 +57,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { useKeyboardShortcuts, COMMON_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useServiceWorkerCache } from '../hooks/useServiceWorkerCache';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { KasPumpToken } from '../types';
 import { debounce, cn } from '../utils';
 
@@ -65,7 +66,6 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedToken, setSelectedToken] = useState<KasPumpToken | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [filters, setFilters] = useState<TokenFilters>({
     searchQuery: '',
     chains: [],
@@ -74,98 +74,73 @@ export default function HomePage() {
     sortBy: 'volume',
     sortOrder: 'desc',
   });
-  
+
   const router = useRouter();
   const mobileNav = useMobileNavigation();
-  
+
   const contracts = useContracts();
   const favorites = useFavorites();
   const { cacheTokenList } = useServiceWorkerCache();
-
-  // Mobile detection
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const isMobile = useIsMobile();
 
   // Load tokens function
   const loadTokens = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Try to fetch real tokens if contracts are initialized
-      let tokenAddresses: string[] = [];
-      if (contracts.isInitialized && contracts.getAllTokens) {
-        try {
-          tokenAddresses = await contracts.getAllTokens();
-        } catch (error) {
-          console.warn('Failed to fetch tokens from contract, using mock data:', error);
-        }
+
+      // Fetch real tokens from blockchain
+      if (!contracts.isInitialized || !contracts.getAllTokens || !contracts.getTokenInfo) {
+        console.warn('Contracts not initialized, waiting...');
+        setTokens([]);
+        return;
       }
-      
-      // For now, we'll create mock data since the full token info fetching
-      // requires AMM address resolution which we noted needs implementation
-      // Use mock data if no tokens found or contracts not initialized
-      const mockTokens: KasPumpToken[] = [
-        {
-          address: '0x1234567890123456789012345678901234567890',
-          name: 'BNB Moon',
-          symbol: 'BNBMOON',
-          description: 'First meme coin on BSC! 🌙',
-          image: '',
-          creator: '0xabcd...efgh',
-          totalSupply: 1000000000,
-          currentSupply: 400000000,
-          marketCap: 50000,
-          price: 0.000125,
-          change24h: 15.4,
-          volume24h: 12500,
-          holders: 342,
-          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-          curveType: 'linear',
-          bondingCurveProgress: 40,
-          ammAddress: '0x1234...amm',
-          isGraduated: false,
-        },
-        {
-          address: '0x2345678901234567890123456789012345678901',
-          name: 'BNB Bot',
-          symbol: 'BNBBOT',
-          description: 'AI-powered meme machine 🤖',
-          image: '',
-          creator: '0xdcba...hgfe',
-          totalSupply: 500000000,
-          currentSupply: 125000000,
-          marketCap: 18750,
-          price: 0.00015,
-          change24h: -8.2,
-          volume24h: 8900,
-          holders: 156,
-          createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-          curveType: 'exponential',
-          bondingCurveProgress: 25,
-          ammAddress: '0x2345...amm',
-          isGraduated: false,
-        },
-      ];
-      
-      setTokens(mockTokens);
-      
-      // Cache tokens for offline access
-      cacheTokenList({ tokens: mockTokens });
+
+      try {
+        // Get all token addresses from the factory
+        const tokenAddresses = await contracts.getAllTokens();
+
+        if (!tokenAddresses || tokenAddresses.length === 0) {
+          console.log('No tokens deployed yet');
+          setTokens([]);
+          cacheTokenList({ tokens: [] });
+          return;
+        }
+
+        console.log(`Fetching info for ${tokenAddresses.length} tokens...`);
+
+        // Fetch detailed info for each token
+        const tokenPromises = tokenAddresses.map(async (address) => {
+          try {
+            return await contracts.getTokenInfo(address);
+          } catch (error) {
+            console.error(`Failed to fetch token info for ${address}:`, error);
+            return null;
+          }
+        });
+
+        const tokenResults = await Promise.all(tokenPromises);
+
+        // Filter out failed fetches
+        const validTokens = tokenResults.filter(
+          (token): token is KasPumpToken => token !== null
+        );
+
+        console.log(`Successfully loaded ${validTokens.length} tokens`);
+        setTokens(validTokens);
+
+        // Cache tokens for offline access
+        cacheTokenList({ tokens: validTokens });
+      } catch (error) {
+        console.error('Failed to fetch tokens from blockchain:', error);
+        setTokens([]);
+      }
     } catch (error) {
       console.error('Failed to load tokens:', error);
-      // Set empty array on error to show empty state
       setTokens([]);
     } finally {
       setLoading(false);
     }
-  }, [contracts.isInitialized, contracts.getAllTokens, cacheTokenList]);
+  }, [contracts.isInitialized, contracts.getAllTokens, contracts.getTokenInfo, cacheTokenList]);
 
   // Load tokens on mount and when contracts are initialized
   useEffect(() => {

@@ -6,6 +6,7 @@ import { RefreshCw, Plus, Filter, Search, Award, TrendingUp, ArrowLeft } from 'l
 import { useRouter } from 'next/navigation';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
 import { useCreatorTokens } from '../../hooks/useCreatorTokens';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { WalletRequired } from '../../components/features/WalletConnectButton';
 import { CreatorStatsCard } from '../../components/features/CreatorStatsCard';
 import { CreatorTokenCard } from '../../components/features/CreatorTokenCard';
@@ -18,19 +19,11 @@ export default function CreatorDashboardPage() {
   const router = useRouter();
   const wallet = useMultichainWallet();
   const { tokens, stats, loading, error, refresh } = useCreatorTokens();
+  const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBy, setFilterBy] = useState<'all' | 'active' | 'graduated'>('all');
   const [sortBy, setSortBy] = useState<'volume' | 'marketCap' | 'earnings' | 'created'>('volume');
-  const [isMobile, setIsMobile] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // Mobile detection
-  React.useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   // Filter and sort tokens
   const filteredTokens = React.useMemo(() => {
