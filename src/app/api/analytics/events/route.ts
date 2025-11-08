@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/rate-limit';
-import { AnalyticsEventSchema, AnalyticsEventsArraySchema } from '@/schemas';
+import { AnalyticsEventSchema, AnalyticsEventsArraySchema, AnalyticsEventData } from '@/schemas';
 
 // Analytics events collection endpoint
 export async function POST(request: NextRequest) {
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processAnalyticsEvent(event: any) {
+async function processAnalyticsEvent(event: AnalyticsEventData) {
   // Event validation
   if (!event.event || !event.timestamp || !event.sessionId) {
     console.warn('Invalid analytics event:', event);
@@ -132,18 +132,18 @@ async function processAnalyticsEvent(event: any) {
 }
 
 // Placeholder for database storage
-async function storeEvent(event: any) {
+async function storeEvent(event: AnalyticsEventData) {
   // Would store in database table like:
   // INSERT INTO analytics_events (event_name, properties, user_id, session_id, timestamp)
   // VALUES (?, ?, ?, ?, ?)
 }
 
 // Placeholder for external analytics service
-async function sendToMixpanel(event: any) {
+async function sendToMixpanel(event: AnalyticsEventData) {
   // Would send to external service for advanced analytics
 }
 
 // Placeholder for alerting system
-async function sendAlert(event: any) {
+async function sendAlert(event: AnalyticsEventData) {
   // Would send alerts for critical events (errors, security issues, etc.)
 }
