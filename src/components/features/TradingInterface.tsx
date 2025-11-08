@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Settings, 
-  Zap, 
-  Shield, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Settings,
+  Zap,
+  Shield,
   AlertTriangle,
   DollarSign,
   Percent,
@@ -17,6 +17,7 @@ import {
 import { Card, Button, Badge, Progress } from '../ui';
 import { TransactionPreviewModal } from './TransactionPreviewModal';
 import { KasPumpToken } from '../../types';
+import { useContracts } from '../../hooks/useContracts';
 import { formatCurrency, formatPercentage, cn } from '../../utils';
 
 export interface TradingInterfaceProps {
@@ -34,6 +35,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   userTokenBalance = 0,
   className
 }) => {
+  const contracts = useContracts();
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [amount, setAmount] = useState('');
   const [slippage, setSlippage] = useState(1.0);
@@ -44,13 +46,14 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const [fees, setFees] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [quoteLoading, setQuoteLoading] = useState(false);
 
   const slippagePresets = [0.1, 0.5, 1.0, 3.0];
   const amountPresets = [25, 50, 75, 100];
 
-  // Calculate trade details when amount or slippage changes
-  useEffect(() => {
-    if (!amount || parseFloat(amount) <= 0) {
+  // Calculate trade details using real bonding curve math
+  const calculateTradeDetails = useCallback(async () => {
+    if (!amount || parseFloat(amount) <= 0 || !contracts.getSwapQuote) {
       setExpectedOutput(0);
       setPriceImpact(0);
       setMinimumReceived(0);
@@ -59,28 +62,39 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
     }
 
     const inputAmount = parseFloat(amount);
-    
-    // Mock calculations (replace with real bonding curve math)
-    if (tradeType === 'buy') {
-      const tokensReceived = inputAmount / token.price;
-      const impact = Math.min((inputAmount / token.volume24h) * 100, 5);
-      const platformFee = inputAmount * 0.01; // 1% platform fee
-      
-      setExpectedOutput(tokensReceived);
-      setPriceImpact(impact);
-      setMinimumReceived(tokensReceived * (1 - slippage / 100));
+    setQuoteLoading(true);
+
+    try {
+      // Get real quote from bonding curve contract
+      const quote = await contracts.getSwapQuote(token.address, inputAmount, tradeType);
+
+      setExpectedOutput(quote.outputAmount);
+      setPriceImpact(quote.priceImpact);
+      setMinimumReceived(quote.outputAmount * (1 - slippage / 100));
+
+      // Calculate fees (1% platform fee on input amount)
+      const platformFee = inputAmount * 0.01;
       setFees(platformFee);
-    } else {
-      const bnbReceived = inputAmount * token.price;
-      const impact = Math.min((bnbReceived / token.volume24h) * 100, 5);
-      const platformFee = bnbReceived * 0.01; // 1% platform fee
-      
-      setExpectedOutput(bnbReceived - platformFee);
-      setPriceImpact(impact);
-      setMinimumReceived((bnbReceived - platformFee) * (1 - slippage / 100));
-      setFees(platformFee);
+    } catch (error) {
+      console.error('Failed to get swap quote:', error);
+      // Reset on error
+      setExpectedOutput(0);
+      setPriceImpact(0);
+      setMinimumReceived(0);
+      setFees(0);
+    } finally {
+      setQuoteLoading(false);
     }
-  }, [amount, slippage, tradeType, token.price, token.volume24h]);
+  }, [amount, tradeType, token.address, contracts, slippage]);
+
+  // Calculate trade details when amount or trade type changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      calculateTradeDetails();
+    }, 500); // Debounce to avoid too many contract calls
+
+    return () => clearTimeout(timeoutId);
+  }, [calculateTradeDetails]);
 
   const handleQuickAmount = (percentage: number) => {
     const maxAmount = tradeType === 'buy' ? userBalance : userTokenBalance;
