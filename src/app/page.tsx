@@ -57,6 +57,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { useKeyboardShortcuts, COMMON_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useServiceWorkerCache } from '../hooks/useServiceWorkerCache';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { KasPumpToken } from '../types';
 import { debounce, cn } from '../utils';
 
@@ -65,7 +66,6 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedToken, setSelectedToken] = useState<KasPumpToken | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [filters, setFilters] = useState<TokenFilters>({
     searchQuery: '',
     chains: [],
@@ -74,24 +74,14 @@ export default function HomePage() {
     sortBy: 'volume',
     sortOrder: 'desc',
   });
-  
+
   const router = useRouter();
   const mobileNav = useMobileNavigation();
-  
+
   const contracts = useContracts();
   const favorites = useFavorites();
   const { cacheTokenList } = useServiceWorkerCache();
-
-  // Mobile detection
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const isMobile = useIsMobile();
 
   // Load tokens function
   const loadTokens = useCallback(async () => {

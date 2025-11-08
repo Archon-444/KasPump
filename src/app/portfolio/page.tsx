@@ -10,22 +10,15 @@ import { ChainBalanceCard } from '../../components/features/ChainBalanceCard';
 import { PortfolioTokenList } from '../../components/features/PortfolioTokenList';
 import { Button, Card } from '../../components/ui';
 import { usePortfolio, PortfolioToken } from '../../hooks/usePortfolio';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { cn } from '../../utils';
 import { MobileNavigation } from '../../components/mobile';
 
 export default function PortfolioPage() {
   const router = useRouter();
   const { tokens, stats, loading, error, refresh } = usePortfolio();
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const [selectedChain, setSelectedChain] = useState<number | 'all'>('all');
-
-  // Mobile detection
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   const handleTokenClick = (portfolioToken: PortfolioToken) => {
     // Navigate to token trading page

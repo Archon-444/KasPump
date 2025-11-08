@@ -9,6 +9,7 @@ import { PlatformStatsCard, AnalyticsData } from '../../components/features/Plat
 import { ChainComparisonChart } from '../../components/features/ChainComparisonChart';
 import { GrowthChart } from '../../components/features/GrowthChart';
 import { LeaderboardTable, LeaderboardToken } from '../../components/features/LeaderboardTable';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { cn } from '../../utils';
 import { MobileNavigation } from '../../components/mobile';
 
@@ -18,15 +19,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<'24h' | '7d' | '30d' | 'all'>('24h');
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Mobile detection
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const isMobile = useIsMobile();
 
   // Fetch analytics data
   useEffect(() => {
