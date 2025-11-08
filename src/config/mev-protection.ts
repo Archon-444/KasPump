@@ -33,11 +33,14 @@ export const MEV_PROTECTED_RPCS = {
         fee: 'free',
       },
       {
-        name: 'NodeReal MEV',
-        url: `https://bsc-mainnet.nodereal.io/v1/${process.env.NEXT_PUBLIC_NODEREAL_API_KEY}`,
-        protection: 'transaction-privacy',
-        fee: 'requires-api-key',
+        name: 'BSC Public RPC',
+        url: 'https://bsc-dataseed1.binance.org',
+        protection: 'standard',
+        fee: 'free',
       },
+      // SECURITY FIX: Removed NodeReal API key from client-side config
+      // NodeReal RPC with API key should only be used server-side
+      // To use NodeReal: Set up server-side RPC proxy in /api/rpc route
     ],
     defaultSlippage: 200, // 2% (higher for BSC due to MEV)
   },
@@ -160,10 +163,11 @@ export function getMEVProtectionSettings(
 /**
  * Flashbots-style protect configuration
  * Note: Flashbots is primarily Ethereum, but similar services exist for BSC
+ * SECURITY: Flashbots integration disabled (requires server-side implementation)
  */
 export const FLASHBOTS_CONFIG = {
-  enabled: process.env.NEXT_PUBLIC_ENABLE_FLASHBOTS === 'true',
-  rpcUrl: process.env.NEXT_PUBLIC_FLASHBOTS_RPC || '',
+  enabled: false, // SECURITY: Disabled - implement server-side if needed
+  rpcUrl: '', // SECURITY: Removed client-side RPC URL
   builderUrl: 'https://relay.flashbots.net',
 };
 
