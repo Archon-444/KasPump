@@ -107,27 +107,23 @@ async function getPlatformAnalytics(
       },
 
       // Growth Metrics (Strategic insights)
+      // Note: Historical metrics require event indexing or database
       growth: {
         newTokens,
-        volumeGrowth: Math.round(volumeGrowth * 100) / 100,
-        userGrowth: Math.round(userGrowth * 100) / 100,
-        marketCapGrowth: 0 // Placeholder
+        // Growth percentages would require historical data tracking
+        // Removed placeholder random values for production accuracy
       },
 
       // Partnership Data
       partnership: {
         readyForGraduation: await getGraduationReadyTokens(provider, factoryContract, allTokens),
-        highVolumeTokens: await getHighVolumeTokens(provider, allTokens),
-        topPerformingTokens: await getTopPerformingTokens(provider, allTokens),
+        highVolumeTokens: await getHighVolumeTokens(provider, factoryContract, allTokens),
+        topPerformingTokens: await getTopPerformingTokens(provider, factoryContract, allTokens),
         ecosystemValue: totalMarketCap + platformFees // Value created for ecosystem
-      },
-
-      // API Usage Metrics (for premium features)
-      api: {
-        callsToday: 0, // Placeholder - would track in production
-        premiumUsers: 0, // Placeholder
-        apiRevenue: 0 // Placeholder
       }
+
+      // Note: API usage metrics would require request tracking middleware
+      // Removed placeholder metrics for production accuracy
     };
 
   } catch (error) {
@@ -210,14 +206,35 @@ async function countGraduatedTokens(
   return graduatedCount;
 }
 
-async function countActiveTokens(_provider: ethers.JsonRpcProvider, tokens: string[], _timeframe: string): Promise<number> {
-  // Placeholder - would implement based on recent trading activity
-  return Math.floor(tokens.length * 0.6); // Assume 60% are active
+async function countActiveTokens(provider: ethers.JsonRpcProvider, tokens: string[], timeframe: string): Promise<number> {
+  // Count tokens with recent trading activity (volume > 0 and not graduated)
+  // In production, this would query recent Trade events within the timeframe
+  let activeCount = 0;
+
+  for (const tokenAddress of tokens) {
+    try {
+      const ammContract = new ethers.Contract(tokenAddress, BONDING_CURVE_ABI, provider);
+      const [, , totalVolume, , isGraduated] = await ammContract.getTradingInfo();
+
+      // Consider active if has volume and not graduated
+      if (parseFloat(ethers.formatEther(totalVolume)) > 0 && !isGraduated) {
+        activeCount++;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return activeCount;
 }
 
 async function calculateTotalUsers(_provider: ethers.JsonRpcProvider, tokens: string[]): Promise<number> {
-  // Placeholder - would track unique addresses across all tokens
-  return tokens.length * 15; // Rough estimate
+  // Accurate user count would require:
+  // 1. Parsing all Trade events across all tokens
+  // 2. Tracking unique trader addresses
+  // 3. Event indexing service or subgraph
+  // Returning 0 instead of estimate for production accuracy
+  return 0; // Would require event indexing to track unique traders
 }
 
 function calculatePlatformFees(totalVolume: number): number {
@@ -229,19 +246,44 @@ function calculateCreatorEarnings(totalVolume: number): number {
 }
 
 async function getNewTokensCount(factoryContract: ethers.Contract, timeframe: string): Promise<number> {
-  // Placeholder - would query TokenCreated events within timeframe
-  const multipliers = { '24h': 0.1, '7d': 0.3, '30d': 0.7, 'all': 1 };
-  return Math.floor(10 * (multipliers[timeframe as keyof typeof multipliers] || 1));
+  // Query TokenCreated events within the timeframe
+  // For accurate counts, would need to parse events from a specific block range
+  try {
+    const currentBlock = await factoryContract.runner?.provider?.getBlockNumber();
+    if (!currentBlock) return 0;
+
+    // Calculate block range based on timeframe (approximate: ~3s per block on BSC)
+    const blocksPerDay = (24 * 60 * 60) / 3;
+    const timeframeBlocks = {
+      '24h': Math.floor(blocksPerDay),
+      '7d': Math.floor(blocksPerDay * 7),
+      '30d': Math.floor(blocksPerDay * 30),
+      'all': currentBlock
+    };
+
+    const fromBlock = Math.max(0, currentBlock - (timeframeBlocks[timeframe as keyof typeof timeframeBlocks] || currentBlock));
+    const filter = factoryContract.filters.TokenCreated();
+    const events = await factoryContract.queryFilter(filter, fromBlock, currentBlock);
+
+    return events.length;
+  } catch {
+    // If event querying fails, return 0
+    return 0;
+  }
 }
 
 async function getVolumeGrowth(_provider: ethers.JsonRpcProvider, _tokens: string[], _timeframe: string): Promise<number> {
-  // Placeholder - would calculate volume growth percentage
-  return Math.random() * 50 - 25; // -25% to +25% growth
+  // Volume growth requires historical volume tracking
+  // Would need to store snapshots or parse Trade events with timestamps
+  // Removed random placeholder for production accuracy
+  return 0; // Would require historical data tracking
 }
 
 async function getUserGrowth(_provider: ethers.JsonRpcProvider, _tokens: string[], _timeframe: string): Promise<number> {
-  // Placeholder - would calculate user growth percentage
-  return Math.random() * 30; // 0% to +30% growth
+  // User growth requires tracking unique addresses over time
+  // Would need event indexing to track new vs returning traders
+  // Removed random placeholder for production accuracy
+  return 0; // Would require event indexing and historical tracking
 }
 
 async function getGraduationReadyTokens(
@@ -269,14 +311,56 @@ async function getGraduationReadyTokens(
   return readyCount;
 }
 
-async function getHighVolumeTokens(provider: ethers.JsonRpcProvider, tokens: string[]): Promise<number> {
-  // Placeholder - would identify tokens with >$10k volume
-  return Math.floor(tokens.length * 0.2);
+async function getHighVolumeTokens(
+  provider: ethers.JsonRpcProvider,
+  factoryContract: ethers.Contract,
+  tokens: string[]
+): Promise<number> {
+  // Count tokens with volume > $10,000 USD
+  const HIGH_VOLUME_THRESHOLD = 10000;
+  let highVolumeCount = 0;
+
+  for (const tokenAddress of tokens) {
+    try {
+      const ammAddress = await getAMMAddressForToken(factoryContract, tokenAddress);
+      if (!ammAddress) continue;
+
+      const tradingData = await getTradingDataForAnalytics(provider, ammAddress);
+      if (tradingData && tradingData.totalVolume > HIGH_VOLUME_THRESHOLD) {
+        highVolumeCount++;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return highVolumeCount;
 }
 
-async function getTopPerformingTokens(provider: ethers.JsonRpcProvider, tokens: string[]): Promise<number> {
-  // Placeholder - would identify top 10% by market cap growth
-  return Math.floor(tokens.length * 0.1);
+async function getTopPerformingTokens(
+  provider: ethers.JsonRpcProvider,
+  factoryContract: ethers.Contract,
+  tokens: string[]
+): Promise<number> {
+  // Count tokens with high bonding curve progress (>50%) and significant volume
+  let topPerformingCount = 0;
+
+  for (const tokenAddress of tokens) {
+    try {
+      const ammAddress = await getAMMAddressForToken(factoryContract, tokenAddress);
+      if (!ammAddress) continue;
+
+      const tradingData = await getTradingDataForAnalytics(provider, ammAddress);
+      // Consider "top performing" if >50% to graduation and volume > $1000
+      if (tradingData && tradingData.graduation > 5000 && tradingData.totalVolume > 1000) {
+        topPerformingCount++;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return topPerformingCount;
 }
 
 // Simplified helper functions (would be more robust in production)
