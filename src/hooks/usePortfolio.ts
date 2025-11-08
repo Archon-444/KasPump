@@ -80,13 +80,14 @@ export function usePortfolio() {
 
           const rpcUrl = chainConfig.rpcUrls.default.http[0];
           const provider = new ethers.JsonRpcProvider(rpcUrl);
-          const factoryAddress = process.env[`NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS_${chain.chainId}`] || 
+          const factoryAddress = process.env[`NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS_${chain.chainId}`] ||
                                  process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS;
-          
+
           if (!factoryAddress) continue;
 
           const TOKEN_FACTORY_ABI = [
             "function getAllTokens() external view returns (address[])",
+            "function getTokenConfig(address tokenAddress) external view returns (tuple(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType, uint256 graduationThreshold))",
             "function getTokenAMM(address tokenAddress) external view returns (address)",
           ];
 
@@ -99,7 +100,9 @@ export function usePortfolio() {
               const ERC20_ABI = [
                 "function balanceOf(address account) external view returns (uint256)",
                 "function symbol() external view returns (string)",
+                "function name() external view returns (string)",
                 "function decimals() external view returns (uint8)",
+                "function totalSupply() external view returns (uint256)",
               ];
 
               const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
@@ -108,40 +111,51 @@ export function usePortfolio() {
 
               // Only include tokens with balance > 0
               if (balanceNumber > 0) {
-                // Get AMM address and fetch token data
+                // Get AMM address and fetch complete token data
                 const ammAddress = await factoryContract.getTokenAMM(tokenAddress);
-                
-                // Fetch token price and metadata (simplified - would use proper token config)
+
+                // Fetch complete token configuration and trading info
                 const BONDING_CURVE_ABI = [
                   "function getTradingInfo() external view returns (uint256 currentSupply, uint256 currentPrice, uint256 totalVolume, uint256 graduation, bool isGraduated)",
                 ];
 
                 try {
-                  const ammContract = new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider);
-                  const [currentSupply, currentPrice] = await ammContract.getTradingInfo();
+                  const [config, name, symbol, totalSupply, ammContract] = await Promise.all([
+                    factoryContract.getTokenConfig(tokenAddress),
+                    tokenContract.name(),
+                    tokenContract.symbol(),
+                    tokenContract.totalSupply(),
+                    new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider),
+                  ]);
+
+                  const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo();
+
+                  const currentSupplyNumber = parseFloat(ethers.formatEther(currentSupply));
                   const price = parseFloat(ethers.formatEther(currentPrice));
                   const value = balanceNumber * price;
+                  const marketCap = currentSupplyNumber * price;
+                  const bondingCurveProgress = parseFloat(ethers.formatUnits(graduation, 2));
 
                   portfolioTokens.push({
                     token: {
                       address: tokenAddress,
-                      name: '', // Would fetch from factory
-                      symbol: await tokenContract.symbol(),
-                      description: '',
-                      image: '',
-                      creator: '',
-                      totalSupply: parseFloat(ethers.formatEther(currentSupply)),
-                      currentSupply: parseFloat(ethers.formatEther(currentSupply)),
-                      marketCap: 0,
+                      name: config.name || name,
+                      symbol: config.symbol || symbol,
+                      description: config.description || '',
+                      image: config.imageUrl || '',
+                      creator: '', // Would need to get from TokenCreated event
+                      totalSupply: parseFloat(ethers.formatEther(totalSupply)),
+                      currentSupply: currentSupplyNumber,
+                      marketCap,
                       price,
-                      change24h: 0,
-                      volume24h: 0,
-                      holders: 0,
-                      createdAt: new Date(),
-                      curveType: 'linear',
-                      bondingCurveProgress: 0,
+                      change24h: 0, // Would need historical price data
+                      volume24h: parseFloat(ethers.formatEther(totalVolume)),
+                      holders: 0, // Would need to count unique holders
+                      createdAt: new Date(), // Would get from TokenCreated event
+                      curveType: config.curveType === 0 ? 'linear' : 'exponential',
+                      bondingCurveProgress,
                       ammAddress,
-                      isGraduated: false,
+                      isGraduated,
                     },
                     chainId: chain.chainId,
                     chainName: chain.name,
@@ -150,7 +164,7 @@ export function usePortfolio() {
                     value,
                     valueFormatted: formatCurrency(value, chainConfig.nativeCurrency.symbol, 2),
                     // P&L calculation would require transaction history
-                    // For now, we'll set costBasis to null
+                    // For now, we'll set costBasis to undefined
                   });
                 } catch (err) {
                   // Skip tokens with errors
