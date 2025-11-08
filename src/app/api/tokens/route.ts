@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
+import { rateLimit } from '@/lib/rate-limit';
+import { TokenFilterParamsSchema } from '@/schemas';
 
 const TOKEN_FACTORY_ABI = [
   "function getAllTokens() external view returns (address[])",
@@ -16,11 +18,40 @@ const BONDING_CURVE_ABI = [
 // API endpoint for token data - enables partnerships and integrations
 export const dynamic = 'force-dynamic'; // API routes are always dynamic
 export async function GET(request: NextRequest) {
+  // SECURITY: Rate limiting - 60 requests per minute
+  const rateLimitResult = await rateLimit(request, 'relaxed');
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      {
+        error: 'Too many requests',
+        retryAfter: rateLimitResult.headers['Retry-After'],
+      },
+      { status: 429, headers: rateLimitResult.headers }
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
+
+    // SECURITY: Validate query parameters with Zod
+    const parseResult = TokenFilterParamsSchema.safeParse({
+      search: searchParams.get('search'),
+      chainId: searchParams.get('chainId'),
+      creator: searchParams.get('creator'),
+      page: searchParams.get('page'),
+      pageSize: searchParams.get('pageSize') || searchParams.get('limit'),
+      offset: searchParams.get('offset'),
+    });
+
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid parameters', details: parseResult.error.errors },
+        { status: 400 }
+      );
+    }
+
+    const { pageSize: limit, offset } = parseResult.data;
     const address = searchParams.get('address');
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
-    const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     // Initialize provider
     const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL;

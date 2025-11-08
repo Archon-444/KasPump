@@ -1,22 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rateLimit } from '@/lib/rate-limit';
+import { AnalyticsEventSchema, AnalyticsEventsArraySchema } from '@/schemas';
 
 // Analytics events collection endpoint
 export async function POST(request: NextRequest) {
+  // SECURITY: Rate limiting - 100 events per minute
+  const rateLimitResult = await rateLimit(request, 'analytics');
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      {
+        error: 'Too many requests',
+        retryAfter: rateLimitResult.headers['Retry-After'],
+      },
+      { status: 429, headers: rateLimitResult.headers }
+    );
+  }
+
   try {
     const body = await request.json();
-    
+
     // Handle both single event and batch events
     const events = body.events || [body];
-    
+
+    // SECURITY: Validate events with Zod
+    const parseResult = AnalyticsEventsArraySchema.safeParse(events);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid event data', details: parseResult.error.errors },
+        { status: 400 }
+      );
+    }
+
+    const validatedEvents = parseResult.data;
+
     // In production, this would:
-    // 1. Validate events
+    // 1. ✅ Validate events (done with Zod)
     // 2. Store in database (PostgreSQL/ClickHouse for analytics)
     // 3. Send to analytics service (Mixpanel, PostHog, etc.)
     // 4. Trigger real-time alerts for critical events
-    
+
     console.log('📊 Analytics Events Received:', {
-      count: events.length,
-      events: events.map((e: any) => ({
+      count: validatedEvents.length,
+      events: validatedEvents.map((e) => ({
         event: e.event,
         category: e.properties?.category,
         userId: e.userId,
@@ -25,13 +50,13 @@ export async function POST(request: NextRequest) {
     });
 
     // Process each event
-    for (const event of events) {
+    for (const event of validatedEvents) {
       await processAnalyticsEvent(event);
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      processed: events.length,
+    return NextResponse.json({
+      success: true,
+      processed: validatedEvents.length,
       message: 'Events processed successfully'
     });
 

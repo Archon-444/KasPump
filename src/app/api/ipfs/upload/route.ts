@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rateLimit } from '@/lib/rate-limit';
 
 /**
  * Server-side IPFS upload API route
@@ -13,6 +14,18 @@ interface UploadResponse {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<UploadResponse>> {
+  // SECURITY: Rate limiting - 5 uploads per minute
+  const rateLimitResult = await rateLimit(request, 'upload');
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Too many upload requests. Please try again later.',
+      },
+      { status: 429, headers: rateLimitResult.headers }
+    );
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
