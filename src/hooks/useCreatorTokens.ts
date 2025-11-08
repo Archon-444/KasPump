@@ -1,26 +1,80 @@
-// Hook for fetching and managing tokens created by the current user
+/**
+ * useCreatorTokens Hook
+ * Fetches and manages tokens created by the connected wallet across all chains
+ *
+ * Features:
+ * - Multi-chain token aggregation
+ * - Creator statistics (volume, earnings, holders)
+ * - Graduated vs active token tracking
+ * - Automatic refresh on wallet changes
+ *
+ * @example
+ * ```typescript
+ * const {
+ *   tokens,
+ *   stats,
+ *   isLoading,
+ *   error,
+ *   refresh
+ * } = useCreatorTokens();
+ *
+ * // Display creator stats
+ * <div>
+ *   <p>Tokens Created: {stats.totalTokens}</p>
+ *   <p>Total Volume: ${stats.totalVolume}</p>
+ *   <p>Earnings: ${stats.totalEarnings}</p>
+ * </div>
+ *
+ * // Show graduated tokens
+ * {tokens.filter(t => t.isGraduated).map(token => (
+ *   <TokenCard key={token.address} {...token} />
+ * ))}
+ * ```
+ *
+ * @returns Object containing created tokens, stats, and management functions
+ */
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ethers } from 'ethers';
 import { KasPumpToken } from '../types';
 import { useMultichainWallet } from './useMultichainWallet';
 import { supportedChains, getChainById, getChainMetadata, isTestnet } from '../config/chains';
 
+/**
+ * Creator token with additional creator-specific fields
+ */
 export interface CreatorToken extends KasPumpToken {
+  /** Chain where token was deployed */
   chainId: number;
+  /** Chain display name */
   chainName: string;
+  /** Transaction hash of token creation */
   creationTxHash?: string;
-  totalEarnings?: number; // Creator fees earned
+  /** Total fees earned by creator */
+  totalEarnings?: number;
+  /** Total trading volume */
   totalVolume?: number;
+  /** Number of unique holders */
   holderCount?: number;
 }
 
+/**
+ * Aggregated creator statistics
+ */
 export interface CreatorStats {
+  /** Total number of tokens created */
   totalTokens: number;
+  /** Total trading volume across all tokens */
   totalVolume: number;
+  /** Total creator fees earned */
   totalEarnings: number;
+  /** Total unique holders across tokens */
   totalHolders: number;
+  /** Number of graduated tokens */
   graduatedTokens: number;
+  /** Number of active (non-graduated) tokens */
   activeTokens: number;
+  /** Per-chain breakdown */
   chains: {
     chainId: number;
     chainName: string;

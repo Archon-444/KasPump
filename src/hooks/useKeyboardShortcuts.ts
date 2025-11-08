@@ -1,13 +1,60 @@
-// Keyboard shortcuts hook for accessibility
+/**
+ * useKeyboardShortcuts Hook
+ * Enables keyboard shortcuts for improved accessibility and power user UX
+ *
+ * Features:
+ * - Multi-key combination support (Ctrl, Shift, Alt, Meta)
+ * - Automatic event listener cleanup
+ * - Prevents default browser behavior
+ * - Common shortcuts constant available
+ *
+ * @example
+ * ```typescript
+ * useKeyboardShortcuts([
+ *   {
+ *     key: '/',
+ *     action: () => focusSearchInput(),
+ *     description: 'Focus search'
+ *   },
+ *   {
+ *     key: 'c',
+ *     ctrl: true,
+ *     action: () => openCreateModal(),
+ *     description: 'Create token (Ctrl+C)'
+ *   },
+ *   {
+ *     key: 'Escape',
+ *     action: () => closeModal(),
+ *     description: 'Close modal'
+ *   }
+ * ]);
+ *
+ * // Use predefined shortcuts
+ * import { COMMON_SHORTCUTS } from './useKeyboardShortcuts';
+ * ```
+ *
+ * @param shortcuts - Array of keyboard shortcut configurations
+ */
+
 import { useEffect, useCallback } from 'react';
 
+/**
+ * Keyboard shortcut configuration
+ */
 export interface KeyboardShortcut {
+  /** Key to trigger (e.g., '/', 'Escape', 'ArrowUp') */
   key: string;
+  /** Require Ctrl key */
   ctrl?: boolean;
+  /** Require Shift key */
   shift?: boolean;
+  /** Require Alt key */
   alt?: boolean;
+  /** Require Meta/Command key */
   meta?: boolean;
+  /** Function to call when shortcut triggered */
   action: () => void;
+  /** Optional description for help menus */
   description?: string;
 }
 
