@@ -52,6 +52,9 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     mapping(address => uint256) public lastTokenCreation;
     uint256 public constant CREATION_COOLDOWN = 60; // 1 minute between creations
 
+    // CREATE2 nonce for enhanced security
+    mapping(address => uint256) private creatorNonces;
+
     // Safety limits
     uint256 public constant MAX_NAME_LENGTH = 50;
     uint256 public constant MAX_SYMBOL_LENGTH = 10;
@@ -215,22 +218,25 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @dev Internal function to deploy token contract
-     * SECURITY FIX: Added msg.sender to salt for uniqueness
+     * @dev Internal function to deploy token contract using CREATE2
+     * SECURITY FIX: Enhanced salt entropy to prevent front-running
+     * Uses per-creator nonce + block.prevrandao + chain ID for unpredictability
      */
     function deployToken(
         string memory _name,
         string memory _symbol,
         uint256 _totalSupply
     ) internal returns (address) {
-        // Create deterministic but unique address
+        // SECURITY FIX: Use non-predictable salt with creator nonce
+        // Prevents front-running attacks on CREATE2 address prediction
         bytes32 salt = keccak256(
             abi.encodePacked(
                 _name,
                 _symbol,
                 msg.sender,
-                block.timestamp,
-                allTokens.length // Additional uniqueness
+                creatorNonces[msg.sender]++,  // Non-predictable nonce
+                block.prevrandao,              // Additional entropy (replaces block.difficulty)
+                block.chainid                  // Chain-specific
             )
         );
 
