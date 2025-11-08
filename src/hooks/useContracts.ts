@@ -1,13 +1,16 @@
 // Enhanced Smart Contract Integration with AMM Address Resolution
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { 
-  KasPumpToken, 
-  TradeData, 
-  SwapQuote, 
+import {
+  KasPumpToken,
+  TradeData,
+  SwapQuote,
   TokenCreationForm,
   ContractError,
-  BondingCurveConfig 
+  BondingCurveConfig,
+  EIP1193Provider,
+  TokenCreatedEventArgs,
+  EthersError
 } from '../types';
 import { useMultichainWallet } from './useMultichainWallet';
 import { getTokenFactoryAddress, getFeeRecipientAddress, getChainName, getSupportedChains } from '../config/contracts';
@@ -97,14 +100,14 @@ export function useContracts() {
       }
 
       try {
-        let externalProvider: any | null = null;
+        let externalProvider: EIP1193Provider | null = null;
 
         if (wallet.connector?.getProvider) {
           externalProvider = await wallet.connector.getProvider();
         }
 
         if (!externalProvider && typeof window !== 'undefined') {
-          externalProvider = (window as any)?.ethereum ?? null;
+          externalProvider = window.ethereum ?? null;
         }
 
         if (!externalProvider) {
@@ -161,9 +164,10 @@ export function useContracts() {
         try {
           await factory.getAllTokens();
           setIsInitialized(true);
-        } catch (callError: any) {
+        } catch (callError: unknown) {
           // If the call fails, log but don't crash - contract might not be deployed yet
-          console.warn('Contract connectivity test failed:', callError?.message || callError);
+          const errorMessage = callError instanceof Error ? callError.message : String(callError);
+          console.warn('Contract connectivity test failed:', errorMessage);
           // Still mark as initialized if contract exists (might just be empty)
           setIsInitialized(true);
         }
@@ -257,9 +261,10 @@ export function useContracts() {
         if (events.length > 0) {
           const event = events[0];
           if ('args' in event && event.args) {
-            const ammAddress = (event.args as any).ammAddress as string;
-            ammAddressCache.set(tokenAddress, ammAddress);
-            return ammAddress;
+            // Type assertion for TokenCreated event args
+            const args = event.args as unknown as TokenCreatedEventArgs;
+            ammAddressCache.set(tokenAddress, args.ammAddress);
+            return args.ammAddress;
           }
         }
         
@@ -315,11 +320,14 @@ export function useContracts() {
       );
 
       const receipt = await tx.wait();
-      
+
       // Parse the TokenCreated event to get addresses
-      const tokenCreatedEvent = receipt.logs.find((log: any) => {
+      const tokenCreatedEvent = receipt.logs.find((log: ethers.Log | ethers.EventLog) => {
         try {
-          const decoded = contract.interface.parseLog(log);
+          const decoded = contract.interface.parseLog({
+            topics: [...log.topics],
+            data: log.data
+          });
           return decoded?.name === 'TokenCreated';
         } catch {
           return false;
@@ -346,7 +354,7 @@ export function useContracts() {
         txHash: receipt.hash
       };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Token creation failed:', error);
       throw parseContractError(error);
     }
@@ -399,7 +407,7 @@ export function useContracts() {
         return receipt.hash;
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Trade execution failed:', error);
       throw parseContractError(error);
     }
@@ -446,8 +454,8 @@ export function useContracts() {
           minimumOutput: parseFloat(ethers.formatEther(nativeOut)) * 0.995
         };
       }
-      
-    } catch (error: any) {
+
+    } catch (error: unknown) {
       console.error('Quote calculation failed:', error);
       throw parseContractError(error);
     }
@@ -481,12 +489,16 @@ export function useContracts() {
       // Defensive call with error handling
       try {
         return await contract.getAllTokens();
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If the contract call fails, provide a more descriptive error
-        const errorMessage = error?.message || error?.reason || 'Contract call failed';
+        const errorMessage = error instanceof Error
+          ? error.message
+          : (error && typeof error === 'object' && 'reason' in error && typeof error.reason === 'string')
+            ? error.reason
+            : 'Contract call failed';
         throw new Error(`Failed to fetch tokens: ${errorMessage}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to fetch tokens:', error);
       throw parseContractError(error);
     }
@@ -547,8 +559,8 @@ export function useContracts() {
         ammAddress,
         isGraduated
       };
-      
-    } catch (error: any) {
+
+    } catch (error: unknown) {
       console.error('Failed to fetch token info:', error);
       return null;
     }
@@ -571,43 +583,55 @@ export function useContracts() {
   };
 }
 
-// Enhanced error parsing utility
-function parseContractError(error: any): ContractError {
+// Enhanced error parsing utility with type guards
+function parseContractError(error: unknown): ContractError {
+  // Type guard for EthersError
+  const isEthersError = (err: unknown): err is EthersError => {
+    return err instanceof Error;
+  };
+
+  if (!isEthersError(error)) {
+    return {
+      code: 'CONTRACT_ERROR',
+      message: 'An unknown error occurred',
+    };
+  }
+
   if (error.code === 'UNPREDICTABLE_GAS_LIMIT') {
     return {
       code: 'GAS_ESTIMATION_FAILED',
       message: 'Unable to estimate gas. Transaction may fail.',
     };
   }
-  
+
   if (error.code === 'INSUFFICIENT_FUNDS') {
     return {
       code: 'INSUFFICIENT_FUNDS',
       message: 'Insufficient balance for transaction and gas fees.',
     };
   }
-  
-  if (error.message?.includes('user rejected')) {
+
+  if (error.message.includes('user rejected')) {
     return {
       code: 'USER_REJECTED',
       message: 'Transaction was rejected by user.',
     };
   }
-  
-  if (error.message?.includes('nonce too low')) {
+
+  if (error.message.includes('nonce too low')) {
     return {
       code: 'NONCE_ERROR',
       message: 'Transaction nonce error. Please try again.',
     };
   }
-  
-  if (error.message?.includes('slippage')) {
+
+  if (error.message.includes('slippage')) {
     return {
       code: 'SLIPPAGE_ERROR',
       message: 'Transaction failed due to slippage. Try increasing slippage tolerance.',
     };
   }
-  
+
   return {
     code: 'CONTRACT_ERROR',
     message: error.reason || error.message || 'Contract interaction failed',

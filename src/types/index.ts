@@ -292,6 +292,54 @@ export const NETWORK_CONFIG = {
   },
 } as const;
 
+// EIP-1193 Provider Types
+export interface EIP1193Provider {
+  request: (args: { method: string; params?: unknown[] | Record<string, unknown> }) => Promise<unknown>;
+  on?: (event: string, listener: (...args: unknown[]) => void) => void;
+  removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
+  isMetaMask?: boolean;
+  isCoinbaseWallet?: boolean;
+  isWalletConnect?: boolean;
+}
+
+// Window ethereum extension
+declare global {
+  interface Window {
+    ethereum?: EIP1193Provider;
+  }
+}
+
+// Contract Event Types
+export interface TokenCreatedEventArgs {
+  tokenAddress: string;
+  creator: string;
+  name: string;
+  symbol: string;
+  totalSupply: bigint;
+  ammAddress: string;
+}
+
+export interface TradeEventArgs {
+  trader: string;
+  isBuy: boolean;
+  nativeAmount: bigint;
+  tokenAmount: bigint;
+  newPrice: bigint;
+  fee: bigint;
+}
+
+// Ethers error types for proper error handling
+export interface EthersError extends Error {
+  code?: string;
+  reason?: string;
+  transactionHash?: string;
+  data?: unknown;
+  error?: {
+    message?: string;
+    data?: unknown;
+  };
+}
+
 // Utility Types
 export type CurveType = keyof typeof CURVE_TYPES;
 export type NetworkName = keyof typeof NETWORK_CONFIG;
