@@ -9,6 +9,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home, X } from 'lucide-react';
 import { Button } from '../ui';
 import { motion, AnimatePresence } from 'framer-motion';
+import * as Sentry from '@sentry/nextjs';
 
 interface Props {
   children: ReactNode;
@@ -48,6 +49,15 @@ export class ErrorBoundary extends Component<Props, State> {
       console.error('ErrorBoundary caught an error:', error, errorInfo);
     }
 
+    // Send error to Sentry with component stack
+    Sentry.withScope((scope) => {
+      scope.setContext('react', {
+        componentStack: errorInfo.componentStack,
+      });
+      scope.setLevel('error');
+      Sentry.captureException(error);
+    });
+
     // Call optional error handler
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
@@ -58,9 +68,6 @@ export class ErrorBoundary extends Component<Props, State> {
       error,
       errorInfo,
     });
-
-    // TODO: Send error to error tracking service (e.g., Sentry)
-    // trackError(error, { errorInfo });
   }
 
   handleReset = () => {

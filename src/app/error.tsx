@@ -5,6 +5,7 @@ import { AlertTriangle, RefreshCw, Home, Bug, ExternalLink } from 'lucide-react'
 import { Button } from '../components/ui';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import * as Sentry from '@sentry/nextjs';
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -14,10 +15,18 @@ interface ErrorProps {
 export default function Error({ error, reset }: ErrorProps) {
   const router = useRouter();
 
-  // Log error for debugging
+  // Log error and send to Sentry
   useEffect(() => {
     console.error('Error boundary caught:', error);
-    // TODO: Send to error tracking service
+
+    // Send to Sentry with digest for deduplication
+    Sentry.withScope((scope) => {
+      if (error.digest) {
+        scope.setFingerprint([error.digest]);
+      }
+      scope.setLevel('error');
+      Sentry.captureException(error);
+    });
   }, [error]);
 
   const getErrorType = () => {
