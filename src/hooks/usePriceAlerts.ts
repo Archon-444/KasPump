@@ -1,17 +1,70 @@
-// Hook for managing price alerts for tokens
+/**
+ * usePriceAlerts Hook
+ * Manages price alerts for tokens with localStorage persistence and validation
+ *
+ * Features:
+ * - Create alerts for price thresholds (above/below target)
+ * - Toggle alerts on/off without deleting
+ * - Multi-chain support
+ * - Automatic localStorage sync with Zod validation
+ * - Alert notification tracking
+ *
+ * @example
+ * ```typescript
+ * const {
+ *   alerts,
+ *   isLoading,
+ *   createAlert,
+ *   deleteAlert,
+ *   toggleAlert,
+ *   clearAlerts
+ * } = usePriceAlerts();
+ *
+ * // Create price alert
+ * createAlert(
+ *   '0x123...',
+ *   'TOKEN',
+ *   100,
+ *   'above',
+ *   90
+ * );
+ *
+ * // Toggle alert on/off
+ * toggleAlert(alertId);
+ *
+ * // Check for triggered alerts
+ * alerts.filter(a => a.isActive && !a.notified)
+ * ```
+ *
+ * @returns Object containing alerts state and management functions
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { PriceAlertsArraySchema } from '../schemas';
 
+/**
+ * Price alert data structure
+ */
 export interface PriceAlert {
+  /** Unique alert identifier (UUID) */
   id: string;
+  /** Token contract address */
   tokenAddress: string;
+  /** Optional chain ID */
   chainId?: number;
+  /** Token symbol for display */
   tokenSymbol: string;
+  /** Target price to trigger alert */
   targetPrice: number;
+  /** Alert direction */
   direction: 'above' | 'below';
+  /** Current token price */
   currentPrice: number;
+  /** Timestamp when alert was created */
   createdAt: number;
+  /** Whether alert is active */
   isActive: boolean;
+  /** Whether user has been notified */
   notified?: boolean;
 }
 
