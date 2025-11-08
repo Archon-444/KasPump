@@ -29,32 +29,28 @@ export interface IPFSUploadResult {
 
 export class IPFSClient {
   private provider: 'pinata' | 'web3storage' | 'nftstorage' | 'local';
-  private apiKey?: string;
   private gatewayUrl: string;
 
   constructor(provider: 'pinata' | 'web3storage' | 'nftstorage' | 'local' = 'pinata') {
     this.provider = provider;
     this.gatewayUrl = process.env.NEXT_PUBLIC_IPFS_GATEWAY || 'https://ipfs.io/ipfs/';
-    
-    // Load API key from environment
-    if (provider === 'pinata') {
-      this.apiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY;
-    } else if (provider === 'web3storage') {
-      this.apiKey = process.env.NEXT_PUBLIC_WEB3STORAGE_API_KEY;
-    } else if (provider === 'nftstorage') {
-      this.apiKey = process.env.NEXT_PUBLIC_NFTSTORAGE_API_KEY;
-    }
+
+    // SECURITY FIX: API keys are now server-side only
+    // Uploads go through /api/ipfs/upload endpoint
   }
 
   /**
    * Check if IPFS is properly configured
+   * SECURITY: Always returns true as API keys are server-side
    */
   isConfigured(): boolean {
-    return !!this.apiKey;
+    // Always configured - server validates API keys
+    return true;
   }
 
   /**
-   * Upload a file to IPFS
+   * Upload a file to IPFS via server-side API
+   * SECURITY FIX: API keys are server-side only
    */
   async uploadFile(
     file: File,
@@ -72,32 +68,31 @@ export class IPFSClient {
       throw new Error('Only image files are supported');
     }
 
-    // Check if configured
-    if (!this.isConfigured()) {
-      throw new Error(
-        `IPFS ${this.provider} is not configured. Please set ${this.getEnvKeyName()} environment variable.`
-      );
-    }
-
     try {
-      let hash: string;
-      let uploadSize: number;
+      // Use server-side API route (API keys are server-side only)
+      const formData = new FormData();
+      formData.append('file', file, fileName || file.name);
 
-      switch (this.provider) {
-        case 'pinata':
-          ({ hash, uploadSize } = await this.uploadToPinata(file, fileName, onProgress));
-          break;
-        case 'web3storage':
-          ({ hash, uploadSize } = await this.uploadToWeb3Storage(file, fileName, onProgress));
-          break;
-        case 'nftstorage':
-          ({ hash, uploadSize } = await this.uploadToNFTStorage(file, fileName, onProgress));
-          break;
-        case 'local':
-          throw new Error('Local IPFS node not supported in browser. Use a pinning service.');
-        default:
-          throw new Error(`Unsupported IPFS provider: ${this.provider}`);
+      // Call server-side upload endpoint
+      const response = await fetch(`/api/ipfs/upload?provider=${this.provider}`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
       }
+
+      const result = await response.json();
+
+      if (!result.success || !result.ipfsUrl) {
+        throw new Error('Invalid response from upload API');
+      }
+
+      // Extract hash from ipfs:// URL
+      const hash = result.ipfsUrl.replace('ipfs://', '');
+      const uploadSize = file.size;
 
       return {
         hash,
