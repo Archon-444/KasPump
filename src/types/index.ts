@@ -200,7 +200,7 @@ export interface ContractError {
 export interface WalletError {
   code: string;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 // Constants
@@ -339,6 +339,30 @@ export interface EthersError extends Error {
     data?: unknown;
   };
 }
+
+// Token Creation Result Types
+export interface SingleChainCreationResult {
+  tokenAddress: string;
+  ammAddress: string;
+  txHash: string;
+}
+
+export interface MultiChainDeploymentResult {
+  chainId: number;
+  chainName: string;
+  success: boolean;
+  tokenAddress?: string;
+  ammAddress?: string;
+  txHash?: string;
+  error?: string;
+}
+
+export interface MultiChainCreationResult {
+  multiChain: true;
+  results: Map<number, MultiChainDeploymentResult>;
+}
+
+export type TokenCreationResult = SingleChainCreationResult | MultiChainCreationResult;
 
 // Utility Types
 export type CurveType = keyof typeof CURVE_TYPES;

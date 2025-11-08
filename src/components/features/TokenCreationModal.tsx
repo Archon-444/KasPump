@@ -7,7 +7,7 @@ import { X, Upload, AlertTriangle, CheckCircle, XCircle, Loader, Sparkles, Setti
 import { Button, Input, Textarea, Select, Card, Alert } from '../ui';
 import { WalletRequired } from './WalletConnectButton';
 import { useContracts } from '../../hooks/useContracts';
-import { TokenCreationForm, ContractError } from '../../types';
+import { TokenCreationForm, ContractError, TokenCreationResult, SingleChainCreationResult } from '../../types';
 import { isValidTokenName, isValidTokenSymbol, parseErrorMessage, cn } from '../../utils';
 import { WizardProgress, WizardStep1, WizardStep2, WizardStep3 } from './TokenCreationWizard';
 import { MultiChainDeployment } from './MultiChainDeployment';
@@ -22,7 +22,7 @@ import { areContractsDeployed, getSupportedChains, getChainName } from '../../co
 interface TokenCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (tokenData: any) => void;
+  onSuccess: (tokenData: TokenCreationResult) => void;
 }
 
 export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
@@ -55,7 +55,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
   const [errors, setErrors] = useState<Partial<Record<keyof TokenCreationForm, string>>>({});
   const [isCreating, setIsCreating] = useState(false);
   const [creationStep, setCreationStep] = useState<'form' | 'confirm' | 'creating' | 'success' | 'error'>('form');
-  const [creationResult, setCreationResult] = useState<any>(null);
+  const [creationResult, setCreationResult] = useState<TokenCreationResult | null>(null);
   const [creationError, setCreationError] = useState<string>('');
   const [showConfetti, setShowConfetti] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -169,7 +169,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
             onProgress: (progress) => setImageUploadProgress(progress),
           });
           finalImageUrl = result.url;
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.warn('IPFS upload failed, continuing without image URL:', error);
           // Continue without IPFS URL
         }
@@ -195,7 +195,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
         onSuccess(result);
       }, 2000);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Token creation failed:', error);
       setCreationError(parseErrorMessage(error));
       setCreationStep('error');
@@ -232,9 +232,10 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
           });
           setIpfsImageUrl(result.url);
           setErrors({ ...errors, image: undefined });
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('IPFS upload failed:', error);
-          setErrors({ ...errors, image: `IPFS upload failed: ${error.message}` });
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          setErrors({ ...errors, image: `IPFS upload failed: ${errorMessage}` });
           // Continue with local file if IPFS fails
         } finally {
           setUploadingImage(false);
@@ -262,11 +263,11 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
               : 'Token Created Successfully! 🎉'
             }
             message={creationResult?.multiChain
-              ? `Deployed to ${Array.from(creationResult.results?.values() || []).filter((r: any) => r.success).length} chain(s)`
+              ? `Deployed to ${Array.from(creationResult.results.values()).filter(r => r.success).length} chain(s)`
               : 'Your token is now live and ready for trading!'
             }
-            txHash={creationResult?.txHash || Array.from((creationResult?.results as Map<any, any>)?.values() || [])?.[0]?.txHash}
-            explorerUrl={creationResult?.explorerUrl || Array.from((creationResult?.results as Map<any, any>)?.values() || [])?.[0]?.explorerUrl}
+            txHash={'txHash' in (creationResult ?? {}) ? creationResult.txHash : Array.from(creationResult?.multiChain ? creationResult.results.values() : [])[0]?.txHash}
+            explorerUrl={'explorerUrl' in (creationResult ?? {}) ? (creationResult as SingleChainCreationResult & { explorerUrl?: string }).explorerUrl : undefined}
             duration={8000}
             onAction={() => {
               if (creationResult?.tokenAddress) {
@@ -455,7 +456,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                                 onProgress: (progress) => setImageUploadProgress(progress),
                               });
                               setIpfsImageUrl(result.url);
-                            } catch (error: any) {
+                            } catch (error: unknown) {
                               console.error('IPFS upload failed:', error);
                               // Continue with local file if IPFS fails
                             } finally {
@@ -494,9 +495,9 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                                 onProgress: (progress) => setImageUploadProgress(progress),
                               });
                               setIpfsImageUrl(result.url);
-                            } catch (error: any) {
+                            } catch (error: unknown) {
                               console.warn('IPFS upload failed, continuing without image URL:', error);
-                            } finally {
+                            } finally{
                               setUploadingImage(false);
                             }
                           }
@@ -685,8 +686,9 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                               setCreationError('All deployments failed');
                               setCreationStep('error');
                             }
-                          } catch (error: any) {
-                            setCreationError(error.message || 'Multi-chain deployment failed');
+                          } catch (error: unknown) {
+                            const errorMessage = error instanceof Error ? error.message : 'Multi-chain deployment failed';
+                            setCreationError(errorMessage);
                             setCreationStep('error');
                           } finally {
                             setIsCreating(false);
@@ -809,7 +811,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   </h3>
                   <p className="text-gray-400 mb-6">
                     {creationResult?.multiChain
-                      ? `Your token has been deployed across ${Array.from((creationResult.results as Map<any, any>)?.values() || []).filter((r: any) => r.success).length} chain(s)!`
+                      ? `Your token has been deployed across ${Array.from(creationResult.results.values()).filter(r => r.success).length} chain(s)!`
                       : 'Your token is now live on KasPump and ready for trading!'
                     }
                   </p>
@@ -819,35 +821,34 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                       {creationResult.multiChain && creationResult.results ? (
                         // Multi-chain results
                         <div className="space-y-3">
-                          {Array.from((creationResult.results as Map<any, any>).values()).map((result: any, idx: number) => {
-                            const r = result as { chainId?: number; success: boolean; chainName?: string; txHash?: string; tokenAddress?: string; error?: string };
+                          {Array.from(creationResult.results.values()).map((result, idx: number) => {
                             return (
                               <Card
-                                key={(r?.chainId as number | undefined) || idx}
+                                key={result.chainId || idx}
                                 className={cn(
                                   'bg-gray-800/30 text-left',
-                                  r.success ? 'border-green-500/30' : 'border-red-500/30'
+                                  result.success ? 'border-green-500/30' : 'border-red-500/30'
                                 )}
                               >
                               <div className="flex items-center justify-between mb-2">
-                                <span className="font-semibold text-white">{r.chainName || `Chain ${r.chainId || idx}`}</span>
-                                {r.success ? (
+                                <span className="font-semibold text-white">{result.chainName || `Chain ${result.chainId || idx}`}</span>
+                                {result.success ? (
                                   <CheckCircle size={20} className="text-green-400" />
                                 ) : (
                                   <XCircle size={20} className="text-red-400" />
                                 )}
                               </div>
-                              {r.success ? (
+                              {result.success ? (
                                 <div className="space-y-1 text-sm">
-                                  {r.tokenAddress && (
-                                    <div><span className="text-gray-400">Token:</span> <span className="text-white font-mono text-xs">{r.tokenAddress.slice(0, 10)}...{r.tokenAddress.slice(-8)}</span></div>
+                                  {result.tokenAddress && (
+                                    <div><span className="text-gray-400">Token:</span> <span className="text-white font-mono text-xs">{result.tokenAddress.slice(0, 10)}...{result.tokenAddress.slice(-8)}</span></div>
                                   )}
-                                  {r.txHash && (
-                                    <div><span className="text-gray-400">TX:</span> <span className="text-white font-mono text-xs">{r.txHash.slice(0, 10)}...{r.txHash.slice(-8)}</span></div>
+                                  {result.txHash && (
+                                    <div><span className="text-gray-400">TX:</span> <span className="text-white font-mono text-xs">{result.txHash.slice(0, 10)}...{result.txHash.slice(-8)}</span></div>
                                   )}
                                 </div>
                               ) : (
-                                <div className="text-sm text-red-400">{r.error || 'Deployment failed'}</div>
+                                <div className="text-sm text-red-400">{result.error || 'Deployment failed'}</div>
                               )}
                             </Card>
                           );
@@ -919,11 +920,11 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
             : 'Token Created Successfully! 🎉'
           }
           message={creationResult?.multiChain
-            ? `Deployed to ${Array.from(creationResult.results?.values() || []).filter((r: any) => r.success).length} chain(s)`
+            ? `Deployed to ${Array.from(creationResult.results.values()).filter(r => r.success).length} chain(s)`
             : 'Your token is now live and ready for trading!'
           }
-          txHash={creationResult?.txHash || Array.from((creationResult?.results as Map<any, any>)?.values() || [])?.[0]?.txHash}
-          explorerUrl={creationResult?.explorerUrl || Array.from((creationResult?.results as Map<any, any>)?.values() || [])?.[0]?.explorerUrl}
+          txHash={'txHash' in (creationResult ?? {}) ? creationResult.txHash : Array.from(creationResult?.multiChain ? creationResult.results.values() : [])[0]?.txHash}
+          explorerUrl={'explorerUrl' in (creationResult ?? {}) ? (creationResult as SingleChainCreationResult & { explorerUrl?: string }).explorerUrl : undefined}
           duration={8000}
           onAction={() => {
             if (creationResult?.tokenAddress) {
