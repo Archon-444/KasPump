@@ -164,6 +164,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         // Deploy AMM with bonding curve (tier 0 = Basic for now)
         ammAddress = deployAMM(
             tokenAddress,
+            msg.sender,  // Token creator
             _basePrice,
             _slope,
             _curveType,
@@ -251,10 +252,18 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
 
     /**
      * @dev Internal function to deploy AMM contract
-     * SECURITY FIX: Now passes tier parameter correctly
+     * SECURITY FIX: Now passes tier parameter and creator address correctly
+     * @param _tokenAddress Address of the token to create AMM for
+     * @param _creator Address of token creator (receives graduation funds)
+     * @param _basePrice Initial price for bonding curve
+     * @param _slope Slope parameter for bonding curve
+     * @param _curveType Type of bonding curve (linear/exponential)
+     * @param _graduationThreshold Supply threshold for graduation
+     * @param _tier Membership tier for fees
      */
     function deployAMM(
         address _tokenAddress,
+        address payable _creator,
         uint256 _basePrice,
         uint256 _slope,
         CurveType _curveType,
@@ -263,12 +272,13 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     ) internal returns (address) {
         BondingCurveAMM amm = new BondingCurveAMM(
             _tokenAddress,
+            _creator,  // Token creator receives graduation funds
             _basePrice,
             _slope,
             uint8(_curveType),
             _graduationThreshold,
             feeRecipient,
-            _tier // Now correctly passed
+            _tier
         );
 
         return address(amm);

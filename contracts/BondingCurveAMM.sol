@@ -29,6 +29,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     // ========== IMMUTABLE STATE ==========
 
     IERC20 public immutable token;
+    address payable public immutable tokenCreator; // Address that created the token
     uint256 public immutable basePrice;
     uint256 public immutable slope;
     uint8 public immutable curveType; // 0 = LINEAR, 1 = EXPONENTIAL
@@ -121,6 +122,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     /**
      * @dev Constructor with comprehensive validation
      * @param _token Token address (cannot be zero)
+     * @param _tokenCreator Address of token creator (receives graduation funds)
      * @param _basePrice Initial price (must be within bounds)
      * @param _slope Price increase per token (must be reasonable)
      * @param _curveType 0 for linear, 1 for exponential
@@ -130,6 +132,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
      */
     constructor(
         address _token,
+        address payable _tokenCreator,
         uint256 _basePrice,
         uint256 _slope,
         uint8 _curveType,
@@ -140,6 +143,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // ========== CRITICAL: Comprehensive Input Validation ==========
 
         if (_token == address(0)) revert ZeroAddress();
+        if (_tokenCreator == address(0)) revert ZeroAddress();
         if (_feeRecipient == address(0)) revert ZeroAddress();
         if (_curveType > 1) revert InvalidCurveType();
 
@@ -161,6 +165,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
 
         // Set immutable variables
         token = IERC20(_token);
+        tokenCreator = _tokenCreator;
         basePrice = _basePrice;
         slope = _slope;
         curveType = _curveType;
@@ -505,7 +510,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
 
     /**
      * @dev Graduate token - uses pull payment pattern for safety
-     * SECURITY FIX: Instead of pushing to DEX, users pull funds
+     * SECURITY FIX: Allocates funds to token creator for liquidity provision
+     * @notice Token creator can withdraw funds to provide DEX liquidity
      */
     function _graduateToken() internal {
         isGraduated = true;
@@ -513,15 +519,19 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         uint256 contractBalance = address(this).balance;
         totalGraduationFunds = contractBalance;
 
+        // Allocate graduation funds to token creator
+        // Creator can then use these funds to provide DEX liquidity
+        withdrawableGraduationFunds[tokenCreator] = contractBalance;
+
         emit Graduated(
             currentSupply,
             contractBalance,
             block.timestamp
         );
 
-        // NOTE: Actual DEX integration would happen here
-        // For now, funds are held in contract for withdrawal
-        // In production, integrate with Uniswap V2/V3 or PancakeSwap
+        // NOTE: Actual DEX integration can happen in production
+        // For now, token creator receives funds to manually provide liquidity
+        // In production, can integrate with Uniswap V2/V3 or PancakeSwap
     }
 
     // ========== ADMIN FUNCTIONS ==========
