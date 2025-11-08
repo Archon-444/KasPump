@@ -10,6 +10,25 @@ import { PushNotificationSettings } from '../../components/features/PushNotifica
 import { cn } from '../../utils';
 import { supportedChains, getChainById, getDefaultChain, isTestnet } from '../../config/chains';
 import { MobileNavigation } from '../../components/mobile';
+import { z } from 'zod';
+
+// Extended settings schema for this page
+const ExtendedUserSettingsSchema = z.object({
+  defaultChain: z.number().int().positive(),
+  slippageTolerance: z.number().min(0.1).max(10),
+  transactionDeadline: z.number().int().min(1).max(60),
+  notifications: z.object({
+    priceAlerts: z.boolean(),
+    tradeConfirmations: z.boolean(),
+    tokenGraduations: z.boolean(),
+    platformUpdates: z.boolean(),
+  }),
+  privacy: z.object({
+    showBalance: z.boolean(),
+    showTrades: z.boolean(),
+    analyticsOptIn: z.boolean(),
+  }),
+});
 
 interface UserSettings {
   defaultChain: number;
@@ -33,14 +52,23 @@ export default function SettingsPage() {
   const wallet = useMultichainWallet();
   const [isMobile, setIsMobile] = useState(false);
   const [settings, setSettings] = useState<UserSettings>(() => {
-    // Load from localStorage or use defaults
+    // Load from localStorage with validation
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('kaspump_settings');
       if (stored) {
         try {
-          return JSON.parse(stored);
+          const parsed = JSON.parse(stored);
+          const validationResult = ExtendedUserSettingsSchema.safeParse(parsed);
+
+          if (validationResult.success) {
+            return validationResult.data;
+          } else {
+            console.warn('Invalid settings data in localStorage, using defaults:', validationResult.error);
+            localStorage.removeItem('kaspump_settings');
+          }
         } catch (e) {
-          // Fall through to defaults
+          console.error('Failed to parse settings:', e);
+          localStorage.removeItem('kaspump_settings');
         }
       }
     }

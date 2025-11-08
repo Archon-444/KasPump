@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { z } from 'zod';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -22,6 +23,9 @@ export interface PWAInstallState {
   dismissPrompt: () => void;
 }
 
+// Schema for page view count validation
+const PageViewCountSchema = z.number().int().nonnegative().max(1000000);
+
 export const usePWAInstall = (): PWAInstallState => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -32,19 +36,37 @@ export const usePWAInstall = (): PWAInstallState => {
   // Check if app is installed or in standalone mode
   useEffect(() => {
     // Check if running as standalone (installed PWA)
-    const isStandaloneMode = 
+    const isStandaloneMode =
       window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
       document.referrer.includes('android-app://');
 
     setIsStandalone(isStandaloneMode);
     setIsInstalled(isStandaloneMode);
 
-    // Load page view count from localStorage
+    // Load and validate page view count from localStorage
     const storedCount = localStorage.getItem('kaspump_page_views');
-    const count = storedCount ? parseInt(storedCount, 10) : 0;
+    let count = 0;
+
+    if (storedCount) {
+      try {
+        const parsedCount = parseInt(storedCount, 10);
+        const validationResult = PageViewCountSchema.safeParse(parsedCount);
+
+        if (validationResult.success) {
+          count = validationResult.data;
+        } else {
+          console.warn('Invalid page view count, resetting:', validationResult.error);
+          localStorage.removeItem('kaspump_page_views');
+        }
+      } catch (e) {
+        console.error('Failed to parse page view count:', e);
+        localStorage.removeItem('kaspump_page_views');
+      }
+    }
+
     setPageViewCount(count);
-    
+
     // Increment page view count
     const newCount = count + 1;
     localStorage.setItem('kaspump_page_views', newCount.toString());

@@ -1,5 +1,6 @@
 // Hook for managing price alerts for tokens
 import { useState, useEffect, useCallback } from 'react';
+import { PriceAlertsArraySchema } from '../schemas';
 
 export interface PriceAlert {
   id: string;
@@ -20,15 +21,38 @@ export function usePriceAlerts() {
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load alerts from localStorage
+  // Load alerts from localStorage with validation
   useEffect(() => {
     try {
       const stored = localStorage.getItem(PRICE_ALERTS_STORAGE_KEY);
       if (stored) {
-        setAlerts(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+
+        // Validate with Zod schema
+        // Note: Schema has basic fields, stored data may have additional fields
+        const validationResult = PriceAlertsArraySchema.safeParse(parsed);
+
+        if (validationResult.success) {
+          // Map validated data to full interface (additional fields preserved if present)
+          const validatedAlerts = parsed.map((alert: PriceAlert) => ({
+            ...alert,
+            // Ensure compatibility with schema field names
+            direction: alert.direction || 'above',
+            isActive: alert.isActive ?? true,
+          }));
+          setAlerts(validatedAlerts);
+        } else {
+          console.warn('Invalid price alerts data in localStorage, resetting:', validationResult.error);
+          // Clear invalid data
+          localStorage.removeItem(PRICE_ALERTS_STORAGE_KEY);
+          setAlerts([]);
+        }
       }
     } catch (error) {
       console.error('Failed to load price alerts:', error);
+      // Clear corrupted data
+      localStorage.removeItem(PRICE_ALERTS_STORAGE_KEY);
+      setAlerts([]);
     } finally {
       setIsLoading(false);
     }

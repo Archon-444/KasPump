@@ -1,6 +1,7 @@
 // Hook for managing user's favorite tokens across chains
 import { useState, useEffect, useCallback } from 'react';
 import { KasPumpToken } from '../types';
+import { FavoritesArraySchema, FavoriteTokenData } from '../schemas';
 
 export interface FavoriteToken {
   address: string;
@@ -14,15 +15,30 @@ export function useFavorites() {
   const [favorites, setFavorites] = useState<FavoriteToken[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load favorites from localStorage
+  // Load favorites from localStorage with validation
   useEffect(() => {
     try {
       const stored = localStorage.getItem(FAVORITES_STORAGE_KEY);
       if (stored) {
-        setFavorites(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+
+        // Validate with Zod schema
+        const validationResult = FavoritesArraySchema.safeParse(parsed);
+
+        if (validationResult.success) {
+          setFavorites(validationResult.data);
+        } else {
+          console.warn('Invalid favorites data in localStorage, resetting:', validationResult.error);
+          // Clear invalid data
+          localStorage.removeItem(FAVORITES_STORAGE_KEY);
+          setFavorites([]);
+        }
       }
     } catch (error) {
       console.error('Failed to load favorites:', error);
+      // Clear corrupted data
+      localStorage.removeItem(FAVORITES_STORAGE_KEY);
+      setFavorites([]);
     } finally {
       setIsLoading(false);
     }
