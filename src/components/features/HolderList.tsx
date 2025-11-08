@@ -44,25 +44,27 @@ export const HolderList: React.FC<HolderListProps> = ({
 
       try {
         setLoading(true);
-        // In production, this would query the contract or API
-        // For now, we'll use a mock/placeholder approach
-        // You would typically:
-        // 1. Query Transfer events from the token contract
-        // 2. Aggregate balances per address
-        // 3. Sort by balance descending
-        
-        // Mock holders data (replace with actual contract queries)
-        const mockHolders: Holder[] = [
-          { address: '0x1234...5678', balance: '1000000', percentage: 25.5 },
-          { address: '0x2345...6789', balance: '750000', percentage: 19.1 },
-          { address: '0x3456...7890', balance: '500000', percentage: 12.7 },
-          { address: '0x4567...8901', balance: '250000', percentage: 6.4 },
-          { address: '0x5678...9012', balance: '100000', percentage: 2.5 },
-        ].slice(0, maxHolders);
 
-        setHolders(mockHolders);
+        // Accurate holder tracking requires:
+        // 1. Querying all Transfer events from token contract
+        // 2. Building balance map from event history
+        // 3. This needs event indexing (subgraph/API) for efficiency
+
+        // For now, show empty state with explanation
+        // In production, implement with:
+        // - Event indexer (The Graph, Alchemy, etc.)
+        // - Backend API aggregating Transfer events
+        // - Periodic snapshot updates
+
+        setHolders([]);
+
+        // Note: Could query specific known addresses if needed:
+        // const tokenContract = contracts.getTokenContract(tokenAddress);
+        // const balance = await tokenContract.balanceOf(address);
+
       } catch (error) {
         console.error('Failed to load holders:', error);
+        setHolders([]);
       } finally {
         setLoading(false);
       }
@@ -113,7 +115,8 @@ export const HolderList: React.FC<HolderListProps> = ({
         </div>
         <div className="text-center py-8 text-gray-400">
           <Wallet size={32} className="mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No holders yet</p>
+          <p className="text-sm">Holder tracking requires event indexing</p>
+          <p className="text-xs mt-2">Enable via subgraph or API service</p>
         </div>
       </Card>
     );

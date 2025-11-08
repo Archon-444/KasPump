@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  ArrowLeft, 
-  ExternalLink, 
-  Share2, 
-  Heart, 
-  MessageCircle, 
+import { ethers } from 'ethers';
+import {
+  ArrowLeft,
+  ExternalLink,
+  Share2,
+  Heart,
+  MessageCircle,
   Users,
   TrendingUp,
   Clock,
@@ -25,6 +26,9 @@ import { HolderList } from './HolderList';
 import { MobileTradingInterface } from '../mobile';
 import { Card, Button, Badge, Progress } from '../ui';
 import { KasPumpToken } from '../../types';
+import { useMultichainWallet } from '../../hooks/useMultichainWallet';
+import { useContracts } from '../../hooks/useContracts';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { formatCurrency, formatPercentage, formatTimeAgo, cn } from '../../utils';
 import { Bell } from 'lucide-react';
 
@@ -39,26 +43,46 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
   onBack,
   className
 }) => {
+  const wallet = useMultichainWallet();
+  const contracts = useContracts();
+  const isMobile = useIsMobile();
+
   const [timeframe, setTimeframe] = useState('1h');
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(token.holders || 0);
-  const [userBalance] = useState(1000); // Mock user BNB balance
-  const [userTokenBalance] = useState(0); // Mock user token balance
-  const [isMobile, setIsMobile] = useState(false);
+  const [userBalance, setUserBalance] = useState(0);
+  const [userTokenBalance, setUserTokenBalance] = useState(0);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
   const [showSocialShare, setShowSocialShare] = useState(false);
   const chainId = (token as any).chainId;
-  
-  // Mobile detection
+
+  // Fetch real user balances
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+    const fetchBalances = async () => {
+      if (!wallet.address || !contracts.readProvider) {
+        setUserBalance(0);
+        setUserTokenBalance(0);
+        return;
+      }
+
+      try {
+        // Get native balance (BNB/ETH)
+        const nativeBalance = await contracts.readProvider.getBalance(wallet.address);
+        setUserBalance(parseFloat(ethers.formatEther(nativeBalance)));
+
+        // Get token balance
+        const tokenContract = contracts.getTokenContract(token.address);
+        const tokenBal = await tokenContract.balanceOf(wallet.address);
+        setUserTokenBalance(parseFloat(ethers.formatEther(tokenBal)));
+      } catch (error) {
+        console.error('Failed to fetch balances:', error);
+        setUserBalance(0);
+        setUserTokenBalance(0);
+      }
     };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+
+    fetchBalances();
+  }, [wallet.address, token.address, contracts]);
   
   const handleTrade = async (type: 'buy' | 'sell', amount: string, slippage: number) => {
     console.log(`${type.toUpperCase()} ${amount} ${token.symbol} with ${slippage}% slippage`);
