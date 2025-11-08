@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "./TokenFactory.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title DeterministicDeployer
@@ -13,8 +14,12 @@ import "./TokenFactory.sol";
  * - User trust through address consistency
  * - Cross-chain contract recognition
  * - Simplified multi-chain UX
+ *
+ * SECURITY:
+ * - Ownable: Only owner can register deployments
+ * - Prevents malicious address registration
  */
-contract DeterministicDeployer {
+contract DeterministicDeployer is Ownable {
 
     // ========== EVENTS ==========
 
@@ -37,6 +42,16 @@ contract DeterministicDeployer {
 
     // Nonce for unique salts
     uint256 public deploymentNonce;
+
+    // ========== CONSTRUCTOR ==========
+
+    /**
+     * @dev Initialize the deployer contract with owner
+     * @notice The deployer (msg.sender) becomes the owner
+     */
+    constructor() Ownable(msg.sender) {
+        // Owner is set in Ownable constructor
+    }
 
     // ========== DEPLOYMENT FUNCTIONS ==========
 
@@ -182,12 +197,13 @@ contract MultiChainDeploymentHelper {
     /**
      * @dev Register a deployment on a specific chain
      * @notice Call this after deploying on each chain for tracking
+     * SECURITY: Only owner can register to prevent malicious address registration
      */
     function registerDeployment(
         uint256 _chainId,
         address _factoryAddress,
         address _deployerAddress
-    ) external {
+    ) external onlyOwner {
         require(_factoryAddress != address(0), "Invalid factory address");
 
         chainDeployments[_chainId] = ChainDeployment({
