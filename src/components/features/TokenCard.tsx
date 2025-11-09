@@ -134,6 +134,7 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
                     e.stopPropagation();
                     // Handle buy
                   }}
+                  aria-label={`Buy ${token.name}`}
                 >
                   Buy
                 </button>
@@ -143,6 +144,7 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
                     e.stopPropagation();
                     // Handle sell
                   }}
+                  aria-label={`Sell ${token.name}`}
                 >
                   Sell
                 </button>

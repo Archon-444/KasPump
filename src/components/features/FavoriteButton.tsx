@@ -55,6 +55,8 @@ const FavoriteButtonComponent: React.FC<FavoriteButtonProps> = ({
         className
       )}
       title={favorited ? 'Remove from favorites' : 'Add to favorites'}
+      aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
+      aria-pressed={favorited}
     >
       <div className={cn('relative', sizeClasses[size])}>
         <Star

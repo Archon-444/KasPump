@@ -81,6 +81,20 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
     }
   }, [isOpen, tokenCreationState, ipfsUpload]);
 
+  // Handle Escape key to close modal
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !tokenCreationState.isCreating) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscapeKey);
+    return () => document.removeEventListener('keydown', handleEscapeKey);
+  }, [isOpen, tokenCreationState.isCreating, onClose]);
+
   // Wrapped handler to show confetti and success toast
   const handleConfirmCreation = async () => {
     if (!contracts.isConnected) return;
@@ -230,7 +244,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   <div className="flex items-center space-x-3">
                     {/* Mode Toggle - Only show in form step */}
                     {tokenCreationState.creationStep === 'form' && (
-                      <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-1">
+                      <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-1" role="group" aria-label="Token creation mode">
                         <button
                           onClick={() => setMode('beginner')}
                           className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
@@ -238,6 +252,8 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                               ? 'bg-yellow-500 text-white'
                               : 'text-gray-400 hover:text-white'
                           }`}
+                          aria-label="Switch to beginner mode"
+                          aria-pressed={tokenCreationState.mode === 'beginner'}
                         >
                           <Sparkles size={14} className="inline mr-1" />
                           Beginner
@@ -249,6 +265,8 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                               ? 'bg-yellow-500 text-white'
                               : 'text-gray-400 hover:text-white'
                           }`}
+                          aria-label="Switch to advanced mode"
+                          aria-pressed={tokenCreationState.mode === 'advanced'}
                         >
                           <Settings size={14} className="inline mr-1" />
                           Advanced
@@ -259,6 +277,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                       onClick={onClose}
                       className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
                       disabled={tokenCreationState.isCreating}
+                      aria-label="Close modal"
                     >
                       <X size={20} className="text-gray-400" />
                     </button>

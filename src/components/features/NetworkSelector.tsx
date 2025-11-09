@@ -66,6 +66,9 @@ const NetworkSelectorComponent: React.FC<NetworkSelectorProps> = ({
           "disabled:opacity-50 disabled:cursor-not-allowed",
           wallet.isSwitchingNetwork && "cursor-wait"
         )}
+        aria-label={currentChainMeta ? `Current network: ${currentChainMeta.name}. Click to change network` : 'Select network'}
+        aria-expanded={showDropdown}
+        aria-haspopup="menu"
       >
         <div className="flex items-center space-x-2.5 flex-1 min-w-0">
           <Network size={16} className="text-yellow-400 flex-shrink-0" />
@@ -151,6 +154,9 @@ const NetworkSelectorComponent: React.FC<NetworkSelectorProps> = ({
                               : "border-transparent hover:border-gray-600 hover:bg-gray-800/50",
                             (isSwitching && !isActive) && "opacity-50 cursor-not-allowed"
                           )}
+                          role="menuitem"
+                          aria-label={`Switch to ${meta.name}${isActive ? ' (current)' : ''}`}
+                          aria-current={isActive ? 'true' : 'false'}
                         >
                           <div className="flex items-center space-x-3 flex-1">
                             <div
