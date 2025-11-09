@@ -15,6 +15,16 @@ interface NotificationActionOption {
   icon?: string;
 }
 
+/**
+ * Notification data payload - can contain custom application data
+ */
+export interface NotificationData {
+  url?: string;
+  tokenAddress?: string;
+  notificationType?: 'price_alert' | 'trade_update' | 'platform_update';
+  [key: string]: unknown;
+}
+
 export interface PushNotificationOptions {
   title: string;
   body: string;
@@ -22,7 +32,7 @@ export interface PushNotificationOptions {
   badge?: string;
   tag?: string;
   requireInteraction?: boolean;
-  data?: any;
+  data?: NotificationData;
   actions?: NotificationActionOption[];
 }
 

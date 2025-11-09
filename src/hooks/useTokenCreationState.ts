@@ -35,9 +35,15 @@ import { useState, useCallback } from 'react';
 import { TokenCreationForm, TokenCreationResult } from '../types';
 import { isValidTokenName, isValidTokenSymbol } from '../utils';
 import { areContractsDeployed, getChainMetadata } from '../config/contracts';
+import type { useContracts } from './useContracts';
+
+/**
+ * Type representing the return value of useContracts hook
+ */
+export type UseContractsReturn = ReturnType<typeof useContracts>;
 
 export interface UseTokenCreationStateOptions {
-  contracts: any; // useContracts return type
+  contracts: UseContractsReturn;
   chainId: number | undefined;
   onSuccess: (tokenData: TokenCreationResult) => void;
   nativeCurrencySymbol: string;

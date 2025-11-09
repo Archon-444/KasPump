@@ -6,6 +6,24 @@
 'use client';
 
 /**
+ * Extended Navigator interface with experimental features
+ */
+interface ExtendedNavigator extends Navigator {
+  deviceMemory?: number;
+  connection?: NetworkInformation;
+  mozConnection?: NetworkInformation;
+  webkitConnection?: NetworkInformation;
+}
+
+/**
+ * Network Information API interface
+ */
+interface NetworkInformation {
+  effectiveType?: '4g' | '3g' | '2g' | 'slow-2g';
+  [key: string]: unknown;
+}
+
+/**
  * Get current bundle size information (client-side only)
  */
 export function getBundleSize(): {
@@ -117,12 +135,13 @@ export function isLowEndDevice(): boolean {
 
   // Check hardware concurrency
   const cores = navigator.hardwareConcurrency || 2;
-  
+
   // Check device memory (if available)
-  const memory = (navigator as any).deviceMemory || 4;
-  
+  const nav = navigator as ExtendedNavigator;
+  const memory = nav.deviceMemory || 4;
+
   // Check connection (if available)
-  const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+  const connection = nav.connection || nav.mozConnection || nav.webkitConnection;
   const effectiveType = connection?.effectiveType || '4g';
   
   // Consider low-end if: < 4 cores, < 4GB RAM, or slow connection
