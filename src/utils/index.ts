@@ -181,11 +181,18 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 // Parse error messages from various sources
-export function parseErrorMessage(error: any): string {
+export function parseErrorMessage(error: unknown): string {
   if (typeof error === 'string') return error;
-  if (error?.message) return error.message;
-  if (error?.reason) return error.reason;
-  if (error?.data?.message) return error.data.message;
+
+  // Type guard for error-like objects
+  if (error && typeof error === 'object') {
+    if ('message' in error && typeof error.message === 'string') return error.message;
+    if ('reason' in error && typeof error.reason === 'string') return error.reason;
+    if ('data' in error && error.data && typeof error.data === 'object' && 'message' in error.data && typeof error.data.message === 'string') {
+      return error.data.message;
+    }
+  }
+
   return 'An unknown error occurred';
 }
 

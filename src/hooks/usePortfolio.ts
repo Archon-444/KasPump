@@ -1,4 +1,39 @@
-// Portfolio hook for multi-chain token aggregation
+/**
+ * usePortfolio Hook
+ * Aggregates and tracks user's token holdings across multiple chains
+ *
+ * Features:
+ * - Multi-chain portfolio aggregation
+ * - Real-time balance and value calculations
+ * - Profit/Loss tracking (when cost basis available)
+ * - Automatic refresh on wallet changes
+ * - Chain-specific token filtering
+ *
+ * @example
+ * ```typescript
+ * const {
+ *   tokens,
+ *   stats,
+ *   isLoading,
+ *   error,
+ *   refresh
+ * } = usePortfolio();
+ *
+ * // Display portfolio value
+ * <div>Total: {stats.totalValueFormatted}</div>
+ *
+ * // Show tokens by chain
+ * {tokens.filter(t => t.chainId === 97).map(token => (
+ *   <TokenCard key={token.token.address} {...token} />
+ * ))}
+ *
+ * // Refresh portfolio
+ * <Button onClick={refresh}>Refresh</Button>
+ * ```
+ *
+ * @returns Object containing portfolio tokens, stats, and management functions
+ */
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ethers } from 'ethers';
 import { KasPumpToken } from '../types';
@@ -7,26 +42,49 @@ import { useContracts } from './useContracts';
 import { getChainById, getChainMetadata } from '../config/chains';
 import { formatCurrency } from '../utils';
 
+/**
+ * Portfolio token with balance and value information
+ */
 export interface PortfolioToken {
+  /** Full token information */
   token: KasPumpToken;
+  /** Chain ID where token resides */
   chainId: number;
+  /** Chain display name */
   chainName: string;
+  /** Token balance (raw number) */
   balance: number;
+  /** Formatted balance string */
   balanceFormatted: string;
-  value: number; // Balance * current price
+  /** USD value of holdings (balance * price) */
+  value: number;
+  /** Formatted value string */
   valueFormatted: string;
-  costBasis?: number; // Total cost to acquire (for P&L calculation)
+  /** Total cost to acquire (for P&L) */
+  costBasis?: number;
+  /** Profit or loss amount */
   profitLoss?: number;
+  /** Profit or loss percentage */
   profitLossPercent?: number;
 }
 
+/**
+ * Aggregated portfolio statistics
+ */
 export interface PortfolioStats {
+  /** Total portfolio value in USD */
   totalValue: number;
+  /** Formatted total value */
   totalValueFormatted: string;
+  /** Total cost basis */
   totalCostBasis: number;
+  /** Total profit/loss */
   totalProfitLoss: number;
+  /** Formatted profit/loss */
   totalProfitLossFormatted: string;
+  /** Profit/loss percentage */
   totalProfitLossPercent: number;
+  /** Number of unique tokens held */
   tokenCount: number;
   chainCount: number;
   chains: {

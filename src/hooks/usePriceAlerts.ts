@@ -1,16 +1,70 @@
-// Hook for managing price alerts for tokens
-import { useState, useEffect, useCallback } from 'react';
+/**
+ * usePriceAlerts Hook
+ * Manages price alerts for tokens with localStorage persistence and validation
+ *
+ * Features:
+ * - Create alerts for price thresholds (above/below target)
+ * - Toggle alerts on/off without deleting
+ * - Multi-chain support
+ * - Automatic localStorage sync with Zod validation
+ * - Alert notification tracking
+ *
+ * @example
+ * ```typescript
+ * const {
+ *   alerts,
+ *   isLoading,
+ *   createAlert,
+ *   deleteAlert,
+ *   toggleAlert,
+ *   clearAlerts
+ * } = usePriceAlerts();
+ *
+ * // Create price alert
+ * createAlert(
+ *   '0x123...',
+ *   'TOKEN',
+ *   100,
+ *   'above',
+ *   90
+ * );
+ *
+ * // Toggle alert on/off
+ * toggleAlert(alertId);
+ *
+ * // Check for triggered alerts
+ * alerts.filter(a => a.isActive && !a.notified)
+ * ```
+ *
+ * @returns Object containing alerts state and management functions
+ */
 
+import { useState, useEffect, useCallback } from 'react';
+import { PriceAlertsArraySchema } from '../schemas';
+
+/**
+ * Price alert data structure
+ */
 export interface PriceAlert {
+  /** Unique alert identifier (UUID) */
   id: string;
+  /** Token contract address */
   tokenAddress: string;
+  /** Optional chain ID */
   chainId?: number;
+  /** Token symbol for display */
   tokenSymbol: string;
+  /** Target price to trigger alert */
   targetPrice: number;
+  /** Alert direction */
   direction: 'above' | 'below';
+  /** Current token price */
   currentPrice: number;
+  /** Timestamp when alert was created */
   createdAt: number;
+  /** Whether alert is active */
   isActive: boolean;
+  /** Whether user has been notified */
   notified?: boolean;
 }
 
@@ -20,15 +74,38 @@ export function usePriceAlerts() {
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load alerts from localStorage
+  // Load alerts from localStorage with validation
   useEffect(() => {
     try {
       const stored = localStorage.getItem(PRICE_ALERTS_STORAGE_KEY);
       if (stored) {
-        setAlerts(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+
+        // Validate with Zod schema
+        // Note: Schema has basic fields, stored data may have additional fields
+        const validationResult = PriceAlertsArraySchema.safeParse(parsed);
+
+        if (validationResult.success) {
+          // Map validated data to full interface (additional fields preserved if present)
+          const validatedAlerts = parsed.map((alert: PriceAlert) => ({
+            ...alert,
+            // Ensure compatibility with schema field names
+            direction: alert.direction || 'above',
+            isActive: alert.isActive ?? true,
+          }));
+          setAlerts(validatedAlerts);
+        } else {
+          console.warn('Invalid price alerts data in localStorage, resetting:', validationResult.error);
+          // Clear invalid data
+          localStorage.removeItem(PRICE_ALERTS_STORAGE_KEY);
+          setAlerts([]);
+        }
       }
     } catch (error) {
       console.error('Failed to load price alerts:', error);
+      // Clear corrupted data
+      localStorage.removeItem(PRICE_ALERTS_STORAGE_KEY);
+      setAlerts([]);
     } finally {
       setIsLoading(false);
     }

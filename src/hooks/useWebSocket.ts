@@ -1,11 +1,46 @@
-// React hook for WebSocket subscriptions
+/**
+ * useWebSocket Hook
+ * React wrapper for WebSocket subscriptions with automatic cleanup
+ *
+ * Features:
+ * - Automatic subscription/unsubscription
+ * - Connection status tracking
+ * - Type-safe event handling
+ * - Last message caching
+ * - Specialized hooks for trades and prices
+ *
+ * @example
+ * ```typescript
+ * // Generic WebSocket subscription
+ * const { isConnected, lastMessage } = useWebSocket('trade', (data) => {
+ *   console.log('New trade:', data);
+ * });
+ *
+ * // Trade-specific hook
+ * useTradeUpdates(token.address, (trade) => {
+ *   setRecentTrades(prev => [trade, ...prev]);
+ * });
+ *
+ * // Price-specific hook
+ * usePriceUpdates((update) => {
+ *   if (update.tokenAddress === token.address) {
+ *     setPrice(update.price);
+ *   }
+ * });
+ * ```
+ *
+ * @param eventType - Type of event to subscribe to
+ * @param callback - Optional callback for handling events
+ * @returns Object containing connection status and last message
+ */
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getWebSocketClient, WebSocketMessage, TradeEvent, PriceUpdate } from '../lib/websocket';
 
 // Re-export types for convenience
 export type { TradeEvent, PriceUpdate, WebSocketMessage };
 
-export function useWebSocket<T = any>(
+export function useWebSocket<T = unknown>(
   eventType: string,
   callback?: (data: T) => void
 ) {

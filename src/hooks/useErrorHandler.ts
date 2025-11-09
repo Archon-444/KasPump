@@ -1,31 +1,86 @@
 /**
- * Hook for centralized error handling
- * Provides error state management and recovery options
+ * useErrorHandler Hook
+ * Centralized error handling with automatic retry logic and recovery options
+ *
+ * Features:
+ * - Automatic retry with configurable max attempts
+ * - Error categorization and tracking
+ * - Custom recovery actions
+ * - Retry state management
+ *
+ * @example
+ * ```typescript
+ * const { error, handleError, clearError, retry, isRetrying } = useErrorHandler(3);
+ *
+ * // Handle async operation errors
+ * try {
+ *   await contract.createToken();
+ * } catch (err) {
+ *   handleError(err, {
+ *     retryable: true,
+ *     onRetry: () => contract.createToken(),
+ *     action: {
+ *       label: 'Switch Network',
+ *       onClick: () => switchNetwork()
+ *     }
+ *   });
+ * }
+ *
+ * // Display error UI
+ * {error && (
+ *   <Alert>
+ *     {error.message}
+ *     {error.retryable && <Button onClick={retry}>Retry</Button>}
+ *   </Alert>
+ * )}
+ * ```
+ *
+ * @param defaultMaxRetries - Maximum retry attempts (default: 3)
+ * @returns Object containing error state and management functions
  */
 
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
 
+/**
+ * Error information structure
+ */
 export interface ErrorInfo {
+  /** Error message to display */
   message: string;
+  /** Error code for categorization */
   code?: string;
+  /** Whether error can be retried */
   retryable?: boolean;
+  /** Current retry attempt count */
   retryCount?: number;
+  /** Maximum retry attempts allowed */
   maxRetries?: number;
+  /** Function to call on retry */
   onRetry?: () => Promise<void>;
+  /** Custom action button */
   action?: {
     label: string;
     onClick: () => void;
   };
 }
 
+/**
+ * Return type for useErrorHandler hook
+ */
 export interface UseErrorHandlerReturn {
+  /** Current error state */
   error: ErrorInfo | null;
+  /** Manually set error */
   setError: (error: ErrorInfo | null) => void;
+  /** Handle an error */
   handleError: (error: Error | string, options?: Partial<ErrorInfo>) => void;
+  /** Clear current error */
   clearError: () => void;
+  /** Retry the failed operation */
   retry: () => Promise<void>;
+  /** Whether a retry is in progress */
   isRetrying: boolean;
 }
 

@@ -1,10 +1,54 @@
-// Hook for managing user's favorite tokens across chains
+/**
+ * useFavorites Hook
+ * Manages user's favorite tokens with localStorage persistence and Zod validation
+ *
+ * Features:
+ * - Multi-chain support (favorites can be chain-specific or global)
+ * - Automatic localStorage sync with validation
+ * - Invalid data auto-recovery
+ * - Duplicate prevention
+ *
+ * @example
+ * ```typescript
+ * const {
+ *   favorites,
+ *   isLoading,
+ *   isFavorite,
+ *   addFavorite,
+ *   removeFavorite,
+ *   toggleFavorite,
+ *   favoriteCount,
+ *   clearFavorites
+ * } = useFavorites();
+ *
+ * // Check if token is favorited
+ * const favorited = isFavorite('0x123...', 97);
+ *
+ * // Toggle favorite status
+ * <Button onClick={() => toggleFavorite(token.address, chainId)}>
+ *   {isFavorite(token.address, chainId) ? '★' : '☆'}
+ * </Button>
+ *
+ * // Add to favorites
+ * addFavorite('0x123...', 97);
+ * ```
+ *
+ * @returns Object containing favorites state and management functions
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { KasPumpToken } from '../types';
+import { FavoritesArraySchema, FavoriteTokenData } from '../schemas';
 
+/**
+ * Favorite token data structure
+ */
 export interface FavoriteToken {
+  /** Token contract address */
   address: string;
+  /** Optional chain ID (omit for cross-chain favorites) */
   chainId?: number;
+  /** Timestamp when added to favorites */
   addedAt: number;
 }
 
@@ -14,15 +58,30 @@ export function useFavorites() {
   const [favorites, setFavorites] = useState<FavoriteToken[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load favorites from localStorage
+  // Load favorites from localStorage with validation
   useEffect(() => {
     try {
       const stored = localStorage.getItem(FAVORITES_STORAGE_KEY);
       if (stored) {
-        setFavorites(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+
+        // Validate with Zod schema
+        const validationResult = FavoritesArraySchema.safeParse(parsed);
+
+        if (validationResult.success) {
+          setFavorites(validationResult.data);
+        } else {
+          console.warn('Invalid favorites data in localStorage, resetting:', validationResult.error);
+          // Clear invalid data
+          localStorage.removeItem(FAVORITES_STORAGE_KEY);
+          setFavorites([]);
+        }
       }
     } catch (error) {
       console.error('Failed to load favorites:', error);
+      // Clear corrupted data
+      localStorage.removeItem(FAVORITES_STORAGE_KEY);
+      setFavorites([]);
     } finally {
       setIsLoading(false);
     }

@@ -1,15 +1,18 @@
 // Enhanced Smart Contract Integration with AMM Address Resolution
-import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo } from 'react';
 import { ethers } from 'ethers';
-import { 
-  KasPumpToken, 
-  TradeData, 
-  SwapQuote, 
+import {
+  KasPumpToken,
+  TradeData,
+  SwapQuote,
   TokenCreationForm,
   ContractError,
-  BondingCurveConfig 
+  BondingCurveConfig,
+  TokenCreatedEventArgs,
 } from '../types';
 import { useMultichainWallet } from './useMultichainWallet';
+import { useContractProvider } from './contracts/useContractProvider';
+import { parseContractError } from '../utils/contractErrors';
 import { getTokenFactoryAddress, getFeeRecipientAddress, getChainName, getSupportedChains } from '../config/contracts';
 
 // Enhanced ABI definitions with events
@@ -59,121 +62,25 @@ const ammAddressCache = new Map<string, string>();
 
 export function useContracts() {
   const wallet = useMultichainWallet();
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [browserProvider, setBrowserProvider] = useState<ethers.BrowserProvider | null>(null);
-  const [signer, setSigner] = useState<ethers.Signer | null>(null);
 
   // Get contract addresses for current chain
-  const currentChainId = wallet.chainId ?? NETWORK_CONFIG.chainId;
+  const currentChainId = wallet.chainId ?? Number(process.env.NEXT_PUBLIC_DEFAULT_CHAIN_ID ?? '97');
   const CONTRACT_ADDRESSES = {
     tokenFactory: getTokenFactoryAddress(currentChainId) ?? '',
     feeRecipient: getFeeRecipientAddress(currentChainId) ?? '',
   };
 
-  // Create ethers provider
-  const provider = useMemo(() => {
-    if (!NETWORK_CONFIG.rpcUrl) {
-      console.warn('NEXT_PUBLIC_RPC_URL is not set. Read-only blockchain access disabled.');
-      return null;
-    }
+  // Use extracted provider hook
+  const {
+    provider,
+    signer,
+    isInitialized,
+    isConnected,
+    getContractRunner
+  } = useContractProvider(wallet, currentChainId);
 
-    try {
-      return new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
-    } catch (error) {
-      console.error('Failed to create RPC provider:', error);
-      return null;
-    }
-  }, []);
-
-  // Create signer when wallet is connected
-  useEffect(() => {
-    let cancelled = false;
-
-    const initializeSigner = async () => {
-      if (!wallet.connected || !wallet.address) {
-        setBrowserProvider(null);
-        setSigner(null);
-        return;
-      }
-
-      try {
-        let externalProvider: any | null = null;
-
-        if (wallet.connector?.getProvider) {
-          externalProvider = await wallet.connector.getProvider();
-        }
-
-        if (!externalProvider && typeof window !== 'undefined') {
-          externalProvider = (window as any)?.ethereum ?? null;
-        }
-
-        if (!externalProvider) {
-          throw new Error('Wallet provider not available');
-        }
-
-        const targetChainId = wallet.chainId ?? (NETWORK_CONFIG.chainId || undefined);
-        const browser = new ethers.BrowserProvider(externalProvider, targetChainId);
-        const signerInstance = await browser.getSigner();
-
-        if (!cancelled) {
-          setBrowserProvider(browser);
-          setSigner(signerInstance);
-        }
-      } catch (error) {
-        console.error('Failed to initialize wallet signer:', error);
-        if (!cancelled) {
-          setBrowserProvider(null);
-          setSigner(null);
-        }
-      }
-    };
-
-    initializeSigner();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [wallet.connected, wallet.connector, wallet.address, wallet.chainId]);
-
-  // Initialize contract validation
-  useEffect(() => {
-    const validateContracts = async () => {
-      if (!provider) {
-        console.warn('RPC provider not available; skipping contract validation.');
-        return;
-      }
-
-      try {
-        const factoryAddress = getTokenFactoryAddress(currentChainId);
-        if (!factoryAddress) {
-          console.warn(`Token factory address not configured for chain ${currentChainId}`);
-          return;
-        }
-
-        const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, provider);
-        
-        // Validate contract instance before calling methods
-        if (!factory || typeof factory.getAllTokens !== 'function') {
-          throw new Error('Invalid factory contract instance');
-        }
-        
-        // Test contract connectivity with defensive check
-        try {
-          await factory.getAllTokens();
-          setIsInitialized(true);
-        } catch (callError: any) {
-          // If the call fails, log but don't crash - contract might not be deployed yet
-          console.warn('Contract connectivity test failed:', callError?.message || callError);
-          // Still mark as initialized if contract exists (might just be empty)
-          setIsInitialized(true);
-        }
-      } catch (error) {
-        console.error('Contract initialization failed:', error);
-      }
-    };
-
-    validateContracts();
-  }, [provider, currentChainId]);
+  // Derived state
+  const hasSigner = Boolean(signer);
 
   // Get contract instances
   const getTokenFactoryContract = useCallback(() => {
@@ -199,15 +106,13 @@ export function useContracts() {
   const getRunnerOrThrow = useCallback((): ethers.Signer | ethers.AbstractProvider => {
     if (signer && typeof signer === 'object') return signer;
     if (provider && typeof provider === 'object') return provider;
-    if (browserProvider && typeof browserProvider === 'object') return browserProvider;
     throw new Error('Blockchain provider not available');
-  }, [signer, provider, browserProvider]);
+  }, [signer, provider]);
 
   const getReadProviderOrThrow = useCallback((): ethers.AbstractProvider => {
     if (provider && typeof provider === 'object') return provider;
-    if (browserProvider && typeof browserProvider === 'object') return browserProvider;
     throw new Error('Blockchain provider not available');
-  }, [provider, browserProvider]);
+  }, [provider]);
 
   const getBondingCurveContract = useCallback((ammAddress: string) => {
     if (!ammAddress) {
@@ -257,9 +162,10 @@ export function useContracts() {
         if (events.length > 0) {
           const event = events[0];
           if ('args' in event && event.args) {
-            const ammAddress = (event.args as any).ammAddress as string;
-            ammAddressCache.set(tokenAddress, ammAddress);
-            return ammAddress;
+            // Type assertion for TokenCreated event args
+            const args = event.args as unknown as TokenCreatedEventArgs;
+            ammAddressCache.set(tokenAddress, args.ammAddress);
+            return args.ammAddress;
           }
         }
         
@@ -315,11 +221,14 @@ export function useContracts() {
       );
 
       const receipt = await tx.wait();
-      
+
       // Parse the TokenCreated event to get addresses
-      const tokenCreatedEvent = receipt.logs.find((log: any) => {
+      const tokenCreatedEvent = receipt.logs.find((log: ethers.Log | ethers.EventLog) => {
         try {
-          const decoded = contract.interface.parseLog(log);
+          const decoded = contract.interface.parseLog({
+            topics: [...log.topics],
+            data: log.data
+          });
           return decoded?.name === 'TokenCreated';
         } catch {
           return false;
@@ -346,7 +255,7 @@ export function useContracts() {
         txHash: receipt.hash
       };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Token creation failed:', error);
       throw parseContractError(error);
     }
@@ -399,7 +308,7 @@ export function useContracts() {
         return receipt.hash;
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Trade execution failed:', error);
       throw parseContractError(error);
     }
@@ -446,8 +355,8 @@ export function useContracts() {
           minimumOutput: parseFloat(ethers.formatEther(nativeOut)) * 0.995
         };
       }
-      
-    } catch (error: any) {
+
+    } catch (error: unknown) {
       console.error('Quote calculation failed:', error);
       throw parseContractError(error);
     }
@@ -481,12 +390,16 @@ export function useContracts() {
       // Defensive call with error handling
       try {
         return await contract.getAllTokens();
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If the contract call fails, provide a more descriptive error
-        const errorMessage = error?.message || error?.reason || 'Contract call failed';
+        const errorMessage = error instanceof Error
+          ? error.message
+          : (error && typeof error === 'object' && 'reason' in error && typeof error.reason === 'string')
+            ? error.reason
+            : 'Contract call failed';
         throw new Error(`Failed to fetch tokens: ${errorMessage}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to fetch tokens:', error);
       throw parseContractError(error);
     }
@@ -547,83 +460,14 @@ export function useContracts() {
         ammAddress,
         isGraduated
       };
-      
-    } catch (error: any) {
+
+    } catch (error: unknown) {
       console.error('Failed to fetch token info:', error);
       return null;
     }
   }, [getReadProviderOrThrow, getTokenContract, getTokenAMMAddress, getBondingCurveContract, currentChainId]);
 
-  return {
-    createToken,
-    executeTrade,
-    getSwapQuote,
-    getAllTokens,
-    getTokenInfo,
-    getTokenAMMAddress,
-    getTokenContract,
-    getBondingCurveContract,
-    readProvider: provider ?? browserProvider,
-    hasSigner: Boolean(signer),
-    isConnected: wallet.connected,
-    walletAddress: wallet.address,
-    isInitialized,
-  };
-}
-
-// Enhanced error parsing utility
-function parseContractError(error: any): ContractError {
-  if (error.code === 'UNPREDICTABLE_GAS_LIMIT') {
-    return {
-      code: 'GAS_ESTIMATION_FAILED',
-      message: 'Unable to estimate gas. Transaction may fail.',
-    };
-  }
-  
-  if (error.code === 'INSUFFICIENT_FUNDS') {
-    return {
-      code: 'INSUFFICIENT_FUNDS',
-      message: 'Insufficient balance for transaction and gas fees.',
-    };
-  }
-  
-  if (error.message?.includes('user rejected')) {
-    return {
-      code: 'USER_REJECTED',
-      message: 'Transaction was rejected by user.',
-    };
-  }
-  
-  if (error.message?.includes('nonce too low')) {
-    return {
-      code: 'NONCE_ERROR',
-      message: 'Transaction nonce error. Please try again.',
-    };
-  }
-  
-  if (error.message?.includes('slippage')) {
-    return {
-      code: 'SLIPPAGE_ERROR',
-      message: 'Transaction failed due to slippage. Try increasing slippage tolerance.',
-    };
-  }
-  
-  return {
-    code: 'CONTRACT_ERROR',
-    message: error.reason || error.message || 'Contract interaction failed',
-    txHash: error.transactionHash,
-  };
-}
-
-// Enhanced token operations hook
-export function useTokenOperations() {
-  const contracts = useContracts();
-  const {
-    getTokenContract,
-    isConnected,
-    hasSigner,
-  } = contracts;
-  
+  // Token approval
   const approveToken = useCallback(async (tokenAddress: string, spenderAddress: string, amount: string): Promise<string> => {
     if (!isConnected || !hasSigner) {
       throw new Error('Wallet not connected');
@@ -663,8 +507,30 @@ export function useTokenOperations() {
       return 0;
     }
   }, [getTokenContract]);
-  
+
   return {
+    // Connection state
+    isConnected,
+    isInitialized,
+    provider,
+    signer,
+
+    // Contract instances
+    getTokenFactoryContract,
+    getBondingCurveContract,
+    getTokenContract,
+
+    // Token creation and info
+    createToken,
+    getAllTokens,
+    getTokenInfo,
+    getTokenAMMAddress,
+
+    // Trading
+    executeTrade,
+    getSwapQuote,
+
+    // Token operations
     approveToken,
     getTokenBalance,
     getAllowance,

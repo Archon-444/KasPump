@@ -1,4 +1,47 @@
-// Universal Multichain Wallet Hook
+/**
+ * useMultichainWallet Hook
+ * Universal wallet connection hook with multi-chain support via Wagmi
+ *
+ * Features:
+ * - Multi-wallet support (MetaMask, WalletConnect, Coinbase Wallet, etc.)
+ * - Chain switching with validation
+ * - Balance tracking with auto-refresh
+ * - Connection state management
+ * - Error handling
+ *
+ * Supported Chains:
+ * - BSC Mainnet & Testnet
+ * - Arbitrum One & Sepolia
+ * - Base Mainnet & Sepolia
+ *
+ * @example
+ * ```typescript
+ * const {
+ *   connected,
+ *   address,
+ *   balance,
+ *   chainId,
+ *   chainName,
+ *   connect,
+ *   disconnect,
+ *   switchToChain,
+ *   isConnecting
+ * } = useMultichainWallet();
+ *
+ * // Connect wallet
+ * <Button onClick={() => connect(connectors[0])}>
+ *   {connected ? `${address?.slice(0, 6)}...` : 'Connect'}
+ * </Button>
+ *
+ * // Switch chain
+ * <Button onClick={() => switchToChain(97)}>
+ *   Switch to BSC Testnet
+ * </Button>
+ * ```
+ *
+ * @returns Object containing wallet state and connection functions
+ */
+
 'use client';
 
 import { useAccount, useConnect, useDisconnect, useBalance, useSwitchChain } from 'wagmi';
@@ -6,14 +49,25 @@ import { useCallback, useEffect, useState } from 'react';
 import { formatEther } from 'viem';
 import { getChainById, getChainMetadata, supportedChains } from '../config/chains';
 
+/**
+ * Multichain wallet state
+ */
 export interface MultichainWalletState {
+  /** Whether wallet is connected */
   connected: boolean;
+  /** Connected wallet address */
   address: string | null;
+  /** Native token balance (raw) */
   balance: string;
+  /** Formatted balance with symbol */
   balanceFormatted: string;
+  /** Current chain ID */
   chainId: number | undefined;
+  /** Current chain display name */
   chainName: string;
+  /** Whether connection is in progress */
   isConnecting: boolean;
+  /** Connection or operation error */
   error: string | null;
 }
 
