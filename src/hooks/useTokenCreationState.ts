@@ -48,12 +48,19 @@ export interface UseTokenCreationStateReturn {
   formData: TokenCreationForm;
   errors: Partial<Record<keyof TokenCreationForm, string>>;
   updateFormData: (updates: Partial<TokenCreationForm>) => void;
+  setErrors: (errors: Partial<Record<keyof TokenCreationForm, string>>) => void;
 
   // Creation state
   isCreating: boolean;
   creationStep: 'form' | 'confirm' | 'creating' | 'success' | 'error';
   creationResult: TokenCreationResult | null;
   creationError: string;
+
+  // Creation state setters (for advanced use cases like multi-chain)
+  setIsCreating: (value: boolean) => void;
+  setCreationStep: (step: 'form' | 'confirm' | 'creating' | 'success' | 'error') => void;
+  setCreationResult: (result: TokenCreationResult | null) => void;
+  setCreationError: (error: string) => void;
 
   // Mode and wizard state
   mode: 'beginner' | 'advanced';
@@ -203,10 +210,15 @@ export function useTokenCreationState({
     formData,
     errors,
     updateFormData,
+    setErrors,
     isCreating,
     creationStep,
     creationResult,
     creationError,
+    setIsCreating,
+    setCreationStep,
+    setCreationResult,
+    setCreationError,
     mode,
     wizardStep,
     setMode,
