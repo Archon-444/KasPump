@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Copy, ExternalLink, TrendingUp, Wallet } from 'lucide-react';
 import { Card, Button } from '../ui';
@@ -23,7 +23,7 @@ export interface HolderListProps {
   className?: string;
 }
 
-export const HolderList: React.FC<HolderListProps> = ({
+const HolderListComponent: React.FC<HolderListProps> = ({
   tokenAddress,
   chainId,
   maxHolders = 20,
@@ -232,4 +232,16 @@ export const HolderList: React.FC<HolderListProps> = ({
     </Card>
   );
 };
+
+// Memoize to prevent unnecessary holder list reloads
+export const HolderList = memo(HolderListComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.tokenAddress === nextProps.tokenAddress &&
+    prevProps.chainId === nextProps.chainId &&
+    prevProps.maxHolders === nextProps.maxHolders &&
+    prevProps.showPercentage === nextProps.showPercentage
+  );
+});
+
+HolderList.displayName = 'HolderList';
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
 import { Card } from '../ui';
@@ -23,7 +23,7 @@ export interface LeaderboardTableProps {
   className?: string;
 }
 
-export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
+const LeaderboardTableComponent: React.FC<LeaderboardTableProps> = ({
   tokens,
   sortBy = 'volume',
   className
@@ -215,3 +215,19 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
   );
 };
 
+// Memoize to prevent unnecessary leaderboard re-renders
+export const LeaderboardTable = memo(LeaderboardTableComponent, (prevProps, nextProps) => {
+  // Only re-render if tokens array changes or sortBy changes
+  return (
+    prevProps.sortBy === nextProps.sortBy &&
+    prevProps.tokens.length === nextProps.tokens.length &&
+    prevProps.tokens.every((token, index) =>
+      token.address === nextProps.tokens[index]?.address &&
+      token.volume === nextProps.tokens[index]?.volume &&
+      token.marketCap === nextProps.tokens[index]?.marketCap &&
+      token.change24h === nextProps.tokens[index]?.change24h
+    )
+  );
+});
+
+LeaderboardTable.displayName = 'LeaderboardTable';

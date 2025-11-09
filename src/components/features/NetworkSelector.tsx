@@ -1,7 +1,7 @@
 // Network Selector Component for Multichain Support
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Network, Check, ChevronDown, Loader2, Zap, Shield } from 'lucide-react';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
@@ -14,7 +14,7 @@ interface NetworkSelectorProps {
   showTestnets?: boolean;
 }
 
-export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
+const NetworkSelectorComponent: React.FC<NetworkSelectorProps> = ({
   className,
   showTestnets = false,
 }) => {
@@ -336,3 +336,13 @@ export const NetworkIndicator: React.FC<{ className?: string }> = ({ className }
     </motion.div>
   );
 };
+
+// Memoize to prevent unnecessary network selector re-renders
+export const NetworkSelector = memo(NetworkSelectorComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.showTestnets === nextProps.showTestnets &&
+    prevProps.className === nextProps.className
+  );
+});
+
+NetworkSelector.displayName = 'NetworkSelector';
