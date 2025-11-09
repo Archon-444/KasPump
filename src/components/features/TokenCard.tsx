@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Users, Clock } from 'lucide-react';
 import { KasPumpToken, TokenCardProps } from '../../types';
@@ -8,10 +8,10 @@ import { Card, Badge, Progress } from '../ui';
 import { FavoriteButton } from './FavoriteButton';
 import { formatCurrency, formatPercentage, formatTimeAgo, cn } from '../../utils';
 
-export const TokenCard: React.FC<TokenCardProps> = ({ 
-  token, 
-  onClick, 
-  showActions = false 
+const TokenCardComponent: React.FC<TokenCardProps> = ({
+  token,
+  onClick,
+  showActions = false
 }) => {
   const isPositive = token.change24h >= 0;
   
@@ -155,6 +155,21 @@ export const TokenCard: React.FC<TokenCardProps> = ({
     </motion.div>
   );
 };
+
+// Memoize TokenCard to prevent unnecessary re-renders in token lists/grids
+export const TokenCard = memo(TokenCardComponent, (prevProps, nextProps) => {
+  // Only re-render if token data or handlers actually changed
+  return (
+    prevProps.token.address === nextProps.token.address &&
+    prevProps.token.price === nextProps.token.price &&
+    prevProps.token.change24h === nextProps.token.change24h &&
+    prevProps.token.bondingCurveProgress === nextProps.token.bondingCurveProgress &&
+    prevProps.showActions === nextProps.showActions &&
+    prevProps.onClick === nextProps.onClick
+  );
+});
+
+TokenCard.displayName = 'TokenCard';
 
 // Simplified token card for loading states
 export const TokenCardSkeleton: React.FC = () => {
