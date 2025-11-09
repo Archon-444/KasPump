@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '../ui';
 import { PortfolioStats } from '../../hooks/usePortfolio';
@@ -13,7 +13,7 @@ export interface ChainBalanceCardProps {
   className?: string;
 }
 
-export const ChainBalanceCard: React.FC<ChainBalanceCardProps> = ({
+const ChainBalanceCardComponent: React.FC<ChainBalanceCardProps> = ({
   chainData,
   onClick,
   className
@@ -61,3 +61,14 @@ export const ChainBalanceCard: React.FC<ChainBalanceCardProps> = ({
   );
 };
 
+// Memoize to prevent re-renders when chain balance hasn't changed
+export const ChainBalanceCard = memo(ChainBalanceCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.chainData.chainId === nextProps.chainData.chainId &&
+    prevProps.chainData.value === nextProps.chainData.value &&
+    prevProps.chainData.tokenCount === nextProps.chainData.tokenCount &&
+    prevProps.onClick === nextProps.onClick
+  );
+});
+
+ChainBalanceCard.displayName = 'ChainBalanceCard';

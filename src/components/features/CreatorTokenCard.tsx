@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, ExternalLink, Users, DollarSign, Award, Activity } from 'lucide-react';
 import { Card } from '../ui';
@@ -15,7 +15,7 @@ export interface CreatorTokenCardProps {
   className?: string;
 }
 
-export const CreatorTokenCard: React.FC<CreatorTokenCardProps> = ({
+const CreatorTokenCardComponent: React.FC<CreatorTokenCardProps> = ({
   token,
   onClick,
   className
@@ -164,3 +164,19 @@ export const CreatorTokenCard: React.FC<CreatorTokenCardProps> = ({
   );
 };
 
+// Memoize to prevent unnecessary re-renders in creator dashboard
+export const CreatorTokenCard = memo(CreatorTokenCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.token.address === nextProps.token.address &&
+    prevProps.token.price === nextProps.token.price &&
+    prevProps.token.marketCap === nextProps.token.marketCap &&
+    prevProps.token.totalVolume === nextProps.token.totalVolume &&
+    prevProps.token.holders === nextProps.token.holders &&
+    prevProps.token.totalEarnings === nextProps.token.totalEarnings &&
+    prevProps.token.bondingCurveProgress === nextProps.token.bondingCurveProgress &&
+    prevProps.token.isGraduated === nextProps.token.isGraduated &&
+    prevProps.onClick === nextProps.onClick
+  );
+});
+
+CreatorTokenCard.displayName = 'CreatorTokenCard';

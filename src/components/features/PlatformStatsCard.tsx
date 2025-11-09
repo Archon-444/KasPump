@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Coins, TrendingUp, Users, Award, Zap } from 'lucide-react';
 import { Card } from '../ui';
@@ -43,7 +43,7 @@ export interface PlatformStatsCardProps {
   className?: string;
 }
 
-export const PlatformStatsCard: React.FC<PlatformStatsCardProps> = ({
+const PlatformStatsCardComponent: React.FC<PlatformStatsCardProps> = ({
   data,
   className
 }) => {
@@ -141,3 +141,14 @@ export const PlatformStatsCard: React.FC<PlatformStatsCardProps> = ({
   );
 };
 
+// Memoize to prevent re-renders when platform stats haven't changed
+export const PlatformStatsCard = memo(PlatformStatsCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.data.platform.totalTokens === nextProps.data.platform.totalTokens &&
+    prevProps.data.platform.graduatedTokens === nextProps.data.platform.graduatedTokens &&
+    prevProps.data.platform.totalUsers === nextProps.data.platform.totalUsers &&
+    prevProps.data.financial.totalVolume === nextProps.data.financial.totalVolume
+  );
+});
+
+PlatformStatsCard.displayName = 'PlatformStatsCard';

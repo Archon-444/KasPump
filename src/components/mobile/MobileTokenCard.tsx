@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { motion, PanInfo } from 'framer-motion';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Users, 
-  Clock, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Users,
+  Clock,
   Heart,
   Share2,
   ExternalLink,
@@ -26,7 +26,7 @@ export interface MobileTokenCardProps {
   showQuickActions?: boolean;
 }
 
-export const MobileTokenCard: React.FC<MobileTokenCardProps> = ({
+const MobileTokenCardComponent: React.FC<MobileTokenCardProps> = ({
   token,
   onClick,
   onQuickTrade,
@@ -277,6 +277,22 @@ export const MobileTokenCard: React.FC<MobileTokenCardProps> = ({
   );
 };
 
+// Memoize to prevent unnecessary re-renders in mobile token lists
+export const MobileTokenCard = memo(MobileTokenCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.token.address === nextProps.token.address &&
+    prevProps.token.price === nextProps.token.price &&
+    prevProps.token.change24h === nextProps.token.change24h &&
+    prevProps.token.bondingCurveProgress === nextProps.token.bondingCurveProgress &&
+    prevProps.token.holders === nextProps.token.holders &&
+    prevProps.showQuickActions === nextProps.showQuickActions &&
+    prevProps.onClick === nextProps.onClick &&
+    prevProps.onQuickTrade === nextProps.onQuickTrade
+  );
+});
+
+MobileTokenCard.displayName = 'MobileTokenCard';
+
 // Compact Mobile Token Card for lists
 export interface CompactMobileTokenCardProps {
   token: KasPumpToken;
@@ -285,7 +301,7 @@ export interface CompactMobileTokenCardProps {
   className?: string;
 }
 
-export const CompactMobileTokenCard: React.FC<CompactMobileTokenCardProps> = ({
+const CompactMobileTokenCardComponent: React.FC<CompactMobileTokenCardProps> = ({
   token,
   onClick,
   rank,
@@ -354,3 +370,16 @@ export const CompactMobileTokenCard: React.FC<CompactMobileTokenCardProps> = ({
     </motion.div>
   );
 };
+
+// Memoize compact card for list performance
+export const CompactMobileTokenCard = memo(CompactMobileTokenCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.token.address === nextProps.token.address &&
+    prevProps.token.price === nextProps.token.price &&
+    prevProps.token.change24h === nextProps.token.change24h &&
+    prevProps.rank === nextProps.rank &&
+    prevProps.onClick === nextProps.onClick
+  );
+});
+
+CompactMobileTokenCard.displayName = 'CompactMobileTokenCard';
