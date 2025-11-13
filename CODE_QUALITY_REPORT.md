@@ -38,12 +38,14 @@
   - `vitest.config.ts` - Test environment configuration
   - `src/test/setup.ts` - Browser API mocks
   - `src/test/test-utils.tsx` - Custom render with providers
-- ✅ **2,020+ lines of unit tests (5 critical hooks, 110+ test cases):**
+- ✅ **3,203 lines of unit tests (7 critical hooks, 165+ test cases):**
   - `useTokenCreationState.test.ts` (328 lines, 30+ tests)
   - `useIPFSUpload.test.ts` (186 lines, 10+ tests)
-  - `useFavorites.test.ts` (450 lines, 40+ tests) ⭐ **NEW**
-  - `useMultichainWallet.test.ts` (577 lines, 35+ tests) ⭐ **NEW**
-  - `useErrorHandler.test.ts` (479 lines, 35+ tests) ⭐ **NEW**
+  - `useFavorites.test.ts` (450 lines, 40+ tests)
+  - `useMultichainWallet.test.ts` (577 lines, 35+ tests)
+  - `useErrorHandler.test.ts` (479 lines, 35+ tests)
+  - `useWebSocket.test.ts` (570 lines, 45+ tests) ⭐ **NEW**
+  - `usePriceAlerts.test.ts` (613 lines, 55+ tests) ⭐ **NEW**
 - ✅ **Contract hook tests:**
   - `useContractProvider.test.ts` (179 lines, 10+ tests)
 
@@ -167,7 +169,7 @@
 | Security | ✅ Complete | High |
 | Type Safety | ✅ Critical types fixed | High |
 | Code Organization | ✅ Complete | High |
-| Testing | ✅ 2,020+ lines (5 hooks) | High |
+| Testing | ✅ 3,203 lines (7 hooks, 35%) | High |
 | Performance | ✅ 11 components | High |
 | Accessibility | ✅ WCAG 2.1 AA | High |
 | Logging | ⚠️ 184 console statements | Low |
