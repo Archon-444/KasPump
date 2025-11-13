@@ -86,6 +86,13 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         uint256 amount
     );
 
+    event GraduationFundsSplit(
+        uint256 creatorShare,
+        uint256 platformShare,
+        address indexed creator,
+        address indexed platform
+    );
+
     event EmergencyWithdraw(
         address indexed admin,
         uint256 amount,
@@ -510,18 +517,35 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
 
     /**
      * @dev Graduate token - uses pull payment pattern for safety
-     * SECURITY FIX: Allocates funds to token creator for liquidity provision
-     * @notice Token creator can withdraw funds to provide DEX liquidity
+     * SECURITY FIX: Splits funds between creator (80%) and platform (20%)
+     * @notice Token creator receives 80% to provide DEX liquidity
+     * @notice Platform receives 20% as compensation for risk during bonding phase
      */
     function _graduateToken() internal {
         isGraduated = true;
 
         uint256 contractBalance = address(this).balance;
-        totalGraduationFunds = contractBalance;
 
-        // Allocate graduation funds to token creator
-        // Creator can then use these funds to provide DEX liquidity
-        withdrawableGraduationFunds[tokenCreator] = contractBalance;
+        // ECONOMIC MODEL: Split graduation funds
+        // 80% to creator for DEX liquidity provision
+        // 20% to platform as risk compensation
+        uint256 creatorShare = (contractBalance * 80) / 100;
+        uint256 platformShare = contractBalance - creatorShare; // More precise than 20%
+
+        totalGraduationFunds = creatorShare; // Track creator-withdrawable amount
+
+        // Allocate creator share for withdrawal (pull pattern)
+        withdrawableGraduationFunds[tokenCreator] = creatorShare;
+
+        // Transfer platform share immediately (safe, trusted recipient)
+        feeRecipient.sendValue(platformShare);
+
+        emit GraduationFundsSplit(
+            creatorShare,
+            platformShare,
+            tokenCreator,
+            feeRecipient
+        );
 
         emit Graduated(
             currentSupply,
@@ -529,9 +553,9 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             block.timestamp
         );
 
-        // NOTE: Actual DEX integration can happen in production
-        // For now, token creator receives funds to manually provide liquidity
-        // In production, can integrate with Uniswap V2/V3 or PancakeSwap
+        // NOTE: Future enhancement - Automatic DEX integration
+        // Can integrate with PancakeSwap V2/V3 or Uniswap V2/V3
+        // Would use 70% for liquidity, 20% creator, 10% platform
     }
 
     // ========== ADMIN FUNCTIONS ==========
