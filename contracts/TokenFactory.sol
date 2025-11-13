@@ -46,6 +46,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
 
     // Platform configuration
     uint256 public constant PLATFORM_FEE = 50; // 0.5% in basis points
+    uint256 public constant CREATION_FEE = 0.01 ether; // Token creation fee (anti-spam + revenue)
     address payable public feeRecipient;
 
     // Rate limiting
@@ -85,12 +86,19 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         address indexed newRecipient
     );
 
+    event CreationFeeCollected(
+        address indexed creator,
+        uint256 amount,
+        uint256 timestamp
+    );
+
     // ========== ERRORS ==========
 
     error InvalidInput(string param);
     error ZeroAddress();
     error RateLimitExceeded();
     error DeploymentFailed();
+    error InsufficientCreationFee();
 
     // ========== CONSTRUCTOR ==========
 
@@ -107,7 +115,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
 
     /**
      * @dev Creates a new KRC-20 token with bonding curve
-     * @notice Rate limited to prevent spam
+     * @notice Rate limited to prevent spam, requires creation fee
      *
      * SECURITY FIXES:
      * - nonReentrant: Prevents reentrancy
@@ -115,6 +123,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
      * - Comprehensive input validation
      * - Rate limiting
      * - Safe CREATE2 deployment
+     * - Creation fee anti-spam mechanism
      */
     function createToken(
         string memory _name,
@@ -125,7 +134,13 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         uint256 _basePrice,
         uint256 _slope,
         CurveType _curveType
-    ) external nonReentrant whenNotPaused returns (address tokenAddress, address ammAddress) {
+    ) external payable nonReentrant whenNotPaused returns (address tokenAddress, address ammAddress) {
+        // ========== CREATION FEE CHECK ==========
+
+        if (msg.value < CREATION_FEE) {
+            revert InsufficientCreationFee();
+        }
+
         // ========== RATE LIMITING ==========
 
         if (block.timestamp < lastTokenCreation[msg.sender] + CREATION_COOLDOWN) {
@@ -203,6 +218,14 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
 
         // Transfer initial supply to AMM
         KRC20Token(tokenAddress).transfer(ammAddress, _totalSupply);
+
+        // ========== FEE TRANSFER ==========
+
+        // Transfer creation fee to platform
+        (bool success, ) = feeRecipient.call{value: msg.value}("");
+        require(success, "Fee transfer failed");
+
+        emit CreationFeeCollected(msg.sender, msg.value, block.timestamp);
 
         emit TokenCreated(
             tokenAddress,
