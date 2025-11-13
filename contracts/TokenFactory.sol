@@ -46,7 +46,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
 
     // Platform configuration
     uint256 public constant PLATFORM_FEE = 50; // 0.5% in basis points
-    uint256 public constant CREATION_FEE = 0.01 ether; // Token creation fee (anti-spam + revenue)
+    uint256 public constant CREATION_FEE = 0.025 ether; // 0.025 BNB (~$25 USD) - BSC-only, no oracle needed
     address payable public feeRecipient;
 
     // Rate limiting
