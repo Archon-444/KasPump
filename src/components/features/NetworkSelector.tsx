@@ -1,7 +1,7 @@
 // Network Selector Component for Multichain Support
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Network, Check, ChevronDown, Loader2, Zap, Shield } from 'lucide-react';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
@@ -14,7 +14,7 @@ interface NetworkSelectorProps {
   showTestnets?: boolean;
 }
 
-export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
+const NetworkSelectorComponent: React.FC<NetworkSelectorProps> = ({
   className,
   showTestnets = false,
 }) => {
@@ -66,6 +66,9 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
           "disabled:opacity-50 disabled:cursor-not-allowed",
           wallet.isSwitchingNetwork && "cursor-wait"
         )}
+        aria-label={currentChainMeta ? `Current network: ${currentChainMeta.name}. Click to change network` : 'Select network'}
+        aria-expanded={showDropdown}
+        aria-haspopup="menu"
       >
         <div className="flex items-center space-x-2.5 flex-1 min-w-0">
           <Network size={16} className="text-yellow-400 flex-shrink-0" />
@@ -151,6 +154,9 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                               : "border-transparent hover:border-gray-600 hover:bg-gray-800/50",
                             (isSwitching && !isActive) && "opacity-50 cursor-not-allowed"
                           )}
+                          role="menuitem"
+                          aria-label={`Switch to ${meta.name}${isActive ? ' (current)' : ''}`}
+                          aria-current={isActive ? 'true' : 'false'}
                         >
                           <div className="flex items-center space-x-3 flex-1">
                             <div
@@ -336,3 +342,13 @@ export const NetworkIndicator: React.FC<{ className?: string }> = ({ className }
     </motion.div>
   );
 };
+
+// Memoize to prevent unnecessary network selector re-renders
+export const NetworkSelector = memo(NetworkSelectorComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.showTestnets === nextProps.showTestnets &&
+    prevProps.className === nextProps.className
+  );
+});
+
+NetworkSelector.displayName = 'NetworkSelector';

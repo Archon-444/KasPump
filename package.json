@@ -19,6 +19,9 @@
     "deploy:deterministic:base": "hardhat run scripts/deploy-deterministic.ts --network base",
     "deploy:deterministic:base-sepolia": "hardhat run scripts/deploy-deterministic.ts --network baseSepolia",
     "test": "hardhat test",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:unit:coverage": "vitest run --coverage",
     "test:bsc": "hardhat run scripts/test-deployed-bsc.ts --network bscTestnet",
     "verify:deployment": "hardhat run scripts/verify-deployment.ts --network bscTestnet",
     "type-check": "tsc --noEmit"
@@ -53,17 +56,24 @@
     "@nomicfoundation/hardhat-ethers": "^3.0.4",
     "@nomicfoundation/hardhat-toolbox": "^3.0.0",
     "@openzeppelin/contracts": "^5.4.0",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
     "@types/node": "^20.9.0",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/coverage-v8": "^1.0.4",
     "autoprefixer": "^10.4.16",
     "critters": "^0.0.23",
     "dotenv": "^17.2.3",
     "eslint": "^8.53.0",
     "eslint-config-next": "14.0.4",
     "hardhat": "^2.19.1",
+    "jsdom": "^23.0.1",
     "postcss": "^8.4.31",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "vitest": "^1.0.4"
   },
   "engines": {
     "node": ">=18.0.0"

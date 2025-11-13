@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Wallet, Coins } from 'lucide-react';
 import { Card } from '../ui';
@@ -12,7 +12,7 @@ export interface PortfolioStatsCardProps {
   className?: string;
 }
 
-export const PortfolioStatsCard: React.FC<PortfolioStatsCardProps> = ({
+const PortfolioStatsCardComponent: React.FC<PortfolioStatsCardProps> = ({
   stats,
   className
 }) => {
@@ -99,3 +99,16 @@ export const PortfolioStatsCard: React.FC<PortfolioStatsCardProps> = ({
   );
 };
 
+// Memoize to prevent re-renders when portfolio data hasn't changed
+export const PortfolioStatsCard = memo(PortfolioStatsCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.stats.totalValue === nextProps.stats.totalValue &&
+    prevProps.stats.totalProfitLoss === nextProps.stats.totalProfitLoss &&
+    prevProps.stats.totalProfitLossPercent === nextProps.stats.totalProfitLossPercent &&
+    prevProps.stats.tokenCount === nextProps.stats.tokenCount &&
+    prevProps.stats.chainCount === nextProps.stats.chainCount &&
+    prevProps.stats.totalCostBasis === nextProps.stats.totalCostBasis
+  );
+});
+
+PortfolioStatsCard.displayName = 'PortfolioStatsCard';

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Star } from 'lucide-react';
 import { useFavorites } from '../../hooks/useFavorites';
@@ -14,7 +14,7 @@ export interface FavoriteButtonProps {
   showLabel?: boolean;
 }
 
-export const FavoriteButton: React.FC<FavoriteButtonProps> = ({
+const FavoriteButtonComponent: React.FC<FavoriteButtonProps> = ({
   tokenAddress,
   chainId,
   size = 'md',
@@ -55,6 +55,8 @@ export const FavoriteButton: React.FC<FavoriteButtonProps> = ({
         className
       )}
       title={favorited ? 'Remove from favorites' : 'Add to favorites'}
+      aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
+      aria-pressed={favorited}
     >
       <div className={cn('relative', sizeClasses[size])}>
         <Star
@@ -81,3 +83,15 @@ export const FavoriteButton: React.FC<FavoriteButtonProps> = ({
   );
 };
 
+// Memoize to prevent unnecessary re-renders in token lists
+export const FavoriteButton = memo(FavoriteButtonComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.tokenAddress === nextProps.tokenAddress &&
+    prevProps.chainId === nextProps.chainId &&
+    prevProps.size === nextProps.size &&
+    prevProps.className === nextProps.className &&
+    prevProps.showLabel === nextProps.showLabel
+  );
+});
+
+FavoriteButton.displayName = 'FavoriteButton';

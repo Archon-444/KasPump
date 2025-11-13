@@ -5,6 +5,25 @@ import { TokenCreationForm } from '../types';
 import { supportedChains, getChainById, getChainMetadata, isTestnet } from '../config/chains';
 import { useMultichainWallet } from './useMultichainWallet';
 
+/**
+ * Type for Ethereum provider (from injected wallet like MetaMask)
+ */
+interface EthereumProvider {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  on?: (event: string, handler: (...args: unknown[]) => void) => void;
+  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+  [key: string]: unknown;
+}
+
+/**
+ * Extend Window interface to include ethereum provider
+ */
+declare global {
+  interface Window {
+    ethereum?: EthereumProvider;
+  }
+}
+
 export interface DeploymentResult {
   chainId: number;
   chainName: string;
@@ -114,13 +133,13 @@ export function useMultiChainDeployment() {
         throw new Error('Wallet not connected');
       }
 
-      let externalProvider: any | null = null;
+      let externalProvider: EthereumProvider | null = null;
       if (wallet.connector?.getProvider) {
-        externalProvider = await wallet.connector.getProvider();
+        externalProvider = (await wallet.connector.getProvider()) as EthereumProvider | null;
       }
 
       if (!externalProvider && typeof window !== 'undefined') {
-        externalProvider = (window as any)?.ethereum ?? null;
+        externalProvider = window.ethereum ?? null;
       }
 
       if (!externalProvider) {
@@ -203,7 +222,7 @@ export function useMultiChainDeployment() {
       const receipt = await tx.wait();
 
       // Parse TokenCreated event
-      const tokenCreatedEvent = receipt.logs.find((log: any) => {
+      const tokenCreatedEvent = receipt.logs.find((log: ethers.Log | ethers.EventLog) => {
         try {
           const decoded = factoryContract.interface.parseLog(log);
           return decoded?.name === 'TokenCreated';
@@ -247,8 +266,8 @@ export function useMultiChainDeployment() {
       });
 
       return result;
-    } catch (error: any) {
-      const errorMessage = error.message || 'Deployment failed';
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Deployment failed';
       
       setDeployments(prev => {
         const updated = new Map(prev);
