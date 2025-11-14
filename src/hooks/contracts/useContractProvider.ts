@@ -34,14 +34,20 @@ export interface UseContractProviderReturn {
   provider: ethers.JsonRpcProvider | null;
   /** Browser provider when wallet connected */
   browserProvider: ethers.BrowserProvider | null;
+  /** Resolved provider for read operations (browser or rpc) */
+  readProvider: ethers.AbstractProvider | null;
   /** Signer for write operations */
   signer: ethers.Signer | null;
   /** Whether contracts are initialized */
   isInitialized: boolean;
+  /** Whether wallet is connected with signer */
+  isConnected: boolean;
   /** Get appropriate runner (signer or provider) */
   getRunnerOrThrow: () => ethers.Signer | ethers.AbstractProvider;
   /** Get read-only provider */
   getReadProviderOrThrow: () => ethers.AbstractProvider;
+  /** Backwards-compatible alias */
+  getContractRunner: () => ethers.Signer | ethers.AbstractProvider;
 }
 
 export function useContractProvider(
@@ -171,12 +177,25 @@ export function useContractProvider(
     throw new Error('Blockchain provider not available');
   }, [provider, browserProvider]);
 
+  const readProvider = useMemo<ethers.AbstractProvider | null>(() => {
+    if (browserProvider) return browserProvider;
+    if (provider) return provider;
+    return null;
+  }, [browserProvider, provider]);
+
+  const isConnected = wallet.connected && !!signer;
+
+  const getContractRunner = useCallback(() => getRunnerOrThrow(), [getRunnerOrThrow]);
+
   return {
     provider,
     browserProvider,
+    readProvider,
     signer,
     isInitialized,
+    isConnected,
     getRunnerOrThrow,
     getReadProviderOrThrow,
+    getContractRunner,
   };
 }

@@ -19,7 +19,7 @@ export interface TransactionPreviewProps {
   slippage: number;
   minimumReceived: number;
   fees: number;
-  gasEstimate?: number;
+  gasFee?: number;
   chainId?: number;
   loading?: boolean;
 }
@@ -36,7 +36,7 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
   slippage,
   minimumReceived,
   fees,
-  gasEstimate,
+  gasFee,
   chainId,
   loading = false,
 }) => {
@@ -182,14 +182,14 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
                   </span>
                 </div>
 
-                {gasEstimate && (
+                {typeof gasFee === 'number' && gasFee > 0 && (
                   <div className="flex items-center justify-between">
                     <span className="text-gray-400 flex items-center">
                       <Zap size={14} className="mr-1" />
-                      Estimated gas
+                      Estimated gas fee
                     </span>
                     <span className="text-white">
-                      {formatCurrency(gasEstimate, '', 0)} gas
+                      {formatCurrency(gasFee, 'BNB', 6)}
                     </span>
                   </div>
                 )}

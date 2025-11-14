@@ -11,10 +11,10 @@ const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '';
 const hasValidProjectId = projectId && projectId !== 'your_walletconnect_project_id_here' && projectId.length > 0;
 
 // Helper to get chains - only imports when called
-// ONLY BSC for now
+// Includes mainnet + testnet coverage for BSC, Arbitrum, and Base
 async function getChains() {
-  const { bsc, bscTestnet } = await import('wagmi/chains');
-  return [bsc, bscTestnet] as const;
+  const { bsc, bscTestnet, arbitrum, arbitrumSepolia, base, baseSepolia } = await import('wagmi/chains');
+  return [bsc, arbitrum, base, bscTestnet, arbitrumSepolia, baseSepolia] as const;
 }
 
 // Helper to safely get origin (only on client)
@@ -42,8 +42,9 @@ async function createConnectors(): Promise<any[]> {
   }
 
   try {
-    // Dynamically import only the connectors we need for BSC
-    const { injected, metaMask } = await import('wagmi/connectors');
+    // Dynamically import the connectors we need
+    const { injected, metaMask, walletConnect, coinbaseWallet } = await import('wagmi/connectors');
+    const chains = await getChains();
 
     const origin = getOrigin();
     const logoUrl = getLogoUrl();
@@ -59,6 +60,26 @@ async function createConnectors(): Promise<any[]> {
       // Generic injected wallet (Trust Wallet, Binance Wallet, etc.)
       injected({
         shimDisconnect: true,
+      }),
+      // WalletConnect (if project ID configured)
+      hasValidProjectId
+        ? walletConnect({
+            projectId,
+            metadata: {
+              name: 'KasPump',
+              description: 'KasPump multichain bonding curve trading',
+              url: origin,
+              icons: logoUrl ? [logoUrl] : [],
+            },
+          })
+        : null,
+      // Coinbase Wallet connector for Base + EVM chains
+      coinbaseWallet({
+        appName: 'KasPump',
+        preference: 'all',
+        appLogoUrl: logoUrl || undefined,
+        enableMobileLinks: true,
+        chainId: chains[0]?.id,
       }),
     ];
 
@@ -87,12 +108,15 @@ async function createConnectors(): Promise<any[]> {
 }
 
 // Default RPC URLs (fallback if env vars not set)
-// ONLY BSC for now
 function getDefaultRpcUrls() {
   return {
     56: 'https://bsc-dataseed1.binance.org', // BSC Mainnet
     97: 'https://data-seed-prebsc-1-s1.binance.org:8545', // BSC Testnet
-  };
+    42161: 'https://arb1.arbitrum.io/rpc', // Arbitrum One
+    421614: 'https://sepolia-rollup.arbitrum.io/rpc', // Arbitrum Sepolia
+    8453: 'https://mainnet.base.org', // Base Mainnet
+    84532: 'https://sepolia.base.org', // Base Sepolia
+  } as Record<number, string>;
 }
 
 // Function to validate config
@@ -115,7 +139,39 @@ async function createWagmiConfig(): Promise<any> {
     const chains = await getChains();
     const connectors = await createConnectors();
     const defaultRpcUrls = getDefaultRpcUrls();
-    
+
+    const transports = chains.reduce<Record<number, ReturnType<typeof http>>>((acc, chain) => {
+      let envUrl: string | undefined;
+      switch (chain.id) {
+        case 56:
+          envUrl = process.env.NEXT_PUBLIC_BSC_RPC_URL;
+          break;
+        case 97:
+          envUrl = process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL;
+          break;
+        case 42161:
+          envUrl = process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL;
+          break;
+        case 421614:
+          envUrl = process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL;
+          break;
+        case 8453:
+          envUrl = process.env.NEXT_PUBLIC_BASE_RPC_URL;
+          break;
+        case 84532:
+          envUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL;
+          break;
+        default:
+          envUrl = undefined;
+      }
+
+      const rpcUrl = envUrl || defaultRpcUrls[chain.id];
+      if (rpcUrl) {
+        acc[chain.id] = http(rpcUrl);
+      }
+      return acc;
+    }, {});
+
     // Ensure we have at least one valid connector
     if (!connectors || connectors.length === 0) {
       throw new Error('No valid connectors available');
@@ -124,10 +180,7 @@ async function createWagmiConfig(): Promise<any> {
     const config = createConfig({
       chains,
       connectors,
-      transports: {
-        [chains[0].id]: http(process.env.NEXT_PUBLIC_BSC_RPC_URL || defaultRpcUrls[56]),
-        [chains[1].id]: http(process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL || defaultRpcUrls[97]),
-      },
+      transports,
     });
 
     // Validate the created config
@@ -144,22 +197,22 @@ async function createWagmiConfig(): Promise<any> {
       const chains = await getChains();
       const fallbackConnectors = await createConnectors();
       const defaultRpcUrls = getDefaultRpcUrls();
-      
+
       if (fallbackConnectors.length > 0) {
         return createConfig({
-          chains: [chains[0]], // BSC Mainnet only
+          chains: [chains[0]], // Default to first supported chain (BSC)
           connectors: fallbackConnectors,
           transports: {
-            [chains[0].id]: http(defaultRpcUrls[56]),
+            [chains[0].id]: http(defaultRpcUrls[chains[0].id] || defaultRpcUrls[56]),
           },
         });
       } else {
         // Last resort: empty connectors
         return createConfig({
-          chains: [chains[0]], // BSC Mainnet only
+          chains: [chains[0]],
           connectors: [],
           transports: {
-            [chains[0].id]: http(defaultRpcUrls[56]),
+            [chains[0].id]: http(defaultRpcUrls[chains[0].id] || defaultRpcUrls[56]),
           },
         });
       }

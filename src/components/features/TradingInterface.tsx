@@ -16,13 +16,13 @@ import {
 } from 'lucide-react';
 import { Card, Button, Badge, Progress } from '../ui';
 import { TransactionPreviewModal } from './TransactionPreviewModal';
-import { KasPumpToken } from '../../types';
+import { KasPumpToken, TradeData } from '../../types';
 import { useContracts } from '../../hooks/useContracts';
 import { formatCurrency, formatPercentage, cn } from '../../utils';
 
 export interface TradingInterfaceProps {
   token: KasPumpToken;
-  onTrade?: (type: 'buy' | 'sell', amount: string, slippage: number) => void;
+  onTrade?: (trade: TradeData) => Promise<void> | void;
   userBalance?: number;
   userTokenBalance?: number;
   className?: string;
@@ -36,6 +36,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   className
 }) => {
   const contracts = useContracts();
+  const getSwapQuote = contracts.getSwapQuote;
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [amount, setAmount] = useState('');
   const [slippage, setSlippage] = useState(1.0);
@@ -44,6 +45,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const [priceImpact, setPriceImpact] = useState(0);
   const [minimumReceived, setMinimumReceived] = useState(0);
   const [fees, setFees] = useState(0);
+  const [gasFee, setGasFee] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -53,11 +55,12 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
 
   // Calculate trade details using real bonding curve math
   const calculateTradeDetails = useCallback(async () => {
-    if (!amount || parseFloat(amount) <= 0 || !contracts.getSwapQuote) {
+    if (!amount || parseFloat(amount) <= 0 || !getSwapQuote) {
       setExpectedOutput(0);
       setPriceImpact(0);
       setMinimumReceived(0);
       setFees(0);
+      setGasFee(0);
       return;
     }
 
@@ -66,15 +69,16 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
 
     try {
       // Get real quote from bonding curve contract
-      const quote = await contracts.getSwapQuote(token.address, inputAmount, tradeType);
+      const quote = await getSwapQuote(token.address, inputAmount, tradeType);
 
       setExpectedOutput(quote.outputAmount);
       setPriceImpact(quote.priceImpact);
-      setMinimumReceived(quote.outputAmount * (1 - slippage / 100));
+      setMinimumReceived(quote.minimumOutput);
 
       // Calculate fees (1% platform fee on input amount)
       const platformFee = inputAmount * 0.01;
       setFees(platformFee);
+      setGasFee(quote.gasFee);
     } catch (error) {
       console.error('Failed to get swap quote:', error);
       // Reset on error
@@ -82,10 +86,11 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
       setPriceImpact(0);
       setMinimumReceived(0);
       setFees(0);
+      setGasFee(0);
     } finally {
       setQuoteLoading(false);
     }
-  }, [amount, tradeType, token.address, contracts, slippage]);
+  }, [amount, tradeType, token.address, getSwapQuote, slippage]);
 
   // Calculate trade details when amount or trade type changes
   useEffect(() => {
@@ -103,17 +108,27 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   };
 
   const handleTradeClick = () => {
-    if (!amount || parseFloat(amount) <= 0 || isInsufficientBalance()) return;
+    if (!amount || parseFloat(amount) <= 0 || isInsufficientBalance() || quoteLoading) return;
     setShowPreview(true);
   };
 
   const handleConfirmTrade = async () => {
     if (!amount || parseFloat(amount) <= 0) return;
-    
+
     setShowPreview(false);
     setLoading(true);
     try {
-      await onTrade?.(tradeType, amount, slippage);
+      const tradePayload: TradeData = {
+        tokenAddress: token.address,
+        action: tradeType,
+        baseAmount: parseFloat(amount),
+        slippageTolerance: slippage,
+        expectedOutput,
+        priceImpact,
+        gasFee,
+      };
+
+      await onTrade?.(tradePayload);
     } catch (error) {
       console.error('Trade error:', error);
     } finally {
@@ -129,6 +144,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const getTradeButtonText = () => {
     if (!amount || parseFloat(amount) <= 0) return `Enter ${tradeType === 'buy' ? 'BNB' : token.symbol} amount`;
     if (isInsufficientBalance()) return 'Insufficient Balance';
+    if (quoteLoading) return 'Fetching quote...';
     if (loading) return `${tradeType === 'buy' ? 'Buying' : 'Selling'}...`;
     return `${tradeType === 'buy' ? 'Buy' : 'Sell'} ${token.symbol}`;
   };
@@ -356,7 +372,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
       {/* Trade Button - Mobile optimized */}
       <Button
         onClick={handleTradeClick}
-        disabled={!amount || parseFloat(amount) <= 0 || isInsufficientBalance() || loading}
+        disabled={!amount || parseFloat(amount) <= 0 || isInsufficientBalance() || loading || quoteLoading}
         className={cn(
           'w-full min-h-[56px] text-base sm:text-lg font-bold transition-all duration-200',
           'touch-manipulation', // Optimize touch response
@@ -404,7 +420,8 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
         slippage={slippage}
         minimumReceived={minimumReceived}
         fees={fees}
-        chainId={undefined} // Will be determined from wallet
+        gasFee={gasFee}
+        chainId={(token as any).chainId}
         loading={loading}
       />
     </Card>

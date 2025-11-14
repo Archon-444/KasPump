@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ethers } from 'ethers';
 import {
   ArrowLeft,
-  ExternalLink,
   Share2,
   Heart,
   MessageCircle,
@@ -25,11 +24,13 @@ import { RecentTradesFeed } from './RecentTradesFeed';
 import { HolderList } from './HolderList';
 import { MobileTradingInterface } from '../mobile';
 import { Card, Button, Badge, Progress } from '../ui';
-import { KasPumpToken } from '../../types';
+import { KasPumpToken, TradeData } from '../../types';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
 import { useContracts } from '../../hooks/useContracts';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatPercentage, formatTimeAgo, cn } from '../../utils';
+import { getExplorerUrl } from '../../config/chains';
 import { Bell } from 'lucide-react';
 
 export interface TokenTradingPageProps {
@@ -46,6 +47,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
   const wallet = useMultichainWallet();
   const contracts = useContracts();
   const isMobile = useIsMobile();
+  const { showError, showSuccess } = useToast();
 
   const [timeframe, setTimeframe] = useState('1h');
   const [liked, setLiked] = useState(false);
@@ -54,40 +56,77 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
   const [userTokenBalance, setUserTokenBalance] = useState(0);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
   const [showSocialShare, setShowSocialShare] = useState(false);
-  const chainId = (token as any).chainId;
+  const fetchBalances = useCallback(async () => {
+    if (!wallet.address) {
+      setUserBalance(0);
+      setUserTokenBalance(0);
+      return;
+    }
 
-  // Fetch real user balances
+    const readProvider = contracts.readProvider ?? contracts.provider;
+    if (!readProvider) {
+      setUserBalance(0);
+      setUserTokenBalance(0);
+      return;
+    }
+
+    try {
+      const nativeBalance = await readProvider.getBalance(wallet.address);
+      setUserBalance(parseFloat(ethers.formatEther(nativeBalance)));
+
+      const tokenBalance = await contracts.getTokenBalance(token.address, wallet.address);
+      setUserTokenBalance(tokenBalance);
+    } catch (error) {
+      console.error('Failed to fetch balances:', error);
+      setUserBalance(0);
+      setUserTokenBalance(0);
+    }
+  }, [wallet.address, contracts, token.address]);
+
   useEffect(() => {
-    const fetchBalances = async () => {
-      if (!wallet.address || !contracts.readProvider) {
-        setUserBalance(0);
-        setUserTokenBalance(0);
-        return;
+    fetchBalances();
+  }, [fetchBalances]);
+
+  const resolveChainId = useCallback(() => {
+    if (wallet.chainId) return wallet.chainId;
+    if ((token as any).chainId) return (token as any).chainId as number;
+    return undefined;
+  }, [wallet.chainId, token]);
+
+  const handleTrade = useCallback(
+    async (trade: TradeData) => {
+      if (!wallet.connected || !wallet.address) {
+        const error = new Error('Connect your wallet to trade.');
+        showError(error);
+        throw error;
       }
 
       try {
-        // Get native balance (BNB/ETH)
-        const nativeBalance = await contracts.readProvider.getBalance(wallet.address);
-        setUserBalance(parseFloat(ethers.formatEther(nativeBalance)));
+        const txHash = await contracts.executeTrade(trade);
 
-        // Get token balance
-        const tokenContract = contracts.getTokenContract(token.address);
-        const tokenBal = await tokenContract.balanceOf(wallet.address);
-        setUserTokenBalance(parseFloat(ethers.formatEther(tokenBal)));
-      } catch (error) {
-        console.error('Failed to fetch balances:', error);
-        setUserBalance(0);
-        setUserTokenBalance(0);
+        const chainId = resolveChainId();
+        const explorerUrl = chainId ? getExplorerUrl(chainId, 'tx', txHash) : undefined;
+
+        showSuccess(
+          trade.action === 'buy' ? 'Purchase submitted' : 'Sell order submitted',
+          'Your transaction has been sent to the network.',
+          {
+            txHash,
+            explorerUrl,
+          }
+        );
+
+        await fetchBalances();
+      } catch (error: unknown) {
+        console.error('Trade execution failed:', error);
+        showError(error instanceof Error ? error : new Error('Failed to execute trade'));
+        throw error;
       }
-    };
+    },
+    [wallet.connected, wallet.address, contracts, resolveChainId, fetchBalances, showError, showSuccess]
+  );
 
-    fetchBalances();
-  }, [wallet.address, token.address, contracts]);
-  
-  const handleTrade = async (type: 'buy' | 'sell', amount: string, slippage: number) => {
-    console.log(`${type.toUpperCase()} ${amount} ${token.symbol} with ${slippage}% slippage`);
-    // TODO: Implement actual trading logic
-  };
+  const resolvedChainId = resolveChainId();
 
   const handleLike = () => {
     setLiked(!liked);
@@ -133,7 +172,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
           <div className="flex items-center space-x-3">
             <FavoriteButton
               tokenAddress={token.address}
-              chainId={chainId}
+              chainId={resolvedChainId}
               size="sm"
             />
             
@@ -362,11 +401,11 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            <RecentTradesFeed
-              tokenAddress={token.address}
-              chainId={chainId}
-              maxTrades={10}
-            />
+          <RecentTradesFeed
+            tokenAddress={token.address}
+            chainId={resolvedChainId}
+            maxTrades={10}
+          />
           </motion.div>
         </div>
 
@@ -379,7 +418,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
         >
           <HolderList
             tokenAddress={token.address}
-            chainId={chainId}
+            chainId={resolvedChainId}
             maxHolders={20}
           />
         </motion.div>
@@ -391,7 +430,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
             animate={{ opacity: 1, y: 0 }}
             className="mb-6"
           >
-            <TokenSocialShare token={token} chainId={chainId} />
+            <TokenSocialShare token={token} chainId={resolvedChainId} />
           </motion.div>
         )}
       </div>
@@ -401,7 +440,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
         isOpen={showPriceAlert}
         onClose={() => setShowPriceAlert(false)}
         token={token}
-        chainId={chainId}
+        chainId={resolvedChainId}
       />
     </div>
   );
