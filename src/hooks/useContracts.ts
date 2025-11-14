@@ -13,7 +13,7 @@ import {
 import { useMultichainWallet } from './useMultichainWallet';
 import { useContractProvider } from './contracts/useContractProvider';
 import { parseContractError } from '../utils/contractErrors';
-import { getTokenFactoryAddress, getFeeRecipientAddress, getChainName, getSupportedChains } from '../config/contracts';
+import { getTokenFactoryAddress, getChainName, getSupportedChains } from '../config/contracts';
 
 // Enhanced ABI definitions with events
 const TOKEN_FACTORY_ABI = [
@@ -51,12 +51,6 @@ const ERC20_ABI = [
   "function totalSupply() external view returns (uint256)"
 ];
 
-// Network configuration from environment
-const NETWORK_CONFIG = {
-  chainId: Number(process.env.NEXT_PUBLIC_DEFAULT_CHAIN_ID ?? '97'),
-  rpcUrl: process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ?? 'https://data-seed-prebsc-1-s1.binance.org:8545',
-};
-
 // AMM address cache for performance
 const ammAddressCache = new Map<string, string>();
 
@@ -65,17 +59,15 @@ export function useContracts() {
 
   // Get contract addresses for current chain
   const currentChainId = wallet.chainId ?? Number(process.env.NEXT_PUBLIC_DEFAULT_CHAIN_ID ?? '97');
-  const CONTRACT_ADDRESSES = {
-    tokenFactory: getTokenFactoryAddress(currentChainId) ?? '',
-    feeRecipient: getFeeRecipientAddress(currentChainId) ?? '',
-  };
-
   // Use extracted provider hook
   const {
     provider,
+    readProvider,
     signer,
     isInitialized,
     isConnected,
+    getRunnerOrThrow: providerRunner,
+    getReadProviderOrThrow: providerReadRunner,
     getContractRunner
   } = useContractProvider(wallet, currentChainId);
 
@@ -104,15 +96,37 @@ export function useContracts() {
   }, [signer, currentChainId]);
 
   const getRunnerOrThrow = useCallback((): ethers.Signer | ethers.AbstractProvider => {
+    if (getContractRunner) {
+      try {
+        return getContractRunner();
+      } catch (error) {
+        console.warn('Contract runner unavailable from provider hook, falling back to signer/provider.', error);
+      }
+    }
+    if (providerRunner) {
+      try {
+        return providerRunner();
+      } catch (error) {
+        console.warn('Provider runner unavailable, attempting manual resolution.', error);
+      }
+    }
     if (signer && typeof signer === 'object') return signer;
     if (provider && typeof provider === 'object') return provider;
     throw new Error('Blockchain provider not available');
-  }, [signer, provider]);
+  }, [getContractRunner, providerRunner, signer, provider]);
 
   const getReadProviderOrThrow = useCallback((): ethers.AbstractProvider => {
+    if (providerReadRunner) {
+      try {
+        return providerReadRunner();
+      } catch (error) {
+        console.warn('Provider read runner unavailable, falling back to resolved provider.', error);
+      }
+    }
+    if (readProvider && typeof readProvider === 'object') return readProvider;
     if (provider && typeof provider === 'object') return provider;
     throw new Error('Blockchain provider not available');
-  }, [provider]);
+  }, [providerReadRunner, readProvider, provider]);
 
   const getBondingCurveContract = useCallback((ammAddress: string) => {
     if (!ammAddress) {
@@ -513,6 +527,7 @@ export function useContracts() {
     isConnected,
     isInitialized,
     provider,
+    readProvider: readProvider ?? provider,
     signer,
 
     // Contract instances

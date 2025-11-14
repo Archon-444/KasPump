@@ -14,12 +14,13 @@ import {
   Vibrate
 } from 'lucide-react';
 import { cn } from '../../utils';
-import { KasPumpToken } from '../../types';
+import { KasPumpToken, TradeData } from '../../types';
+import { useContracts } from '../../hooks/useContracts';
 import { Button } from '../ui';
 
 export interface MobileTradingInterfaceProps {
   token: KasPumpToken;
-  onTrade?: (type: 'buy' | 'sell', amount: string, slippage: number) => void;
+  onTrade?: (trade: TradeData) => Promise<void> | void;
   userBalance?: number;
   userTokenBalance?: number;
   className?: string;
@@ -38,7 +39,13 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [expectedOutput, setExpectedOutput] = useState(0);
   const [priceImpact, setPriceImpact] = useState(0);
+  const [minimumReceived, setMinimumReceived] = useState(0);
+  const [fees, setFees] = useState(0);
+  const [gasFee, setGasFee] = useState(0);
+  const [quoteLoading, setQuoteLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const contracts = useContracts();
+  const getSwapQuote = contracts.getSwapQuote;
 
   // Touch interaction refs
   const constraintsRef = useRef(null);
@@ -56,30 +63,58 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
     { label: 'MAX', value: 100, color: 'bg-yellow-500' }
   ];
 
-  // Calculate trade details
+  // Calculate trade details using live contract quotes
   useEffect(() => {
-    if (!amount || parseFloat(amount) <= 0) {
+    let cancelled = false;
+
+    if (!amount || parseFloat(amount) <= 0 || !getSwapQuote) {
       setExpectedOutput(0);
       setPriceImpact(0);
+      setMinimumReceived(0);
+      setFees(0);
+      setGasFee(0);
+      setQuoteLoading(false);
       return;
     }
 
     const inputAmount = parseFloat(amount);
-    
-    if (tradeType === 'buy') {
-      const tokensReceived = inputAmount / token.price;
-      const impact = Math.min((inputAmount / token.volume24h) * 100, 5);
-      
-      setExpectedOutput(tokensReceived);
-      setPriceImpact(impact);
-    } else {
-      const bnbReceived = inputAmount * token.price;
-      const impact = Math.min((bnbReceived / token.volume24h) * 100, 5);
-      
-      setExpectedOutput(bnbReceived * 0.99); // 1% fee
-      setPriceImpact(impact);
-    }
-  }, [amount, tradeType, token.price, token.volume24h]);
+    setQuoteLoading(true);
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const quote = await getSwapQuote(token.address, inputAmount, tradeType);
+        if (cancelled) return;
+
+        setExpectedOutput(quote.outputAmount);
+        setPriceImpact(quote.priceImpact);
+        const minimum = Math.min(
+          quote.minimumOutput,
+          quote.outputAmount * (1 - slippage / 100)
+        );
+        setMinimumReceived(minimum);
+        setFees(inputAmount * 0.01);
+        setGasFee(quote.gasFee);
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to get swap quote:', error);
+          setExpectedOutput(0);
+          setPriceImpact(0);
+          setMinimumReceived(0);
+          setFees(0);
+          setGasFee(0);
+        }
+      } finally {
+        if (!cancelled) {
+          setQuoteLoading(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [amount, tradeType, token.address, getSwapQuote, slippage]);
 
   const handleQuickAmount = (percentage: number) => {
     const maxAmount = tradeType === 'buy' ? userBalance : userTokenBalance;
@@ -93,17 +128,27 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
   };
 
   const handleTrade = async () => {
-    if (!amount || parseFloat(amount) <= 0) return;
-    
+    if (!amount || parseFloat(amount) <= 0 || quoteLoading) return;
+
     setLoading(true);
-    
+
     // Haptic feedback for trade
     if (navigator.vibrate) {
       navigator.vibrate([100, 50, 100]);
     }
-    
+
     try {
-      await onTrade?.(tradeType, amount, slippage);
+      const tradePayload: TradeData = {
+        tokenAddress: token.address,
+        action: tradeType,
+        baseAmount: parseFloat(amount),
+        slippageTolerance: slippage,
+        expectedOutput,
+        priceImpact,
+        gasFee,
+      };
+
+      await onTrade?.(tradePayload);
     } catch (error) {
       console.error('Trade error:', error);
     } finally {
@@ -273,6 +318,27 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
             </span>
           </div>
 
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-gray-400">Min received</span>
+            <span className="text-white font-mono">
+              {minimumReceived.toFixed(tradeType === 'buy' ? 2 : 6)} {tradeType === 'buy' ? token.symbol : 'BNB'}
+            </span>
+          </div>
+
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-gray-400">Platform fee</span>
+            <span className="text-white font-mono">
+              {fees.toFixed(4)} {tradeType === 'buy' ? 'BNB' : token.symbol}
+            </span>
+          </div>
+
+          {gasFee > 0 && (
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-400">Estimated gas</span>
+              <span className="text-white font-mono">{gasFee.toFixed(4)} BNB</span>
+            </div>
+          )}
+
           {priceImpact > 5 && (
             <div className="flex items-center space-x-2 p-2 bg-yellow-500/10 rounded-lg">
               <AlertTriangle size={16} className="text-yellow-400" />
@@ -334,7 +400,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
       >
         <Button
           onClick={handleTrade}
-          disabled={!amount || parseFloat(amount) <= 0 || isInsufficientBalance() || loading}
+          disabled={!amount || parseFloat(amount) <= 0 || isInsufficientBalance() || loading || quoteLoading}
           className={cn(
             'w-full h-16 text-xl font-bold transition-all duration-200',
             'flex items-center justify-center space-x-3',
@@ -354,10 +420,12 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
             <>
               <Zap size={24} />
               <span>
-                {!amount || parseFloat(amount) <= 0 
-                  ? 'Enter Amount' 
-                  : isInsufficientBalance() 
-                  ? 'Insufficient Balance' 
+                {!amount || parseFloat(amount) <= 0
+                  ? 'Enter Amount'
+                  : isInsufficientBalance()
+                  ? 'Insufficient Balance'
+                  : quoteLoading
+                  ? 'Fetching quote...'
                   : `${tradeType === 'buy' ? 'Buy' : 'Sell'} ${token.symbol}`
                 }
               </span>
