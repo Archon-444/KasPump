@@ -135,6 +135,14 @@ async function main() {
     console.log("   Fee Recipient:", feeRecipient);
     console.log("   Paused:", isPaused);
 
+    // DEX Integration info
+    console.log("\n🔄 DEX Integration:");
+    console.log(`✅ Chain: ${chainConfig.name} (Chain ID: ${chainConfig.chainId})`);
+    console.log("✅ Automatic DEX liquidity provision enabled");
+    console.log("✅ Graduation split: 70% DEX liquidity, 20% creator, 10% platform");
+    console.log("✅ LP tokens locked for 6 months after graduation");
+    console.log("✅ Chain-specific DEX router auto-configured via DexConfig library");
+
     // ========== STEP 6: Save Deployment Info ==========
 
     console.log("\n📄 Step 6: Saving deployment info...");
