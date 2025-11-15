@@ -36,15 +36,23 @@ async function main() {
     const owner = await tokenFactory.owner();
     const feeRecipient = await tokenFactory.feeRecipient();
     const allTokens = await tokenFactory.getAllTokens();
-    
+
     console.log("Factory owner:", owner);
     console.log("Fee recipient:", feeRecipient);
     console.log("Initial tokens count:", allTokens.length);
-    
+
     console.log("✅ Contract verification successful!");
   } catch (error) {
     console.log("⚠️  Contract verification failed:", error);
   }
+
+  // DEX Integration info
+  console.log("\n🔄 DEX Integration:");
+  console.log("✅ Chain: BSC Testnet (Chain ID: 97)");
+  console.log("✅ Automatic DEX liquidity provision enabled");
+  console.log("✅ Graduation split: 70% DEX liquidity, 20% creator, 10% platform");
+  console.log("✅ LP tokens locked for 6 months after graduation");
+  console.log("✅ Using PancakeSwap V2 Testnet router for automated liquidity");
 
   // Save deployment addresses
   const deploymentInfo = {

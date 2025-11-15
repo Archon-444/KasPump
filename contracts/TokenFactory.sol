@@ -5,10 +5,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./BondingCurveAMM.sol";
+import "./libraries/DexConfig.sol";
 
 /**
- * @title TokenFactory - PRODUCTION GRADE
- * @dev Factory contract for deploying KRC-20 tokens with bonding curves
+ * @title TokenFactory - PRODUCTION GRADE WITH DEX INTEGRATION
+ * @dev Factory contract for deploying KRC-20 tokens with bonding curves and automated DEX liquidity
  * @notice Battle-tested security fixes applied:
  *  - ReentrancyGuard: Prevents reentrancy
  *  - Pausable: Emergency stop
@@ -16,6 +17,10 @@ import "./BondingCurveAMM.sol";
  *  - Comprehensive input validation
  *  - Zero address checks
  *  - Safe CREATE2 deployment
+ * @notice DEX Integration:
+ *  - Auto-detects chain and uses appropriate DEX router
+ *  - Supports BSC (PancakeSwap), Arbitrum (Uniswap), Base (Uniswap)
+ *  - AMM automatically adds liquidity on graduation
  */
 contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
 
@@ -280,8 +285,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @dev Internal function to deploy AMM contract
-     * SECURITY FIX: Now passes tier parameter and creator address correctly
+     * @dev Internal function to deploy AMM contract with DEX integration
      * @param _tokenAddress Address of the token to create AMM for
      * @param _creator Address of token creator (receives graduation funds)
      * @param _basePrice Initial price for bonding curve
@@ -289,6 +293,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
      * @param _curveType Type of bonding curve (linear/exponential)
      * @param _graduationThreshold Supply threshold for graduation
      * @param _tier Membership tier for fees
+     * @notice Automatically detects chain and uses appropriate DEX router
      */
     function deployAMM(
         address _tokenAddress,
@@ -299,6 +304,9 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         uint256 _graduationThreshold,
         uint8 _tier
     ) internal returns (address) {
+        // Get DEX router address for current chain
+        address dexRouter = DexConfig.getRouterAddress(block.chainid);
+
         BondingCurveAMM amm = new BondingCurveAMM(
             _tokenAddress,
             _creator,  // Token creator receives graduation funds
@@ -307,7 +315,8 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
             uint8(_curveType),
             _graduationThreshold,
             feeRecipient,
-            _tier
+            _tier,
+            dexRouter  // DEX router for automated liquidity
         );
 
         return address(amm);

@@ -1,0 +1,377 @@
+# KasPump Subgraph Schema
+# Comprehensive data indexing for tokens, trades, users, and analytics
+
+# ============================================================
+# Core Entities
+# ============================================================
+
+"""
+Token entity - Represents a KasPump token
+"""
+type Token @entity {
+  id: ID! # Token address (lowercase)
+  address: Bytes! # Token contract address
+  name: String! # Token name
+  symbol: String! # Token symbol
+  description: String # Token description
+  imageUrl: String # IPFS or HTTP URL to token image
+
+  # Supply metrics
+  totalSupply: BigInt! # Total supply (immutable)
+  currentSupply: BigInt! # Current circulating supply
+
+  # Pricing
+  basePrice: BigInt! # Base price from bonding curve
+  slope: BigInt! # Slope parameter
+  curveType: CurveType! # Linear or Exponential
+  currentPrice: BigInt! # Current price (calculated)
+
+  # Creator info
+  creator: User! # Token creator
+  createdAt: BigInt! # Creation timestamp
+  createdAtBlock: BigInt! # Creation block number
+
+  # AMM info
+  ammAddress: Bytes! # BondingCurveAMM address
+  graduationThreshold: BigInt! # Supply needed for graduation
+
+  # Status
+  isGraduated: Boolean! # Whether token has graduated
+  graduatedAt: BigInt # Graduation timestamp
+  graduatedAtBlock: BigInt # Graduation block number
+
+  # DEX info (post-graduation)
+  dexPairAddress: Bytes # PancakeSwap/Uniswap pair address
+  lpTokenAddress: Bytes # LP token address
+  lpTokensLocked: BigInt # Amount of LP tokens locked
+  lpUnlockTime: BigInt # When LP tokens can be unlocked
+
+  # Aggregated metrics
+  tradeCount: BigInt! # Total number of trades
+  buyCount: BigInt! # Number of buy trades
+  sellCount: BigInt! # Number of sell trades
+  volumeNative: BigInt! # Total volume in native currency (BNB/ETH)
+  volumeNative24h: BigInt! # 24h volume
+  volumeNative7d: BigInt! # 7d volume
+
+  # Holder metrics
+  holderCount: BigInt! # Number of unique holders
+
+  # Price change metrics
+  priceChange1h: BigDecimal! # 1h price change %
+  priceChange24h: BigDecimal! # 24h price change %
+  priceChange7d: BigDecimal! # 7d price change %
+
+  # Market cap
+  marketCap: BigInt! # Current market cap
+
+  # Relationships
+  trades: [Trade!]! @derivedFrom(field: "token")
+  holders: [TokenHolder!]! @derivedFrom(field: "token")
+  hourlyMetrics: [TokenHourlyMetric!]! @derivedFrom(field: "token")
+  dailyMetrics: [TokenDailyMetric!]! @derivedFrom(field: "token")
+
+  # Metadata
+  chainId: BigInt! # Chain ID (56 for BSC, 97 for BSC Testnet)
+
+  # Last updated
+  lastTradeAt: BigInt # Last trade timestamp
+  updatedAt: BigInt! # Last update timestamp
+}
+
+"""
+User entity - Represents a user (creator or trader)
+"""
+type User @entity {
+  id: ID! # User address (lowercase)
+  address: Bytes! # User wallet address
+
+  # Creator stats
+  tokensCreated: BigInt! # Number of tokens created
+  tokensGraduated: BigInt! # Number of tokens that graduated
+
+  # Trading stats
+  tradeCount: BigInt! # Total trades
+  buyCount: BigInt! # Buy trades
+  sellCount: BigInt! # Sell trades
+  volumeNative: BigInt! # Total trading volume
+
+  # P&L
+  totalSpent: BigInt! # Total native currency spent
+  totalReceived: BigInt! # Total native currency received
+  realizedPnL: BigInt! # Realized profit/loss
+
+  # Relationships
+  createdTokens: [Token!]! @derivedFrom(field: "creator")
+  trades: [Trade!]! @derivedFrom(field: "user")
+  holdings: [TokenHolder!]! @derivedFrom(field: "user")
+
+  # Timestamps
+  firstSeenAt: BigInt! # First interaction timestamp
+  lastSeenAt: BigInt! # Last interaction timestamp
+}
+
+"""
+Trade entity - Represents a buy or sell transaction
+"""
+type Trade @entity {
+  id: ID! # Transaction hash + log index
+  token: Token! # Token being traded
+  user: User! # Trader
+
+  # Trade details
+  type: TradeType! # Buy or Sell
+  nativeAmount: BigInt! # Amount of native currency (BNB/ETH)
+  tokenAmount: BigInt! # Amount of tokens
+  price: BigInt! # Price at time of trade
+
+  # Fees
+  platformFee: BigInt! # Platform fee charged
+
+  # Supply state
+  supplyBefore: BigInt! # Token supply before trade
+  supplyAfter: BigInt! # Token supply after trade
+
+  # Transaction info
+  txHash: Bytes! # Transaction hash
+  blockNumber: BigInt! # Block number
+  timestamp: BigInt! # Block timestamp
+  logIndex: BigInt! # Log index in transaction
+
+  # Gas
+  gasUsed: BigInt # Gas used
+  gasPrice: BigInt # Gas price
+}
+
+"""
+TokenHolder entity - Represents token ownership
+"""
+type TokenHolder @entity {
+  id: ID! # token address + user address
+  token: Token! # Token being held
+  user: User! # Holder
+
+  # Holdings
+  balance: BigInt! # Current balance
+
+  # Cost basis
+  totalBought: BigInt! # Total tokens bought
+  totalSold: BigInt! # Total tokens sold
+  totalSpent: BigInt! # Total native currency spent
+  totalReceived: BigInt! # Total native currency received
+
+  # P&L
+  realizedPnL: BigInt! # Realized profit/loss
+  unrealizedPnL: BigInt! # Unrealized profit/loss
+
+  # Average prices
+  avgBuyPrice: BigInt! # Average buy price
+  avgSellPrice: BigInt! # Average sell price
+
+  # Timestamps
+  firstBoughtAt: BigInt! # First purchase timestamp
+  lastBoughtAt: BigInt # Last purchase timestamp
+  lastSoldAt: BigInt # Last sale timestamp
+  updatedAt: BigInt! # Last update timestamp
+}
+
+# ============================================================
+# Time-series Metrics
+# ============================================================
+
+"""
+TokenHourlyMetric - Hourly aggregated metrics per token
+"""
+type TokenHourlyMetric @entity {
+  id: ID! # token address + hour timestamp
+  token: Token! # Token
+
+  # Time
+  periodStartUnix: BigInt! # Start of hour (unix timestamp)
+
+  # Price OHLC
+  priceOpen: BigInt! # Opening price
+  priceHigh: BigInt! # Highest price
+  priceLow: BigInt! # Lowest price
+  priceClose: BigInt! # Closing price
+
+  # Volume
+  volumeNative: BigInt! # Volume in native currency
+  volumeToken: BigInt! # Volume in tokens
+
+  # Trades
+  tradeCount: BigInt! # Number of trades
+  buyCount: BigInt! # Number of buys
+  sellCount: BigInt! # Number of sells
+
+  # Supply
+  supplyStart: BigInt! # Supply at start
+  supplyEnd: BigInt! # Supply at end
+
+  # Unique traders
+  uniqueTraders: BigInt! # Number of unique traders this hour
+}
+
+"""
+TokenDailyMetric - Daily aggregated metrics per token
+"""
+type TokenDailyMetric @entity {
+  id: ID! # token address + day timestamp
+  token: Token! # Token
+
+  # Time
+  periodStartUnix: BigInt! # Start of day (unix timestamp)
+
+  # Price OHLC
+  priceOpen: BigInt! # Opening price
+  priceHigh: BigInt! # Highest price
+  priceLow: BigInt! # Lowest price
+  priceClose: BigInt! # Closing price
+
+  # Volume
+  volumeNative: BigInt! # Volume in native currency
+  volumeToken: BigInt! # Volume in tokens
+
+  # Trades
+  tradeCount: BigInt! # Number of trades
+  buyCount: BigInt! # Number of buys
+  sellCount: BigInt! # Number of sells
+
+  # Supply
+  supplyStart: BigInt! # Supply at start
+  supplyEnd: BigInt! # Supply at end
+
+  # Holders
+  holderCountStart: BigInt! # Holders at start
+  holderCountEnd: BigInt! # Holders at end
+  newHolders: BigInt! # New holders this day
+
+  # Unique traders
+  uniqueTraders: BigInt! # Number of unique traders this day
+}
+
+"""
+PlatformDailyMetric - Platform-wide daily metrics
+"""
+type PlatformDailyMetric @entity {
+  id: ID! # day timestamp
+
+  # Time
+  periodStartUnix: BigInt! # Start of day
+
+  # Token stats
+  tokensCreated: BigInt! # Tokens created this day
+  tokensGraduated: BigInt! # Tokens graduated this day
+  totalTokens: BigInt! # Total tokens (cumulative)
+  totalGraduated: BigInt! # Total graduated (cumulative)
+
+  # Trading stats
+  tradeCount: BigInt! # Trades this day
+  volumeNative: BigInt! # Volume this day
+  uniqueTraders: BigInt! # Unique traders this day
+
+  # Fees collected
+  platformFeesNative: BigInt! # Platform fees in native currency
+
+  # User stats
+  newUsers: BigInt! # New users this day
+  totalUsers: BigInt! # Total users (cumulative)
+}
+
+# ============================================================
+# Events (for historical tracking)
+# ============================================================
+
+"""
+TokenCreatedEvent - Token creation event
+"""
+type TokenCreatedEvent @entity {
+  id: ID! # tx hash + log index
+  token: Token! # Created token
+  creator: User! # Creator
+
+  # Event data
+  txHash: Bytes! # Transaction hash
+  blockNumber: BigInt! # Block number
+  timestamp: BigInt! # Block timestamp
+  logIndex: BigInt! # Log index
+}
+
+"""
+TokenGraduatedEvent - Token graduation event
+"""
+type TokenGraduatedEvent @entity {
+  id: ID! # tx hash + log index
+  token: Token! # Graduated token
+
+  # Graduation details
+  finalSupply: BigInt! # Final supply at graduation
+  nativeReserve: BigInt! # Native currency reserve
+  liquidityAmount: BigInt! # Amount added to DEX
+  creatorShare: BigInt! # Creator's share
+  platformShare: BigInt! # Platform's share
+
+  # DEX info
+  dexPairAddress: Bytes # DEX pair address
+  lpTokenAddress: Bytes # LP token address
+  lpTokensLocked: BigInt # LP tokens locked
+  lpUnlockTime: BigInt # Unlock timestamp
+
+  # Event data
+  txHash: Bytes! # Transaction hash
+  blockNumber: BigInt! # Block number
+  timestamp: BigInt! # Block timestamp
+  logIndex: BigInt! # Log index
+}
+
+# ============================================================
+# Enums
+# ============================================================
+
+enum CurveType {
+  LINEAR
+  EXPONENTIAL
+}
+
+enum TradeType {
+  BUY
+  SELL
+}
+
+# ============================================================
+# Global State
+# ============================================================
+
+"""
+Factory - Global factory state
+"""
+type Factory @entity {
+  id: ID! # Always "1"
+
+  # Addresses
+  address: Bytes! # Factory contract address
+  feeRecipient: Bytes! # Fee recipient address
+
+  # Stats
+  tokenCount: BigInt! # Total tokens created
+  graduatedCount: BigInt! # Total graduated tokens
+  tradeCount: BigInt! # Total trades
+
+  # Volume
+  totalVolumeNative: BigInt! # All-time volume
+
+  # Fees
+  totalFeesNative: BigInt! # All-time fees collected
+
+  # Users
+  userCount: BigInt! # Total unique users
+
+  # Constants
+  platformFee: BigInt! # Platform fee in basis points
+  creationFee: BigInt! # Creation fee in native currency
+  creationCooldown: BigInt! # Cooldown between creations
+
+  # Timestamps
+  createdAt: BigInt! # Factory deployment timestamp
+  updatedAt: BigInt! # Last update timestamp
+}

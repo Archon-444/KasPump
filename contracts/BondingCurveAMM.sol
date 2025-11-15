@@ -8,10 +8,11 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./interfaces/IPancakeRouter.sol";
 
 /**
- * @title BondingCurveAMM - PRODUCTION GRADE
- * @dev Automated Market Maker with bonding curve pricing
+ * @title BondingCurveAMM - PRODUCTION GRADE WITH DEX INTEGRATION
+ * @dev Automated Market Maker with bonding curve pricing and automatic DEX liquidity
  * @notice Battle-tested security fixes applied:
  *  - ReentrancyGuard: Prevents reentrancy attacks
  *  - Pausable: Emergency stop mechanism
@@ -21,6 +22,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *  - Comprehensive input validation
  *  - Fixed precision loss issues
  *  - Proper Checks-Effects-Interactions pattern
+ * @notice DEX Integration Features:
+ *  - Automatic liquidity provision on graduation (70% of funds)
+ *  - LP token locking for 6 months (anti-rug mechanism)
+ *  - Funds split: 70% DEX liquidity, 20% creator, 10% platform
  */
 contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     using Address for address payable;
@@ -35,7 +40,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     uint8 public immutable curveType; // 0 = LINEAR, 1 = EXPONENTIAL
     uint256 public immutable graduationThreshold;
     address payable public immutable feeRecipient;
-    uint8 public immutable membershipTier; // NEW: For tiered fees
+    uint8 public immutable membershipTier; // For tiered fees
+    IPancakeRouter public immutable dexRouter; // DEX router for liquidity provision
 
     // ========== MUTABLE STATE ==========
 
@@ -46,6 +52,11 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     // Graduation withdrawal tracking
     mapping(address => uint256) public withdrawableGraduationFunds;
     uint256 public totalGraduationFunds;
+
+    // DEX LP token tracking
+    address public lpTokenAddress; // Address of LP token contract
+    uint256 public lpTokensLocked; // Amount of LP tokens locked
+    uint256 public lpUnlockTime; // Timestamp when LP can be unlocked (6 months)
 
     // ========== CONSTANTS ==========
 
@@ -62,6 +73,13 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     uint256 public constant MIN_BASE_PRICE = 1e12; // Minimum 0.000001 ETH
     uint256 public constant MAX_BASE_PRICE = 1e24; // Maximum 1,000,000 ETH
     uint256 public constant MAX_SLOPE = 1e20; // Prevent extreme slopes
+
+    // DEX Integration constants
+    uint256 public constant LP_LOCK_DURATION = 180 days; // 6 months LP lock
+    uint256 public constant DEX_LIQUIDITY_PERCENT = 70; // 70% for DEX
+    uint256 public constant CREATOR_PERCENT = 20; // 20% for creator
+    uint256 public constant PLATFORM_PERCENT = 10; // 10% for platform
+    uint256 public constant DEX_SLIPPAGE_TOLERANCE = 5; // 5% slippage on DEX add
 
     // ========== EVENTS ==========
 
@@ -93,6 +111,26 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         address indexed platform
     );
 
+    event LiquidityAdded(
+        uint256 tokenAmount,
+        uint256 nativeAmount,
+        uint256 liquidity,
+        address indexed lpTokenAddress,
+        address indexed dexPair
+    );
+
+    event LPTokensLocked(
+        uint256 amount,
+        uint256 unlockTime,
+        address indexed lpToken
+    );
+
+    event LPTokensWithdrawn(
+        address indexed creator,
+        uint256 amount,
+        address indexed lpToken
+    );
+
     event EmergencyWithdraw(
         address indexed admin,
         uint256 amount,
@@ -111,6 +149,9 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     error InvalidParameter(string param);
     error InsufficientBalance();
     error NoWithdrawableFunds();
+    error LPTokensStillLocked();
+    error NoLPTokensToWithdraw();
+    error DEXLiquidityFailed();
 
     // ========== MODIFIERS ==========
 
@@ -136,6 +177,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
      * @param _graduationThreshold Supply at which token graduates
      * @param _feeRecipient Address receiving platform fees (cannot be zero)
      * @param _membershipTier Tier level (0=Basic, 1=Premium, 2=Enterprise)
+     * @param _dexRouter DEX router address for liquidity provision (cannot be zero)
      */
     constructor(
         address _token,
@@ -145,13 +187,15 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         uint8 _curveType,
         uint256 _graduationThreshold,
         address payable _feeRecipient,
-        uint8 _membershipTier
+        uint8 _membershipTier,
+        address _dexRouter
     ) Ownable(msg.sender) {
         // ========== CRITICAL: Comprehensive Input Validation ==========
 
         if (_token == address(0)) revert ZeroAddress();
         if (_tokenCreator == address(0)) revert ZeroAddress();
         if (_feeRecipient == address(0)) revert ZeroAddress();
+        if (_dexRouter == address(0)) revert ZeroAddress();
         if (_curveType > 1) revert InvalidCurveType();
 
         if (_basePrice < MIN_BASE_PRICE || _basePrice > MAX_BASE_PRICE) {
@@ -179,6 +223,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         graduationThreshold = _graduationThreshold;
         feeRecipient = _feeRecipient;
         membershipTier = _membershipTier;
+        dexRouter = IPancakeRouter(_dexRouter);
     }
 
     // ========== EXTERNAL FUNCTIONS ==========
@@ -516,29 +561,31 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @dev Graduate token - uses pull payment pattern for safety
-     * SECURITY FIX: Splits funds between creator (80%) and platform (20%)
-     * @notice Token creator receives 80% to provide DEX liquidity
-     * @notice Platform receives 20% as compensation for risk during bonding phase
+     * @dev Graduate token - Automatic DEX liquidity provision with LP locking
+     * @notice AUTOMATED DEX INTEGRATION:
+     *  - 70% of funds → DEX liquidity (LP tokens locked 6 months)
+     *  - 20% of funds → Creator (withdrawable)
+     *  - 10% of funds → Platform (immediate transfer)
      */
     function _graduateToken() internal {
         isGraduated = true;
 
         uint256 contractBalance = address(this).balance;
 
-        // ECONOMIC MODEL: Split graduation funds
-        // 80% to creator for DEX liquidity provision
-        // 20% to platform as risk compensation
-        uint256 creatorShare = (contractBalance * 80) / 100;
-        uint256 platformShare = contractBalance - creatorShare; // More precise than 20%
+        // ECONOMIC MODEL: Three-way split for automated DEX liquidity
+        uint256 liquidityAmount = (contractBalance * DEX_LIQUIDITY_PERCENT) / 100; // 70%
+        uint256 creatorShare = (contractBalance * CREATOR_PERCENT) / 100; // 20%
+        uint256 platformShare = (contractBalance * PLATFORM_PERCENT) / 100; // 10%
 
-        totalGraduationFunds = creatorShare; // Track creator-withdrawable amount
-
-        // Allocate creator share for withdrawal (pull pattern)
+        // Track creator-withdrawable amount
+        totalGraduationFunds = creatorShare;
         withdrawableGraduationFunds[tokenCreator] = creatorShare;
 
         // Transfer platform share immediately (safe, trusted recipient)
         feeRecipient.sendValue(platformShare);
+
+        // AUTOMATED LIQUIDITY PROVISION to DEX
+        _addLiquidityToDEX(liquidityAmount);
 
         emit GraduationFundsSplit(
             creatorShare,
@@ -552,10 +599,97 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             contractBalance,
             block.timestamp
         );
+    }
 
-        // NOTE: Future enhancement - Automatic DEX integration
-        // Can integrate with PancakeSwap V2/V3 or Uniswap V2/V3
-        // Would use 70% for liquidity, 20% creator, 10% platform
+    /**
+     * @dev Add liquidity to DEX and lock LP tokens
+     * @param nativeAmount Amount of native currency to add
+     * SECURITY: Uses try/catch to prevent graduation DoS on DEX failure
+     */
+    function _addLiquidityToDEX(uint256 nativeAmount) internal {
+        // Get all remaining tokens in AMM
+        uint256 tokenAmount = token.balanceOf(address(this));
+
+        if (tokenAmount == 0 || nativeAmount == 0) {
+            // If no tokens/native, skip DEX integration (shouldn't happen in normal flow)
+            return;
+        }
+
+        // Approve router to spend tokens
+        token.safeIncreaseAllowance(address(dexRouter), tokenAmount);
+
+        // Calculate minimum amounts (5% slippage tolerance)
+        uint256 minTokenAmount = (tokenAmount * (100 - DEX_SLIPPAGE_TOLERANCE)) / 100;
+        uint256 minNativeAmount = (nativeAmount * (100 - DEX_SLIPPAGE_TOLERANCE)) / 100;
+
+        try dexRouter.addLiquidityETH{value: nativeAmount}(
+            address(token),
+            tokenAmount,
+            minTokenAmount,
+            minNativeAmount,
+            address(this), // LP tokens sent to this contract (will be locked)
+            block.timestamp + 300 // 5 minute deadline
+        ) returns (uint256 amountToken, uint256 amountETH, uint256 liquidity) {
+            // Get LP token address from factory
+            address weth = dexRouter.WETH();
+            address factory = dexRouter.factory();
+            address lpToken = IPancakeFactory(factory).getPair(address(token), weth);
+
+            // Store LP token info
+            lpTokenAddress = lpToken;
+            lpTokensLocked = liquidity;
+            lpUnlockTime = block.timestamp + LP_LOCK_DURATION; // 6 months from now
+
+            emit LiquidityAdded(
+                amountToken,
+                amountETH,
+                liquidity,
+                lpToken,
+                lpToken
+            );
+
+            emit LPTokensLocked(
+                liquidity,
+                lpUnlockTime,
+                lpToken
+            );
+        } catch {
+            // If DEX liquidity fails, don't revert graduation
+            // Funds remain in contract for emergency withdrawal
+            // This prevents DoS attacks on graduation
+            emit Graduated(
+                currentSupply,
+                nativeAmount,
+                block.timestamp
+            );
+        }
+    }
+
+    /**
+     * @dev Withdraw LP tokens after lock period expires
+     * @notice Only token creator can withdraw, and only after 6 months
+     * SECURITY: Time-locked to prevent rug pulls
+     */
+    function withdrawLPTokens() external nonReentrant {
+        // Only creator can withdraw
+        if (msg.sender != tokenCreator) revert NoWithdrawableFunds();
+
+        // Check if tokens are still locked
+        if (block.timestamp < lpUnlockTime) revert LPTokensStillLocked();
+
+        // Check if there are LP tokens to withdraw
+        if (lpTokensLocked == 0) revert NoLPTokensToWithdraw();
+
+        uint256 amount = lpTokensLocked;
+        address lpToken = lpTokenAddress;
+
+        // Effects before interactions
+        lpTokensLocked = 0;
+
+        // Transfer LP tokens to creator
+        IERC20Minimal(lpToken).transfer(tokenCreator, amount);
+
+        emit LPTokensWithdrawn(tokenCreator, amount, lpToken);
     }
 
     // ========== ADMIN FUNCTIONS ==========

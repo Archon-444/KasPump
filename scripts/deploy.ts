@@ -57,6 +57,14 @@ async function main() {
   console.log("Factory owner:", owner);
   console.log("Fee recipient:", feeRecipient);
 
+  // DEX Integration info
+  console.log("\n🔄 DEX Integration:");
+  console.log(`✅ Chain: ${displayName} (Chain ID: ${chainId})`);
+  console.log(`✅ Automatic DEX liquidity provision enabled`);
+  console.log(`✅ Graduation split: 70% DEX liquidity, 20% creator, 10% platform`);
+  console.log(`✅ LP tokens locked for 6 months after graduation`);
+  console.log(`✅ Chain-specific DEX router auto-configured via DexConfig library`);
+
   // Update deployments.json
   console.log("\n📝 Updating deployments.json...");
   const deploymentsPath = "./deployments.json";
