@@ -1,12 +1,60 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Users, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, Clock, Flame, Shield, Zap, Target, Activity } from 'lucide-react';
 import { KasPumpToken, TokenCardProps } from '../../types';
 import { Card, Badge, Progress } from '../ui';
 import { FavoriteButton } from './FavoriteButton';
 import { formatCurrency, formatPercentage, formatTimeAgo, cn } from '../../utils';
+
+// Health scoring system
+type LaunchHealth = 'excellent' | 'good' | 'fair' | 'risky';
+
+interface HealthMetrics {
+  overall: LaunchHealth;
+  volumeScore: number;
+  holderScore: number;
+  stabilityScore: number;
+  liquidityScore: number;
+}
+
+const calculateHealthMetrics = (token: KasPumpToken): HealthMetrics => {
+  // Volume score (based on 24h volume relative to market cap)
+  const volumeToMcapRatio = token.marketCap > 0 ? (token.volume24h / token.marketCap) * 100 : 0;
+  const volumeScore =
+    volumeToMcapRatio > 50 ? 100 :
+    volumeToMcapRatio > 20 ? 80 :
+    volumeToMcapRatio > 10 ? 60 :
+    volumeToMcapRatio > 5 ? 40 : 20;
+
+  // Holder score (more holders = healthier)
+  const holderScore =
+    token.holders > 1000 ? 100 :
+    token.holders > 500 ? 80 :
+    token.holders > 100 ? 60 :
+    token.holders > 50 ? 40 : 20;
+
+  // Stability score (lower volatility = better)
+  const absChange = Math.abs(token.change24h);
+  const stabilityScore =
+    absChange < 5 ? 100 :
+    absChange < 15 ? 80 :
+    absChange < 30 ? 60 :
+    absChange < 50 ? 40 : 20;
+
+  // Liquidity score (based on graduation progress as proxy)
+  const liquidityScore = token.isGraduated ? 100 : token.bondingCurveProgress;
+
+  // Overall health calculation
+  const avgScore = (volumeScore + holderScore + stabilityScore + liquidityScore) / 4;
+  const overall: LaunchHealth =
+    avgScore >= 80 ? 'excellent' :
+    avgScore >= 60 ? 'good' :
+    avgScore >= 40 ? 'fair' : 'risky';
+
+  return { overall, volumeScore, holderScore, stabilityScore, liquidityScore };
+};
 
 const TokenCardComponent: React.FC<TokenCardProps> = ({
   token,
@@ -14,7 +62,36 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
   showActions = false
 }) => {
   const isPositive = token.change24h >= 0;
-  
+  const health = useMemo(() => calculateHealthMetrics(token), [token]);
+
+  // Check if token is new (created within last 24 hours)
+  const isNewLaunch = useMemo(() => {
+    const hoursSinceLaunch = (Date.now() - token.createdAt.getTime()) / (1000 * 60 * 60);
+    return hoursSinceLaunch < 24;
+  }, [token.createdAt]);
+
+  // Check if token is trending (high volume relative to market cap)
+  const isTrending = useMemo(() => {
+    const volumeToMcapRatio = token.marketCap > 0 ? (token.volume24h / token.marketCap) * 100 : 0;
+    return volumeToMcapRatio > 30;
+  }, [token.volume24h, token.marketCap]);
+
+  // Get health badge color and icon
+  const healthConfig = useMemo(() => {
+    switch (health.overall) {
+      case 'excellent':
+        return { color: 'bg-green-500/20 text-green-400 border-green-500/30', icon: Shield, label: 'Healthy' };
+      case 'good':
+        return { color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', icon: Activity, label: 'Active' };
+      case 'fair':
+        return { color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', icon: Zap, label: 'Moderate' };
+      case 'risky':
+        return { color: 'bg-red-500/20 text-red-400 border-red-500/30', icon: Flame, label: 'Volatile' };
+    }
+  }, [health.overall]);
+
+  const HealthIcon = healthConfig.icon;
+
   return (
     <motion.div
       whileHover={{ scale: 1.02, y: -4 }}
@@ -22,12 +99,32 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
       className="cursor-pointer gpu-accelerated"
     >
       <div onClick={onClick}>
-        <Card 
+        <Card
           className={cn(
             "glassmorphism token-card-glow overflow-hidden transition-all duration-300",
             "hover:border-yellow-500/30 hover:shadow-lg hover:shadow-yellow-500/10"
           )}
         >
+        {/* Status Badges Row */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {isNewLaunch && (
+            <Badge variant="secondary" className="bg-purple-500/20 text-purple-400 border-purple-500/30">
+              <Zap size={10} className="mr-1" />
+              New Launch
+            </Badge>
+          )}
+          {isTrending && (
+            <Badge variant="secondary" className="bg-orange-500/20 text-orange-400 border-orange-500/30">
+              <Flame size={10} className="mr-1" />
+              Trending
+            </Badge>
+          )}
+          <Badge variant="secondary" className={healthConfig.color}>
+            <HealthIcon size={10} className="mr-1" />
+            {healthConfig.label}
+          </Badge>
+        </div>
+
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
@@ -39,7 +136,7 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
               <p className="text-gray-400 text-sm">${token.symbol}</p>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <FavoriteButton
               tokenAddress={token.address}
@@ -89,28 +186,69 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
           </div>
         </div>
 
-        {/* Bonding Curve Progress */}
+        {/* Enhanced Graduation Progress */}
         {!token.isGraduated && (
           <div className="mb-4">
-            <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
-              <span>Graduation Progress</span>
-              <span>{token.bondingCurveProgress.toFixed(1)}%</span>
+            <div className="flex items-center justify-between text-xs mb-2">
+              <div className="flex items-center text-gray-400">
+                <Target size={12} className="mr-1" />
+                <span>Graduation Progress</span>
+              </div>
+              <span className={cn(
+                "font-semibold",
+                token.bondingCurveProgress >= 80 ? "text-green-400" :
+                token.bondingCurveProgress >= 50 ? "text-yellow-400" :
+                "text-gray-400"
+              )}>
+                {token.bondingCurveProgress.toFixed(1)}%
+              </span>
             </div>
-            <Progress 
-              value={token.bondingCurveProgress} 
-              className="h-2"
-            />
-            <div className="text-xs text-gray-500 mt-1">
-              {token.isGraduated ? 'Graduated to AMM' : 'Trading on bonding curve'}
+
+            {/* Multi-color progress bar with milestones */}
+            <div className="relative">
+              <Progress
+                value={token.bondingCurveProgress}
+                className="h-3"
+              />
+              {/* Milestone markers */}
+              <div className="absolute top-0 left-0 w-full h-3 flex justify-between px-px pointer-events-none">
+                <div className="w-px h-full bg-gray-600" style={{ marginLeft: '24%' }} />
+                <div className="w-px h-full bg-gray-600" style={{ marginLeft: '24%' }} />
+                <div className="w-px h-full bg-gray-600" style={{ marginLeft: '24%' }} />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs mt-2">
+              <div className="flex items-center gap-1">
+                {token.bondingCurveProgress >= 80 ? (
+                  <>
+                    <span className="text-green-400">⚡ Near graduation!</span>
+                  </>
+                ) : token.bondingCurveProgress >= 50 ? (
+                  <>
+                    <span className="text-yellow-400">🔥 Halfway there</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-gray-500">Bonding curve</span>
+                  </>
+                )}
+              </div>
+              <span className="text-gray-500">
+                {(100 - token.bondingCurveProgress).toFixed(0)}% to DEX
+              </span>
             </div>
           </div>
         )}
 
-        {/* Graduated Badge */}
+        {/* Graduated Badge with Enhanced Styling */}
         {token.isGraduated && (
           <div className="mb-4">
-            <Badge variant="success" className="w-full justify-center">
-              🎉 Graduated to AMM
+            <Badge variant="success" className="w-full justify-center py-2 bg-green-500/20 border-green-500/30">
+              <div className="flex items-center gap-2">
+                <Target className="text-green-400" size={14} />
+                <span className="text-green-400 font-semibold">🎉 Graduated to DEX</span>
+              </div>
             </Badge>
           </div>
         )}
@@ -166,6 +304,10 @@ export const TokenCard = memo(TokenCardComponent, (prevProps, nextProps) => {
     prevProps.token.price === nextProps.token.price &&
     prevProps.token.change24h === nextProps.token.change24h &&
     prevProps.token.bondingCurveProgress === nextProps.token.bondingCurveProgress &&
+    prevProps.token.volume24h === nextProps.token.volume24h &&
+    prevProps.token.holders === nextProps.token.holders &&
+    prevProps.token.marketCap === nextProps.token.marketCap &&
+    prevProps.token.isGraduated === nextProps.token.isGraduated &&
     prevProps.showActions === nextProps.showActions &&
     prevProps.onClick === nextProps.onClick
   );
