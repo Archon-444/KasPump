@@ -30,7 +30,8 @@
     "verify:auto-retry:arbitrum": "hardhat run scripts/auto-verify-with-retry.ts --network arbitrum",
     "verify:auto-retry:base": "hardhat run scripts/auto-verify-with-retry.ts --network base",
     "deployment:status": "npx ts-node scripts/deployment-status-report.ts",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "check-env": "node scripts/check-env.js"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.0.5",

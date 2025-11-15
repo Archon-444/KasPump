@@ -35,10 +35,13 @@ KasPump is a next-generation decentralized token launchpad that brings the viral
 
 ## 🚀 Quick Start
 
+**Get up and running in 5 minutes!** See [QUICK_START.md](./QUICK_START.md) for detailed instructions.
+
 ### Prerequisites
 - Node.js 18+
 - npm or yarn
 - MetaMask or compatible EVM wallet
+- BSC Testnet BNB (free from faucet)
 
 ### Installation
 
@@ -50,26 +53,21 @@ cd KasPump
 # Install dependencies
 npm install
 
-# Copy environment template
-cp .env.example .env.local
+# Environment is pre-configured for BSC Testnet!
+# Just add your WalletConnect Project ID to .env.local:
+# NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id_here
+# Get one free at https://cloud.walletconnect.com
 
-# Add your configuration to .env.local
-```
-
-### Development
-
-```bash
-# Compile smart contracts
-npm run compile
-
-# Deploy to testnet
-npm run deploy:testnet
+# Verify your setup
+npm run check-env
 
 # Start development server
 npm run dev
 ```
 
 Visit `http://localhost:3000` to see your local KasPump instance!
+
+**📖 New to KasPump?** Follow our comprehensive [Quick Start Guide](./QUICK_START.md)
 
 ## 📦 Project Structure
 
@@ -97,14 +95,16 @@ KasPump/
 ## 🔧 Available Scripts
 
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Start production server
-npm run compile      # Compile smart contracts
-npm run deploy       # Deploy contracts to mainnet
+npm run dev           # Start development server
+npm run build         # Build for production
+npm run start         # Start production server
+npm run check-env     # Validate environment setup
+npm run compile       # Compile smart contracts
+npm run deploy        # Deploy contracts to mainnet
 npm run deploy:testnet # Deploy to testnet
-npm run test         # Run contract tests
-npm run lint         # Run ESLint
+npm run test          # Run contract tests
+npm run lint          # Run ESLint
+npm run type-check    # TypeScript type checking
 ```
 
 ## 🤖 Claude Code Skills Integration
@@ -142,20 +142,24 @@ Use the smart-contract-deployment skill to deploy to BSC testnet
 - **Base** - Coinbase's L2 network
 - **Polygon** - High-speed sidechain
 
-## 📊 Current Status: ~85% Complete
+## 📊 Current Status: BSC Testnet Live! 🎉
 
-### ✅ Completed
-- Smart contracts (TokenFactory + BondingCurveAMM)
-- Next.js 14 frontend with TypeScript
-- Real wallet integration (@kasplex/kiwi-web SDK)
-- Modern UI components (Tailwind + Radix UI)
-- Security fixes and production setup
+### ✅ Fully Operational
+- ✅ **Smart Contracts** - TokenFactory + BondingCurveAMM deployed to BSC Testnet
+- ✅ **Contract Integration** - Full AMM integration with frontend hooks
+- ✅ **Real Blockchain Data** - All token data sourced from on-chain queries
+- ✅ **Trading Functionality** - Buy/sell execution with slippage protection
+- ✅ **Wallet Integration** - WalletConnect/RainbowKit with multi-chain support
+- ✅ **Modern UI** - Production-ready Tailwind + Radix UI components
+- ✅ **Environment Setup** - Pre-configured for BSC Testnet development
 
-### 🔄 In Progress
-- AMM address resolution
-- Real blockchain data integration
-- Complete trading functionality
-- Real-time price feeds
+### ⚠️ Pre-Mainnet Requirements
+- [ ] WalletConnect Project ID configuration (5 minutes)
+- [ ] End-to-end testing on BSC Testnet (1-2 days)
+- [ ] Mainnet deployment (BSC, Arbitrum, Base)
+- [ ] Security audit (recommended)
+
+**📖 Complete Integration Details:** [INTEGRATION_STATUS.md](./INTEGRATION_STATUS.md)
 
 ## 🏆 Competitive Advantages
 
@@ -176,23 +180,31 @@ Use the smart-contract-deployment skill to deploy to BSC testnet
 
 ## 📈 Roadmap
 
-### Phase 1: BSC Launch (Days 1-7)
+### Phase 1: BSC Launch (Current)
 - [x] Core platform development
-- [ ] BSC Testnet deployment and testing
-- [ ] Real trading functionality
+- [x] Smart contract deployment to BSC Testnet
+- [x] Frontend AMM integration
+- [x] Real blockchain data integration
+- [x] Trading functionality (buy/sell)
+- [ ] WalletConnect configuration (user action)
+- [ ] End-to-end testing
+- [ ] BSC Mainnet deployment
+- [ ] Public launch
+
+### Phase 2: Multi-Chain Expansion
+- [ ] Arbitrum One deployment
+- [ ] Base deployment
+- [ ] Cross-chain bridge integration
+- [ ] Advanced analytics dashboard
 - [ ] Mobile PWA implementation
 
-### Phase 2: Expansion (Days 8-14)
-- [ ] Additional EVM chain support (Arbitrum, Base)
-- [ ] Advanced analytics dashboard
-- [ ] Community building tools
-- [ ] API development
-
-### Phase 3: Growth (Days 15-21)
-- [ ] Security audits
-- [ ] BSC Mainnet deployment
-- [ ] Marketing campaign
-- [ ] Cross-chain bridge integration
+### Phase 3: Advanced Features & Growth
+- [ ] Real-time WebSocket price feeds
+- [ ] Advanced charting (TradingView integration)
+- [ ] NFT metadata on IPFS
+- [ ] Partnership integrations (DEX aggregators, wallets)
+- [ ] Community governance token
+- [ ] Marketing campaigns and user acquisition
 
 ## 🤝 Contributing
 
