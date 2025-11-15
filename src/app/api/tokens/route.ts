@@ -134,7 +134,7 @@ async function getTokenDetails(
       symbol: config.symbol,
       description: config.description,
       imageUrl: config.imageUrl,
-      creator: await getTokenCreator(provider, tokenAddress),
+      creator: await getTokenCreator(factoryContract, tokenAddress),
       totalSupply: parseFloat(ethers.formatEther(config.totalSupply)),
       currentSupply,
       currentPrice,
@@ -147,7 +147,7 @@ async function getTokenDetails(
       volume24h: tradingData?.totalVolume || 0,
       isGraduated: tradingData?.isGraduated || false,
       ammAddress,
-      createdAt: await getTokenCreationTime(provider, tokenAddress),
+      createdAt: await getTokenCreationTime(factoryContract, provider, tokenAddress),
       // Strategic data for partnerships
       analytics: {
         holders: await getHolderCount(provider, tokenAddress),
@@ -211,22 +211,49 @@ async function getTradingData(provider: ethers.JsonRpcProvider, ammAddress: stri
   }
 }
 
-async function getTokenCreator(provider: ethers.JsonRpcProvider, tokenAddress: string): Promise<string> {
+async function getTokenCreator(
+  factoryContract: ethers.Contract,
+  tokenAddress: string
+): Promise<string> {
   try {
-    // Get creation transaction to find creator
-    // This is a simplified approach - in production, we'd use event logs
-    return "0x0000000000000000000000000000000000000000"; // Placeholder
+    // Query TokenCreated events to find the creator
+    const filter = factoryContract.filters.TokenCreated(tokenAddress);
+    const events = await factoryContract.queryFilter(filter);
+
+    if (events.length > 0 && 'args' in events[0]) {
+      return events[0].args.creator as string;
+    }
+
+    // If no event found, return zero address
+    return ethers.ZeroAddress;
   } catch (error) {
-    return "0x0000000000000000000000000000000000000000";
+    console.error(`Error getting creator for token ${tokenAddress}:`, error);
+    return ethers.ZeroAddress;
   }
 }
 
-async function getTokenCreationTime(provider: ethers.JsonRpcProvider, tokenAddress: string): Promise<string> {
+async function getTokenCreationTime(
+  factoryContract: ethers.Contract,
+  provider: ethers.JsonRpcProvider,
+  tokenAddress: string
+): Promise<string> {
   try {
-    // Get creation block timestamp
-    // This is a placeholder - in production, we'd query TokenCreated events
+    // Query TokenCreated events to find creation block
+    const filter = factoryContract.filters.TokenCreated(tokenAddress);
+    const events = await factoryContract.queryFilter(filter);
+
+    if (events.length > 0) {
+      const event = events[0];
+      const block = await provider.getBlock(event.blockNumber);
+      if (block) {
+        return new Date(block.timestamp * 1000).toISOString();
+      }
+    }
+
+    // Fallback to current time if no event found
     return new Date().toISOString();
   } catch (error) {
+    console.error(`Error getting creation time for token ${tokenAddress}:`, error);
     return new Date().toISOString();
   }
 }
