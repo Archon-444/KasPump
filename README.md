@@ -107,6 +107,21 @@ npm run test         # Run contract tests
 npm run lint         # Run ESLint
 ```
 
+## 🤖 Claude Code Skills Integration
+
+This project includes specialized skills for Claude Code to enhance development productivity:
+
+- **smart-contract-deployment** - Deploy and verify contracts across networks
+- **web3-testing** - Test Web3 components and smart contract interactions
+- **kaspump-token-launch** - Guide token launches and bonding curve configuration
+
+**Quick Example:**
+```
+Use the smart-contract-deployment skill to deploy to BSC testnet
+```
+
+📖 **[View Complete Skills Guide →](CLAUDE_CODE_SKILLS_GUIDE.md)**
+
 ## 🌐 Supported Networks
 
 ### BNB Smart Chain Testnet
