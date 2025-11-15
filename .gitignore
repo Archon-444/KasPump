@@ -138,3 +138,4 @@ temp/
 .env.production.local
 .claude/skills/artifacts-builder/bonding-curve-simulator/
 .claude/skills/artifacts-builder/token-launch-wizard/
+.claude/skills/artifacts-builder/portfolio-analytics/
