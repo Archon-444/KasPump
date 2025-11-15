@@ -3,6 +3,9 @@ import {
   Trade as TradeEvent,
   Graduated as GraduatedEvent,
   GraduationFundsSplit as GraduationFundsSplitEvent,
+  LiquidityAdded as LiquidityAddedEvent,
+  LPTokensLocked as LPTokensLockedEvent,
+  LPTokensWithdrawn as LPTokensWithdrawnEvent,
 } from "../generated/templates/BondingCurveAMM/BondingCurveAMM"
 import { BondingCurveAMM } from "../generated/templates/BondingCurveAMM/BondingCurveAMM"
 import {
@@ -398,14 +401,125 @@ export function handleGraduationFundsSplit(event: GraduationFundsSplitEvent): vo
   if (graduatedEvent !== null) {
     graduatedEvent.creatorShare = creatorShare
     graduatedEvent.platformShare = platformShare
-
-    // TODO: When DEX integration is added, these will be populated:
-    // graduatedEvent.liquidityAmount = liquidityAmount
-    // graduatedEvent.dexPairAddress = dexPairAddress
-    // graduatedEvent.lpTokenAddress = lpTokenAddress
-    // graduatedEvent.lpTokensLocked = lpTokensLocked
-    // graduatedEvent.lpUnlockTime = lpUnlockTime
-
     graduatedEvent.save()
   }
+}
+
+/**
+ * Handle LiquidityAdded event
+ * Fired when DEX liquidity is automatically added on graduation
+ */
+export function handleLiquidityAdded(event: LiquidityAddedEvent): void {
+  let ammAddress = event.address
+  let tokenAmount = event.params.tokenAmount
+  let nativeAmount = event.params.nativeAmount
+  let liquidity = event.params.liquidity
+  let lpTokenAddress = event.params.lpTokenAddress
+  let dexPair = event.params.dexPair
+
+  // Load AMM contract to get token address
+  let ammContract = BondingCurveAMM.bind(ammAddress)
+  let tokenAddress = ammContract.token()
+
+  // Load token
+  let token = Token.load(tokenAddress.toHexString())
+  if (token === null) {
+    log.warning("Token not found for AMM liquidity: {}", [ammAddress.toHexString()])
+    return
+  }
+
+  // Update token with DEX info
+  token.dexPairAddress = dexPair
+  token.lpTokenAddress = lpTokenAddress
+  token.save()
+
+  // Update the graduation event if it exists
+  let graduationEvents = token.id + "-graduation"
+  let graduatedEvent = TokenGraduatedEvent.load(graduationEvents)
+  if (graduatedEvent !== null) {
+    graduatedEvent.liquidityAmount = nativeAmount
+    graduatedEvent.dexPairAddress = dexPair
+    graduatedEvent.lpTokenAddress = lpTokenAddress
+    graduatedEvent.save()
+  }
+
+  log.info("Liquidity added for token {}: {} tokens, {} native, {} LP tokens", [
+    token.name,
+    tokenAmount.toString(),
+    nativeAmount.toString(),
+    liquidity.toString(),
+  ])
+}
+
+/**
+ * Handle LPTokensLocked event
+ * Fired when LP tokens are locked for 6 months
+ */
+export function handleLPTokensLocked(event: LPTokensLockedEvent): void {
+  let ammAddress = event.address
+  let amount = event.params.amount
+  let unlockTime = event.params.unlockTime
+  let lpToken = event.params.lpToken
+
+  // Load AMM contract to get token address
+  let ammContract = BondingCurveAMM.bind(ammAddress)
+  let tokenAddress = ammContract.token()
+
+  // Load token
+  let token = Token.load(tokenAddress.toHexString())
+  if (token === null) {
+    log.warning("Token not found for LP locking: {}", [ammAddress.toHexString()])
+    return
+  }
+
+  // Update token with LP lock info
+  token.lpTokensLocked = amount
+  token.lpUnlockTime = unlockTime
+  token.save()
+
+  // Update the graduation event if it exists
+  let graduationEvents = token.id + "-graduation"
+  let graduatedEvent = TokenGraduatedEvent.load(graduationEvents)
+  if (graduatedEvent !== null) {
+    graduatedEvent.lpTokensLocked = amount
+    graduatedEvent.lpUnlockTime = unlockTime
+    graduatedEvent.save()
+  }
+
+  log.info("LP tokens locked for token {}: {} LP tokens until timestamp {}", [
+    token.name,
+    amount.toString(),
+    unlockTime.toString(),
+  ])
+}
+
+/**
+ * Handle LPTokensWithdrawn event
+ * Fired when creator withdraws LP tokens after lock period
+ */
+export function handleLPTokensWithdrawn(event: LPTokensWithdrawnEvent): void {
+  let ammAddress = event.address
+  let creator = event.params.creator
+  let amount = event.params.amount
+  let lpToken = event.params.lpToken
+
+  // Load AMM contract to get token address
+  let ammContract = BondingCurveAMM.bind(ammAddress)
+  let tokenAddress = ammContract.token()
+
+  // Load token
+  let token = Token.load(tokenAddress.toHexString())
+  if (token === null) {
+    log.warning("Token not found for LP withdrawal: {}", [ammAddress.toHexString()])
+    return
+  }
+
+  // Update token - LP tokens no longer locked
+  token.lpTokensLocked = null
+  token.save()
+
+  log.info("LP tokens withdrawn by creator for token {}: {} LP tokens", [
+    token.name,
+    amount.toString(),
+  ])
 }

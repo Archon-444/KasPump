@@ -57,4 +57,10 @@ templates:
           handler: handleGraduated
         - event: GraduationFundsSplit(uint256,uint256,indexed address,indexed address)
           handler: handleGraduationFundsSplit
+        - event: LiquidityAdded(uint256,uint256,uint256,indexed address,indexed address)
+          handler: handleLiquidityAdded
+        - event: LPTokensLocked(uint256,uint256,indexed address)
+          handler: handleLPTokensLocked
+        - event: LPTokensWithdrawn(indexed address,uint256,indexed address)
+          handler: handleLPTokensWithdrawn
       file: ./src/bonding-curve-amm.ts
