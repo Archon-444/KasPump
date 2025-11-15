@@ -136,3 +136,4 @@ temp/
 .env.development.local
 .env.test.local
 .env.production.local
+.claude/skills/artifacts-builder/bonding-curve-simulator/
