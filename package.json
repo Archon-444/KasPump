@@ -30,6 +30,7 @@
     "verify:auto-retry:arbitrum": "hardhat run scripts/auto-verify-with-retry.ts --network arbitrum",
     "verify:auto-retry:base": "hardhat run scripts/auto-verify-with-retry.ts --network base",
     "deployment:status": "npx ts-node scripts/deployment-status-report.ts",
+    "deployment:check-wallet": "hardhat run scripts/check-balance.ts",
     "type-check": "tsc --noEmit",
     "check-env": "node scripts/check-env.js"
   },
@@ -38,7 +39,7 @@
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-toast": "^1.1.5",
     "@rainbow-me/rainbowkit": "^2.0.2",
-    "@sentry/nextjs": "^8.0.0",
+    "@sentry/nextjs": "^9.0.0",
     "@tanstack/react-query": "^5.28.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
