@@ -24,6 +24,12 @@
     "test:unit:coverage": "vitest run --coverage",
     "test:bsc": "hardhat run scripts/test-deployed-bsc.ts --network bscTestnet",
     "verify:deployment": "hardhat run scripts/verify-deployment.ts --network bscTestnet",
+    "verify:all": "npx ts-node scripts/batch-verify-all.ts",
+    "verify:auto-retry": "hardhat run scripts/auto-verify-with-retry.ts --network bscTestnet",
+    "verify:auto-retry:bsc": "hardhat run scripts/auto-verify-with-retry.ts --network bsc",
+    "verify:auto-retry:arbitrum": "hardhat run scripts/auto-verify-with-retry.ts --network arbitrum",
+    "verify:auto-retry:base": "hardhat run scripts/auto-verify-with-retry.ts --network base",
+    "deployment:status": "npx ts-node scripts/deployment-status-report.ts",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
