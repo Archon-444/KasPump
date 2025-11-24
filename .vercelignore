@@ -1,0 +1,78 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Environment variables (use Vercel dashboard)
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Hardhat/Smart Contract files (not needed for frontend deployment)
+contracts/
+scripts/deploy*.ts
+scripts/verify*.ts
+scripts/check-balance.ts
+scripts/test-deployed*.ts
+scripts/deployment-status*.ts
+scripts/batch-verify*.ts
+scripts/auto-verify*.ts
+hardhat.config.ts
+cache/
+artifacts/
+typechain-types/
+deployments/
+deployment-*.json
+
+# WebSocket Server (deploy separately)
+server/
+
+# Subgraph (deploy separately)
+subgraph/
+
+# Testing
+test/
+coverage/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__/
+vitest.config.ts
+
+# Build artifacts
+.next/
+out/
+dist/
+build/
+
+# Documentation (not needed for deployment)
+*.md
+!README.md
+docs/
+archive/
+tasks/
+tools/
+
+# IDE and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+*.log
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Claude Code
+.claude/
+
+# Miscellaneous
+*.tsbuildinfo
+.eslintcache

@@ -1,0 +1,55 @@
+{
+  "buildCommand": "npm run build",
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "regions": ["iad1"],
+  "env": {
+    "NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID": "@walletconnect_project_id",
+    "NEXT_PUBLIC_DEFAULT_CHAIN_ID": "@default_chain_id",
+    "NEXT_PUBLIC_BSC_RPC_URL": "@bsc_rpc_url",
+    "NEXT_PUBLIC_BSC_TESTNET_RPC_URL": "@bsc_testnet_rpc_url",
+    "NEXT_PUBLIC_ARBITRUM_RPC_URL": "@arbitrum_rpc_url",
+    "NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL": "@arbitrum_sepolia_rpc_url",
+    "NEXT_PUBLIC_BASE_RPC_URL": "@base_rpc_url",
+    "NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL": "@base_sepolia_rpc_url",
+    "NEXT_PUBLIC_SENTRY_DSN": "@sentry_dsn",
+    "SENTRY_DSN": "@sentry_dsn_server",
+    "NEXT_PUBLIC_IPFS_GATEWAY": "@ipfs_gateway"
+  },
+  "build": {
+    "env": {
+      "NEXT_TELEMETRY_DISABLED": "1"
+    }
+  },
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/:path*",
+      "headers": [
+        {
+          "key": "X-DNS-Prefetch-Control",
+          "value": "on"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    }
+  ],
+  "crons": []
+}
