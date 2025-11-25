@@ -128,10 +128,12 @@ The project is pre-configured for Vercel with:
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm install",
+  "installCommand": "npm install --legacy-peer-deps",
   "outputDirectory": ".next"
 }
 ```
+
+> **Note**: The `--legacy-peer-deps` flag is required due to a peer dependency conflict between `@sentry/nextjs` and Next.js 16. This is a known issue and doesn't affect functionality.
 
 ## 🌐 WebSocket Server (Separate Deployment)
 
@@ -185,9 +187,14 @@ After deployment, verify:
 
 ### Common Issues
 
+**Issue**: Build fails with "ERESOLVE unable to resolve dependency tree"
+- **Solution**: The `vercel.json` is already configured to use `--legacy-peer-deps`
+- This is due to Sentry/Next.js 16 peer dependency conflict
+- If you're deploying manually, use: `npm install --legacy-peer-deps`
+
 **Issue**: Build fails with "Module not found"
 - **Solution**: Check that all dependencies are in `package.json`
-- Run `npm install` locally to verify
+- Run `npm install --legacy-peer-deps` locally to verify
 
 **Issue**: Environment variables not working
 - **Solution**: Ensure variables start with `NEXT_PUBLIC_` for client-side access
