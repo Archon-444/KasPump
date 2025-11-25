@@ -400,8 +400,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             // Linear curve
             return _calculateLinearTokensOut(nativeIn, supply);
         } else {
-            // Exponential curve (simplified for safety)
-            return _calculateLinearTokensOut(nativeIn, supply);
+            // Exponential curve
+            return _calculateExponentialTokensOut(nativeIn, supply);
         }
     }
 
@@ -414,7 +414,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         if (curveType == 0) {
             return _calculateLinearNativeOut(tokensIn, supply);
         } else {
-            return _calculateLinearNativeOut(tokensIn, supply);
+            return _calculateExponentialNativeOut(tokensIn, supply);
         }
     }
 
@@ -561,6 +561,91 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
+     * @dev Exponential curve: Calculate tokens out for given native input
+     * Uses binary search with exponential cumulative cost
+     */
+    function _calculateExponentialTokensOut(uint256 nativeIn, uint256 supply) internal view returns (uint256) {
+        uint256 availableLiquidity = token.balanceOf(address(this));
+        if (availableLiquidity == 0) {
+            return 0;
+        }
+
+        uint256 maxDelta = availableLiquidity;
+        if (supply + maxDelta > MAX_TOTAL_SUPPLY) {
+            maxDelta = MAX_TOTAL_SUPPLY - supply;
+        }
+
+        uint256 currentCost = _exponentialCumulativeCost(supply);
+        uint256 low = 0;
+        uint256 high = maxDelta;
+
+        while (low < high) {
+            uint256 mid = (low + high + 1) / 2;
+            uint256 targetCost = _exponentialCumulativeCost(supply + mid) - currentCost;
+
+            if (targetCost <= nativeIn) {
+                low = mid;
+            } else {
+                high = mid - 1;
+            }
+        }
+
+        return low;
+    }
+
+    /**
+     * @dev Exponential curve: Calculate native out for given tokens
+     */
+    function _calculateExponentialNativeOut(uint256 tokensIn, uint256 supply) internal view returns (uint256) {
+        if (tokensIn > supply) {
+            return 0;
+        }
+
+        uint256 costAtSupply = _exponentialCumulativeCost(supply);
+        uint256 costAfter = _exponentialCumulativeCost(supply - tokensIn);
+
+        return costAtSupply - costAfter;
+    }
+
+    /**
+     * @dev Calculate cumulative cost for exponential curve
+     * Exponential formula: P(s) = basePrice * e^(slope * s / PRECISION)
+     * Integral: C(s) = (basePrice * PRECISION / slope) * (e^(slope * s / PRECISION) - 1)
+     * Using Taylor series approximation for e^x: 1 + x + x^2/2 + x^3/6 (safe for small x)
+     */
+    function _exponentialCumulativeCost(uint256 supply) internal view returns (uint256) {
+        if (supply == 0) {
+            return 0;
+        }
+
+        // Calculate exponent: slope * supply / PRECISION
+        uint256 exponent = Math.mulDiv(slope, supply, PRECISION);
+
+        // Cap exponent to prevent overflow (e^5 ≈ 148, which is reasonable)
+        if (exponent > 5 * PRECISION) {
+            exponent = 5 * PRECISION;
+        }
+
+        // Taylor series approximation: e^x ≈ 1 + x + x^2/2 + x^3/6
+        // For precision, multiply terms by PRECISION
+        uint256 x = exponent;
+        uint256 x2 = Math.mulDiv(x, x, PRECISION);
+        uint256 x3 = Math.mulDiv(x2, x, PRECISION);
+
+        // e^x - 1 ≈ x + x^2/2 + x^3/6
+        uint256 expMinusOne = x + x2 / 2 + x3 / 6;
+
+        // Cumulative cost: (basePrice * PRECISION / slope) * (e^x - 1)
+        // Rewritten to avoid division issues: (basePrice * expMinusOne) / slope
+        if (slope == 0) {
+            // If slope is 0, fall back to linear
+            return Math.mulDiv(basePrice, supply, PRECISION);
+        }
+
+        return Math.mulDiv(basePrice, expMinusOne, slope);
+    }
+
+    /**
      * @dev Graduate token - Automatic DEX liquidity provision with LP locking
      * @notice AUTOMATED DEX INTEGRATION:
      *  - 70% of funds → DEX liquidity (LP tokens locked 6 months)
@@ -686,8 +771,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Effects before interactions
         lpTokensLocked = 0;
 
-        // Transfer LP tokens to creator
-        IERC20Minimal(lpToken).transfer(tokenCreator, amount);
+        // Transfer LP tokens to creator using SafeERC20
+        IERC20(lpToken).safeTransfer(tokenCreator, amount);
 
         emit LPTokensWithdrawn(tokenCreator, amount, lpToken);
     }

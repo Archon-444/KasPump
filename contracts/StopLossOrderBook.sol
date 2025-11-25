@@ -3,8 +3,9 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "./BondingCurveAMM.sol";
 
 /**
@@ -14,6 +15,7 @@ import "./BondingCurveAMM.sol";
  */
 contract StopLossOrderBook is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
+    using Address for address payable;
 
     struct StopLossOrder {
         uint256 orderId;
@@ -82,8 +84,10 @@ contract StopLossOrderBook is ReentrancyGuard, Ownable {
     error PriceAboveTrigger();
     error NotAuthorizedExecutor();
     error SlippageExceeded();
+    error ZeroAddress();
+    error TransferFailed();
 
-    constructor(address payable _feeRecipient) {
+    constructor(address payable _feeRecipient) Ownable(msg.sender) {
         feeRecipient = _feeRecipient;
         authorizedExecutors[msg.sender] = true; // Owner is executor by default
     }
@@ -168,7 +172,7 @@ contract StopLossOrderBook is ReentrancyGuard, Ownable {
 
         // Check if trigger condition is met
         BondingCurveAMM amm = BondingCurveAMM(payable(order.ammAddress));
-        uint256 currentPrice = amm.currentPrice();
+        uint256 currentPrice = amm.getCurrentPrice();
 
         if (currentPrice > order.triggerPrice) revert PriceAboveTrigger();
 
@@ -178,8 +182,14 @@ contract StopLossOrderBook is ReentrancyGuard, Ownable {
         // Approve AMM to spend tokens
         IERC20(order.tokenAddress).safeIncreaseAllowance(order.ammAddress, order.amount);
 
-        // Execute sell on AMM
-        uint256 nativeReceived = amm.sellTokens(order.amount, order.minReceive);
+        // Track balance before sell to calculate received amount
+        uint256 balanceBefore = address(this).balance;
+
+        // Execute sell on AMM (does not return value, so we track balance change)
+        amm.sellTokens(order.amount, order.minReceive);
+
+        // Calculate actual native received from balance change
+        uint256 nativeReceived = address(this).balance - balanceBefore;
 
         if (nativeReceived < order.minReceive) revert SlippageExceeded();
 
@@ -188,10 +198,10 @@ contract StopLossOrderBook is ReentrancyGuard, Ownable {
         uint256 reward = (nativeReceived * executorReward) / FEE_DENOMINATOR;
         uint256 traderReceives = nativeReceived - fee - reward;
 
-        // Transfer funds
-        payable(order.trader).transfer(traderReceives);
-        feeRecipient.transfer(fee);
-        payable(msg.sender).transfer(reward);
+        // Transfer funds using safe pattern (compatible with smart contract wallets)
+        payable(order.trader).sendValue(traderReceives);
+        feeRecipient.sendValue(fee);
+        payable(msg.sender).sendValue(reward);
 
         emit StopLossExecuted(orderId, msg.sender, traderReceives, reward);
     }
@@ -204,7 +214,7 @@ contract StopLossOrderBook is ReentrancyGuard, Ownable {
         if (!authorizedExecutors[msg.sender]) revert NotAuthorizedExecutor();
 
         for (uint256 i = 0; i < orderIds.length; i++) {
-            try this.executeStopLossOrderInternal(orderIds[i]) {
+            try this.executeStopLossOrderInternal(orderIds[i], msg.sender) {
                 // Success
             } catch {
                 // Skip failed executions
@@ -215,8 +225,9 @@ contract StopLossOrderBook is ReentrancyGuard, Ownable {
 
     /**
      * @notice Internal execution function for batch processing
+     * @dev Caller address is passed to properly attribute executor rewards
      */
-    function executeStopLossOrderInternal(uint256 orderId) external {
+    function executeStopLossOrderInternal(uint256 orderId, address executor) external {
         require(msg.sender == address(this), "Internal only");
 
         StopLossOrder storage order = orders[orderId];
@@ -227,7 +238,7 @@ contract StopLossOrderBook is ReentrancyGuard, Ownable {
 
         // Check trigger condition
         BondingCurveAMM amm = BondingCurveAMM(payable(order.ammAddress));
-        uint256 currentPrice = amm.currentPrice();
+        uint256 currentPrice = amm.getCurrentPrice();
 
         if (currentPrice > order.triggerPrice) revert PriceAboveTrigger();
 
@@ -235,17 +246,25 @@ contract StopLossOrderBook is ReentrancyGuard, Ownable {
 
         IERC20(order.tokenAddress).safeIncreaseAllowance(order.ammAddress, order.amount);
 
-        uint256 nativeReceived = amm.sellTokens(order.amount, order.minReceive);
+        // Track balance before sell to calculate received amount
+        uint256 balanceBefore = address(this).balance;
+
+        // Execute sell on AMM (does not return value, so we track balance change)
+        amm.sellTokens(order.amount, order.minReceive);
+
+        // Calculate actual native received from balance change
+        uint256 nativeReceived = address(this).balance - balanceBefore;
 
         uint256 fee = (nativeReceived * platformFee) / FEE_DENOMINATOR;
         uint256 reward = (nativeReceived * executorReward) / FEE_DENOMINATOR;
         uint256 traderReceives = nativeReceived - fee - reward;
 
-        payable(order.trader).transfer(traderReceives);
-        feeRecipient.transfer(fee);
-        payable(tx.origin).transfer(reward); // Reward the original caller
+        // Use safe transfer patterns (compatible with smart contract wallets)
+        payable(order.trader).sendValue(traderReceives);
+        feeRecipient.sendValue(fee);
+        payable(executor).sendValue(reward); // Reward the executor (passed from caller)
 
-        emit StopLossExecuted(orderId, tx.origin, traderReceives, reward);
+        emit StopLossExecuted(orderId, executor, traderReceives, reward);
     }
 
     /**
@@ -260,7 +279,7 @@ contract StopLossOrderBook is ReentrancyGuard, Ownable {
         }
 
         BondingCurveAMM amm = BondingCurveAMM(payable(order.ammAddress));
-        uint256 currentPrice = amm.currentPrice();
+        uint256 currentPrice = amm.getCurrentPrice();
 
         return currentPrice <= order.triggerPrice;
     }
@@ -287,7 +306,7 @@ contract StopLossOrderBook is ReentrancyGuard, Ownable {
             }
 
             BondingCurveAMM amm = BondingCurveAMM(payable(order.ammAddress));
-            uint256 currentPrice = amm.currentPrice();
+            uint256 currentPrice = amm.getCurrentPrice();
 
             if (currentPrice <= order.triggerPrice) {
                 executable[count] = orderId;
@@ -352,6 +371,7 @@ contract StopLossOrderBook is ReentrancyGuard, Ownable {
      * @notice Update fee recipient
      */
     function setFeeRecipient(address payable newRecipient) external onlyOwner {
+        if (newRecipient == address(0)) revert ZeroAddress();
         feeRecipient = newRecipient;
     }
 
@@ -360,7 +380,7 @@ contract StopLossOrderBook is ReentrancyGuard, Ownable {
      */
     function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
         if (token == address(0)) {
-            payable(owner()).transfer(amount);
+            payable(owner()).sendValue(amount);
         } else {
             IERC20(token).safeTransfer(owner(), amount);
         }

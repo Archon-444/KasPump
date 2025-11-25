@@ -3,8 +3,9 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 /**
  * @title LimitOrderBook
@@ -13,6 +14,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 contract LimitOrderBook is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
+    using Address for address payable;
 
     struct Order {
         uint256 orderId;
@@ -48,8 +50,11 @@ contract LimitOrderBook is ReentrancyGuard, Ownable {
     // Fee recipient
     address payable public feeRecipient;
 
-    // Minimum order size (0.001 ETH or tokens)
+    // Minimum order size for buy orders (in native currency - 0.001 ETH)
     uint256 public minOrderSize = 0.001 ether;
+
+    // Minimum order size for sell orders (in tokens - 1e15 = 0.001 token with 18 decimals)
+    uint256 public minTokenOrderSize = 1e15;
 
     // Events
     event OrderCreated(
@@ -86,8 +91,9 @@ contract LimitOrderBook is ReentrancyGuard, Ownable {
     error OrderAlreadyFilled();
     error InsufficientOrderAmount();
     error OrderSizeTooSmall();
+    error ZeroAddress();
 
-    constructor(address payable _feeRecipient) {
+    constructor(address payable _feeRecipient) Ownable(msg.sender) {
         feeRecipient = _feeRecipient;
     }
 
@@ -131,9 +137,9 @@ contract LimitOrderBook is ReentrancyGuard, Ownable {
         // Try to match with existing sell orders
         _matchBuyOrder(orderId);
 
-        // Refund excess ETH
+        // Refund excess ETH using safe pattern
         if (msg.value > totalCost) {
-            payable(msg.sender).transfer(msg.value - totalCost);
+            payable(msg.sender).sendValue(msg.value - totalCost);
         }
 
         return orderId;
@@ -152,7 +158,7 @@ contract LimitOrderBook is ReentrancyGuard, Ownable {
     ) external nonReentrant returns (uint256) {
         if (price == 0) revert InvalidPrice();
         if (amount == 0) revert InvalidAmount();
-        if (amount < minOrderSize) revert OrderSizeTooSmall();
+        if (amount < minTokenOrderSize) revert OrderSizeTooSmall();
 
         // Transfer tokens to this contract
         IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
@@ -199,9 +205,9 @@ contract LimitOrderBook is ReentrancyGuard, Ownable {
         uint256 remainingAmount = order.amount - order.filled;
 
         if (order.isBuyOrder) {
-            // Refund remaining ETH
+            // Refund remaining ETH using safe pattern
             uint256 refundAmount = (order.price * remainingAmount) / 1e18;
-            payable(order.trader).transfer(refundAmount);
+            payable(order.trader).sendValue(refundAmount);
         } else {
             // Return remaining tokens
             IERC20(order.tokenAddress).safeTransfer(order.trader, remainingAmount);
@@ -243,11 +249,11 @@ contract LimitOrderBook is ReentrancyGuard, Ownable {
         // Update order
         order.filled += fillAmount;
 
-        // Transfer ETH to seller
-        payable(msg.sender).transfer(sellerReceives);
+        // Transfer ETH to seller using safe pattern
+        payable(msg.sender).sendValue(sellerReceives);
 
-        // Transfer fee to platform
-        feeRecipient.transfer(fee);
+        // Transfer fee to platform using safe pattern
+        feeRecipient.sendValue(fee);
 
         emit OrderFilled(orderId, msg.sender, fillAmount, totalCost);
 
@@ -291,15 +297,15 @@ contract LimitOrderBook is ReentrancyGuard, Ownable {
         // Transfer tokens to buyer
         IERC20(order.tokenAddress).safeTransfer(msg.sender, fillAmount);
 
-        // Transfer ETH to seller
-        payable(order.trader).transfer(sellerReceives);
+        // Transfer ETH to seller using safe pattern
+        payable(order.trader).sendValue(sellerReceives);
 
-        // Transfer fee to platform
-        feeRecipient.transfer(fee);
+        // Transfer fee to platform using safe pattern
+        feeRecipient.sendValue(fee);
 
-        // Refund excess ETH
+        // Refund excess ETH using safe pattern
         if (msg.value > totalCost) {
-            payable(msg.sender).transfer(msg.value - totalCost);
+            payable(msg.sender).sendValue(msg.value - totalCost);
         }
 
         emit OrderFilled(orderId, msg.sender, fillAmount, totalCost);
@@ -345,11 +351,11 @@ contract LimitOrderBook is ReentrancyGuard, Ownable {
                 // Transfer tokens from this contract to buyer
                 IERC20(buyOrder.tokenAddress).safeTransfer(buyOrder.trader, matchAmount);
 
-                // Transfer ETH to seller
-                payable(sellOrder.trader).transfer(sellerReceives);
+                // Transfer ETH to seller using safe pattern
+                payable(sellOrder.trader).sendValue(sellerReceives);
 
-                // Transfer fee
-                feeRecipient.transfer(fee);
+                // Transfer fee using safe pattern
+                feeRecipient.sendValue(fee);
 
                 emit OrderFilled(sellOrderId, buyOrder.trader, matchAmount, totalCost);
 
@@ -397,11 +403,11 @@ contract LimitOrderBook is ReentrancyGuard, Ownable {
                 // Transfer tokens from this contract to buyer
                 IERC20(sellOrder.tokenAddress).safeTransfer(buyOrder.trader, matchAmount);
 
-                // Transfer ETH to seller
-                payable(sellOrder.trader).transfer(sellerReceives);
+                // Transfer ETH to seller using safe pattern
+                payable(sellOrder.trader).sendValue(sellerReceives);
 
-                // Transfer fee
-                feeRecipient.transfer(fee);
+                // Transfer fee using safe pattern
+                feeRecipient.sendValue(fee);
 
                 emit OrderFilled(buyOrderId, sellOrder.trader, matchAmount, totalCost);
 
@@ -453,13 +459,21 @@ contract LimitOrderBook is ReentrancyGuard, Ownable {
      * @notice Update fee recipient (only owner)
      */
     function setFeeRecipient(address payable newRecipient) external onlyOwner {
+        if (newRecipient == address(0)) revert ZeroAddress();
         feeRecipient = newRecipient;
     }
 
     /**
-     * @notice Update minimum order size (only owner)
+     * @notice Update minimum order size for buy orders (only owner)
      */
     function setMinOrderSize(uint256 newMinSize) external onlyOwner {
         minOrderSize = newMinSize;
+    }
+
+    /**
+     * @notice Update minimum order size for sell orders in tokens (only owner)
+     */
+    function setMinTokenOrderSize(uint256 newMinSize) external onlyOwner {
+        minTokenOrderSize = newMinSize;
     }
 }
