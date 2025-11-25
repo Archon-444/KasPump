@@ -187,6 +187,12 @@ After deployment, verify:
 
 ### Common Issues
 
+**Issue**: "The specified Root Directory 'frontend' does not exist"
+- **Solution**: The KasPump Next.js app is at the project root, not in a subdirectory
+- Go to your Vercel project **Settings > General > Root Directory**
+- Clear the Root Directory field (leave it empty or set to `./`)
+- Click "Save" and redeploy
+
 **Issue**: Build fails with "ERESOLVE unable to resolve dependency tree"
 - **Solution**: The `vercel.json` is already configured to use `--legacy-peer-deps`
 - This is due to Sentry/Next.js 16 peer dependency conflict
