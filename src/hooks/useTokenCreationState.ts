@@ -34,7 +34,7 @@
 import { useState, useCallback } from 'react';
 import { TokenCreationForm, TokenCreationResult } from '../types';
 import { isValidTokenName, isValidTokenSymbol } from '../utils';
-import { areContractsDeployed, getChainMetadata } from '../config/contracts';
+import { areContractsDeployed, getChainName } from '../config/contracts';
 import type { useContracts } from './useContracts';
 
 /**
@@ -156,11 +156,11 @@ export function useTokenCreationState({
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     const contractsDeployed = chainId ? areContractsDeployed(chainId) : false;
-    const chainMetadata = chainId ? getChainMetadata(chainId) : null;
+    const chainName = chainId ? getChainName(chainId) : null;
 
     if (!contractsDeployed) {
       setCreationError(
-        `Token creation is not available on ${chainMetadata?.name || 'this chain'}. ` +
+        `Token creation is not available on ${chainName || 'this chain'}. ` +
         'Please switch to BSC Testnet (chain 97) where contracts are deployed.'
       );
       setCreationStep('error');
