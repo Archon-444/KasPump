@@ -77,7 +77,15 @@ const nextConfig = {
     // Disable static image optimization in development
     unoptimized: process.env.NODE_ENV === 'development',
   },
-  // Webpack config to ignore optional dependencies and optimize for mobile
+  // Turbopack config (Next.js 16+ default bundler)
+  // Resolve aliases for optional dependencies that should not be bundled client-side
+  turbopack: {
+    resolveAlias: {
+      '@react-native-async-storage/async-storage': { browser: '' },
+      'pino-pretty': { browser: '' },
+    },
+  },
+  // Webpack config (fallback for --webpack flag)
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -85,7 +93,7 @@ const nextConfig = {
         '@react-native-async-storage/async-storage': false,
         'pino-pretty': false,
       };
-      
+
       // Code splitting optimizations
       config.optimization = {
         ...config.optimization,
