@@ -12,7 +12,9 @@ yarn.lock
 !.env.local.example
 
 # Hardhat/Smart Contract files (not needed for frontend deployment)
-contracts/
+# Note: Use /contracts/ (with leading slash) to only match root-level directory,
+# not src/hooks/contracts/ which contains frontend code
+/contracts/
 scripts/deploy*.ts
 scripts/verify*.ts
 scripts/check-balance.ts
