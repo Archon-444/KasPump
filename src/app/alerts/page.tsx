@@ -50,6 +50,7 @@ export default function AlertsPage() {
       const interval = setInterval(loadPrices, 30000);
       return () => clearInterval(interval);
     }
+    return undefined;
   }, [alerts, isLoading, contracts]);
 
   const handleClearAll = () => {
