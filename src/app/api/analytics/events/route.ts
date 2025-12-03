@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/rate-limit';
-import { AnalyticsEventSchema, AnalyticsEventsArraySchema, AnalyticsEventData } from '@/schemas';
+import { AnalyticsEventsArraySchema, AnalyticsEventData } from '@/schemas';
 
 // Analytics events collection endpoint
 export async function POST(request: NextRequest) {
