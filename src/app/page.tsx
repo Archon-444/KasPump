@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, TrendingUp, Zap, Users, Search, Star } from 'lucide-react';
 import { WalletConnectButton } from '../components/features/WalletConnectButton';
