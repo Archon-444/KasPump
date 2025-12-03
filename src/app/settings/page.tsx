@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Settings as SettingsIcon, Wallet, Bell, Shield, Palette, Globe, Save } from 'lucide-react';
