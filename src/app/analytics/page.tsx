@@ -8,7 +8,6 @@ import { Button, Card } from '../../components/ui';
 import { PlatformStatsCard, AnalyticsData } from '../../components/features/PlatformStatsCard';
 import { ChainComparisonChart } from '../../components/features/ChainComparisonChart';
 import { GrowthChart } from '../../components/features/GrowthChart';
-import { LeaderboardTable, LeaderboardToken } from '../../components/features/LeaderboardTable';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { cn } from '../../utils';
 import { MobileNavigation } from '../../components/mobile';
