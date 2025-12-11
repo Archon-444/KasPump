@@ -51,6 +51,14 @@ const TokenCarousel = dynamic(
   }
 );
 import { Button, Input, Card } from '../components/ui';
+import {
+  AmbientBackground,
+  GlowCard,
+  GlowButton,
+  AnimatedBadge,
+  GradientText,
+  StatCard
+} from '../components/ui/enhanced';
 import { useRouter } from 'next/navigation';
 import { useContracts } from '../hooks/useContracts';
 import { useFavorites } from '../hooks/useFavorites';
@@ -285,10 +293,20 @@ export default function HomePage() {
   }
 
   return (
-    <div 
+    <div
       ref={pullRefreshRef as any}
-      className={cn('min-h-screen', isMobile && 'pb-20')}
+      className={cn('min-h-screen relative', isMobile && 'pb-20')}
     >
+      {/* Ambient Background Effects */}
+      <AmbientBackground
+        showRoofLight={true}
+        showLightBeam={true}
+        showOrbs={true}
+        showStars={true}
+        showNoise={true}
+        colorScheme="yellow"
+      />
+
       {/* Pull-to-refresh indicator */}
       {isMobile && isPulling && (
         <motion.div
@@ -369,40 +387,59 @@ export default function HomePage() {
       <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
         <motion.section
-          className="text-center py-12 mb-12"
+          className="text-center py-12 mb-12 relative z-10"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="text-4xl md:text-6xl font-bold gradient-text mb-6 flex items-center justify-center gap-3 flex-wrap">
-            <span>🚀</span>
-            <span>Launch Your Meme Coin</span>
-            <span>🚀</span>
+          {/* Animated Badge */}
+          <motion.div
+            className="flex justify-center mb-6"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <AnimatedBadge variant="live" animated={true}>
+              Live on BSC
+            </AnimatedBadge>
+          </motion.div>
+
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight mb-6 animate-fade-in-up">
+            <span className="text-white">Launch Your </span>
+            <GradientText
+              as="span"
+              colorScheme="yellow"
+              glow={true}
+              className="font-bold"
+            >
+              Meme Coin
+            </GradientText>
           </h1>
-          <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Fair launch, bonding curve trading, instant liquidity on BNB Smart Chain. 
-            No presale, no team allocation, just pure meme magic! 🚀
+          <p className="text-lg md:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed font-light">
+            Fair launch, bonding curve trading, instant liquidity on BNB Smart Chain.
+            No presale, no team allocation, just pure meme magic.
           </p>
-          
+
           <motion.div
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <Button
+            <GlowButton
               size="lg"
               onClick={() => setShowCreateModal(true)}
-              className="btn-glow-purple"
-              icon={<Plus size={20} />}
+              colorScheme="yellow"
             >
+              <Plus size={20} className="mr-2" />
               Create Token
-            </Button>
+            </GlowButton>
             <Button
-              variant="secondary"
+              variant="outline"
               size="lg"
               onClick={() => document.getElementById('tokens')?.scrollIntoView({ behavior: 'smooth' })}
               icon={<TrendingUp size={20} />}
+              className="border-white/10 hover:bg-white/5"
             >
               Browse Tokens
             </Button>
@@ -411,40 +448,52 @@ export default function HomePage() {
 
         {/* Stats Section */}
         <motion.section
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 relative z-10"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <Card className="text-center glassmorphism">
-            <div className="flex items-center justify-center mb-2">
-              <Zap className="w-8 h-8 text-yellow-400" />
+          <GlowCard padding="lg">
+            <div className="text-center">
+              <div className="flex items-center justify-center mb-3">
+                <div className="p-3 rounded-xl bg-yellow-500/10">
+                  <Zap className="w-7 h-7 text-yellow-400" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-white mb-1">{stats.totalTokens}</div>
+              <div className="text-sm text-gray-400 font-medium">Tokens Launched</div>
             </div>
-            <div className="text-2xl font-bold text-white">{stats.totalTokens}</div>
-            <div className="text-gray-400">Tokens Launched</div>
-          </Card>
-          
-          <Card className="text-center glassmorphism">
-            <div className="flex items-center justify-center mb-2">
-              <TrendingUp className="w-8 h-8 text-green-400" />
+          </GlowCard>
+
+          <GlowCard padding="lg">
+            <div className="text-center">
+              <div className="flex items-center justify-center mb-3">
+                <div className="p-3 rounded-xl bg-green-500/10">
+                  <TrendingUp className="w-7 h-7 text-green-400" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-white mb-1">${stats.totalVolume.toLocaleString()}</div>
+              <div className="text-sm text-gray-400 font-medium">24h Volume</div>
             </div>
-            <div className="text-2xl font-bold text-white">${stats.totalVolume.toLocaleString()}</div>
-            <div className="text-gray-400">24h Volume</div>
-          </Card>
-          
-          <Card className="text-center glassmorphism">
-            <div className="flex items-center justify-center mb-2">
-              <Users className="w-8 h-8 text-blue-400" />
+          </GlowCard>
+
+          <GlowCard padding="lg">
+            <div className="text-center">
+              <div className="flex items-center justify-center mb-3">
+                <div className="p-3 rounded-xl bg-blue-500/10">
+                  <Users className="w-7 h-7 text-blue-400" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-white mb-1">{stats.totalHolders.toLocaleString()}</div>
+              <div className="text-sm text-gray-400 font-medium">Total Holders</div>
             </div>
-            <div className="text-2xl font-bold text-white">{stats.totalHolders.toLocaleString()}</div>
-            <div className="text-gray-400">Total Holders</div>
-          </Card>
+          </GlowCard>
         </motion.section>
 
         {/* Trending Tokens Carousel */}
         {filteredTokens.length > 0 && (
           <motion.section
-            className="mb-12"
+            className="mb-12 relative z-10"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
@@ -462,11 +511,16 @@ export default function HomePage() {
         )}
 
         {/* Tokens Section */}
-        <section id="tokens">
+        <section id="tokens" className="relative z-10">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-6">
-              Live Tokens
-            </h2>
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-2xl font-bold text-white">
+                Live Tokens
+              </h2>
+              <AnimatedBadge variant="success" animated={tokens.length > 0}>
+                {tokens.length} Active
+              </AnimatedBadge>
+            </div>
             
             <TokenSearchFilters
               filters={filters}
@@ -542,7 +596,7 @@ export default function HomePage() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-gray-800/50 bg-gray-900/30 mt-20">
+      <footer className="border-t border-gray-800/50 bg-gray-900/30 mt-20 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-gray-400">
             <p>&copy; 2025 KasPump. Built on BNB Smart Chain.</p>

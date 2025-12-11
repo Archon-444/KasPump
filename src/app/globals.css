@@ -257,11 +257,171 @@ img[loading="lazy"] {
   .glow-effect {
     @apply relative;
   }
-  
+
   .glow-effect::before {
     content: '';
     @apply absolute inset-0 rounded-lg bg-gradient-to-r from-yellow-500/20 to-orange-500/20 blur-sm;
     z-index: -1;
+  }
+
+  /* ========== AMBIENT BACKGROUND EFFECTS ========== */
+
+  /* Roof light - Top-down radial glow */
+  .roof-light {
+    position: absolute;
+    top: -20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 140vw;
+    height: 60vh;
+    background: radial-gradient(50% 100% at 50% 50%, rgba(243, 186, 47, 0.12) 0%, rgba(249, 115, 22, 0.08) 30%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+    filter: blur(60px);
+  }
+
+  /* Conic light beam effect */
+  .light-beam {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    height: 100vh;
+    background: conic-gradient(from 180deg at 50% 0%, transparent 45%, rgba(255, 255, 255, 0.02) 50%, transparent 55%);
+    mask-image: linear-gradient(to bottom, black 0%, transparent 50%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Breathing ambient orbs */
+  .ambient-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    z-index: 0;
+    opacity: 0.4;
+    animation: orb-breathe 10s infinite ease-in-out alternate;
+    pointer-events: none;
+  }
+
+  .ambient-orb-1 {
+    top: -10%;
+    left: 20%;
+    width: 40vw;
+    height: 30vw;
+    background: rgba(243, 186, 47, 0.15);
+    animation-delay: 0s;
+  }
+
+  .ambient-orb-2 {
+    top: 0%;
+    right: 15%;
+    width: 30vw;
+    height: 30vw;
+    background: rgba(249, 115, 22, 0.12);
+    animation-delay: -5s;
+  }
+
+  .ambient-orb-3 {
+    top: 30%;
+    left: 50%;
+    width: 25vw;
+    height: 25vw;
+    background: rgba(234, 179, 8, 0.1);
+    animation-delay: -2.5s;
+  }
+
+  /* Starfield texture */
+  .starfield {
+    background-image:
+      radial-gradient(1px 1px at 20px 30px, rgba(255,255,255,0.8), transparent),
+      radial-gradient(1px 1px at 40px 70px, rgba(255,255,255,0.6), transparent),
+      radial-gradient(1px 1px at 50px 160px, rgba(255,255,255,0.7), transparent),
+      radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.5), transparent),
+      radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.6), transparent),
+      radial-gradient(1px 1px at 160px 120px, rgba(255,255,255,0.4), transparent);
+    background-size: 200px 200px;
+    opacity: 0.12;
+  }
+
+  /* Noise/grain overlay */
+  .noise-overlay {
+    position: absolute;
+    inset: 0;
+    opacity: 0.03;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  /* ========== GLOW CARD STYLES ========== */
+
+  /* Gradient border card wrapper */
+  .glow-card-wrapper {
+    @apply relative p-px rounded-xl overflow-hidden;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  }
+
+  .glow-card-wrapper::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: linear-gradient(to bottom, rgba(243, 186, 47, 0.2), rgba(249, 115, 22, 0.1));
+  }
+
+  .glow-card-wrapper:hover::before {
+    @apply opacity-100;
+  }
+
+  .glow-card-inner {
+    @apply relative h-full rounded-[11px] transition-colors duration-300;
+    background: hsl(var(--card));
+  }
+
+  .glow-card-wrapper:hover .glow-card-inner {
+    background: hsl(var(--card) / 0.95);
+  }
+
+  /* ========== GLOW BUTTON STYLES ========== */
+
+  .btn-glow-wrapper {
+    @apply relative inline-flex;
+  }
+
+  .btn-glow-wrapper::before {
+    content: '';
+    @apply absolute -inset-0.5 rounded-lg opacity-60 blur-sm transition-opacity duration-200;
+    background: linear-gradient(to right, rgb(243, 186, 47), rgb(249, 115, 22));
+  }
+
+  .btn-glow-wrapper:hover::before {
+    @apply opacity-100;
+  }
+
+  .btn-glow-inner {
+    @apply relative z-10 inline-flex items-center justify-center rounded-md px-4 py-2 font-medium text-white transition-all duration-200;
+    background: hsl(var(--background));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .btn-glow-wrapper:hover .btn-glow-inner {
+    background: hsl(var(--background) / 0.9);
+  }
+
+  /* Input focus glow */
+  .input-glow-wrapper {
+    @apply relative;
+  }
+
+  .input-glow-wrapper::before {
+    content: '';
+    @apply absolute -inset-1 rounded-xl opacity-0 blur-xl transition-opacity duration-500 pointer-events-none;
+    background: linear-gradient(to right, rgba(243, 186, 47, 0.3), rgba(249, 115, 22, 0.3));
+  }
+
+  .input-glow-wrapper:focus-within::before {
+    @apply opacity-50;
   }
   
   .token-card-glow {
@@ -372,6 +532,38 @@ img[loading="lazy"] {
   }
   100% {
     background-position: 200% 0;
+  }
+}
+
+/* Orb breathing animation */
+@keyframes orb-breathe {
+  0% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.5;
+    transform: scale(1.1);
+  }
+}
+
+/* Fade in up animation */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Ping animation for status indicators */
+@keyframes ping-slow {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
   }
 }
 

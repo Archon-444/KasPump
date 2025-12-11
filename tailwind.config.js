@@ -57,23 +57,46 @@ module.exports = {
           to: { height: 0 },
         },
         "pulse-glow": {
-          "0%, 100%": { 
-            boxShadow: "0 0 5px rgb(59 130 246 / 0.5)" 
+          "0%, 100%": {
+            boxShadow: "0 0 5px rgb(59 130 246 / 0.5)"
           },
-          "50%": { 
-            boxShadow: "0 0 20px rgb(59 130 246 / 0.8), 0 0 30px rgb(59 130 246 / 0.4)" 
+          "50%": {
+            boxShadow: "0 0 20px rgb(59 130 246 / 0.8), 0 0 30px rgb(59 130 246 / 0.4)"
           },
         },
         "float": {
           "0%, 100%": { transform: "translateY(0px)" },
           "50%": { transform: "translateY(-10px)" },
-        }
+        },
+        "orb-breathe": {
+          "0%": { opacity: "0.3", transform: "scale(1)" },
+          "100%": { opacity: "0.5", transform: "scale(1.1)" },
+        },
+        "fade-in-up": {
+          from: { opacity: "0", transform: "translateY(10px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "ping-slow": {
+          "75%, 100%": { transform: "scale(2)", opacity: "0" },
+        },
+        "glow-pulse": {
+          "0%, 100%": {
+            boxShadow: "0 0 5px rgb(243 186 47 / 0.4)"
+          },
+          "50%": {
+            boxShadow: "0 0 20px rgb(243 186 47 / 0.6), 0 0 30px rgb(249 115 22 / 0.3)"
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
         "float": "float 3s ease-in-out infinite",
+        "orb-breathe": "orb-breathe 10s ease-in-out infinite alternate",
+        "fade-in-up": "fade-in-up 0.8s ease-out forwards",
+        "ping-slow": "ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
       },
       spacing: {
         'safe': 'env(safe-area-inset-bottom)',
