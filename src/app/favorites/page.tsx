@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Star, Trash2, TrendingUp, Zap } from 'lucide-react';
@@ -15,14 +15,14 @@ import { MobileNavigation } from '../../components/mobile';
 
 export default function FavoritesPage() {
   const router = useRouter();
-  const { favorites, isLoading, clearFavorites, removeFavorite } = useFavorites();
+  const { favorites, isLoading, clearFavorites } = useFavorites();
   const contracts = useContracts();
   const isMobile = useIsMobile();
   const [tokens, setTokens] = useState<KasPumpToken[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Load token details for favorites
-  React.useEffect(() => {
+  useEffect(() => {
     const loadFavoriteTokens = async () => {
       if (favorites.length === 0) {
         setTokens([]);

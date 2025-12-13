@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, Plus, Filter, Search, Award, TrendingUp, ArrowLeft } from 'lucide-react';
+import { RefreshCw, Plus, Filter, Search, Award, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
 import { useCreatorTokens } from '../../hooks/useCreatorTokens';

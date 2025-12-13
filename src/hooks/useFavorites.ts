@@ -69,7 +69,8 @@ export function useFavorites() {
         const validationResult = FavoritesArraySchema.safeParse(parsed);
 
         if (validationResult.success) {
-          setFavorites(validationResult.data);
+          // Type assertion needed because Zod infers partial types
+          setFavorites(validationResult.data as FavoriteToken[]);
         } else {
           console.warn('Invalid favorites data in localStorage, resetting:', validationResult.error);
           // Clear invalid data

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { AlertTriangle, RefreshCw, Home, Bug, ExternalLink } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
 import { Button } from '../components/ui';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';

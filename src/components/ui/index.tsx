@@ -48,6 +48,8 @@ export interface ButtonComponent extends VariantProps<typeof buttonVariants> {
   children: React.ReactNode;
   className?: string;
   type?: 'button' | 'submit' | 'reset';
+  title?: string;
+  'aria-label'?: string;
 }
 
 export const Button: React.FC<ButtonComponent> = ({

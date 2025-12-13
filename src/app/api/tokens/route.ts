@@ -71,7 +71,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all tokens with pagination
-    const allTokens = await factoryContract.getAllTokens();
+    const getAllTokens = factoryContract.getAllTokens as (() => Promise<string[]>) | undefined;
+    if (!getAllTokens) {
+      return NextResponse.json({ error: 'getAllTokens method not available' }, { status: 500 });
+    }
+    const allTokens = await getAllTokens();
     const paginatedTokens = allTokens.slice(offset, offset + limit);
 
     const tokensWithData = await Promise.all(
@@ -112,7 +116,21 @@ async function getTokenDetails(
 ) {
   try {
     // Get token config from factory
-    const config = await factoryContract.getTokenConfig(tokenAddress);
+    const getTokenConfig = factoryContract.getTokenConfig as ((addr: string) => Promise<{
+      name: string;
+      symbol: string;
+      description: string;
+      imageUrl: string;
+      totalSupply: bigint;
+      basePrice: bigint;
+      slope: bigint;
+      curveType: number;
+      graduationThreshold: bigint;
+    }>) | undefined;
+    if (!getTokenConfig) {
+      throw new Error('getTokenConfig method not available');
+    }
+    const config = await getTokenConfig(tokenAddress);
     
     // Get AMM address and trading data
     const ammAddress = await getAMMAddress(tokenAddress, factoryContract);
@@ -166,22 +184,34 @@ async function getAMMAddress(tokenAddress: string, factoryContract: ethers.Contr
   try {
     // Try to get AMM address from factory (if function exists)
     try {
-      const ammAddress = await factoryContract.getTokenAMM(tokenAddress);
-      if (ammAddress && ammAddress !== ethers.ZeroAddress) {
-        return ammAddress;
+      const getTokenAMM = factoryContract.getTokenAMM as ((addr: string) => Promise<string>) | undefined;
+      if (getTokenAMM) {
+        const ammAddress = await getTokenAMM(tokenAddress);
+        if (ammAddress && ammAddress !== ethers.ZeroAddress) {
+          return ammAddress;
+        }
       }
-    } catch (error) {
+    } catch {
       // Function doesn't exist or failed, fall back to events
     }
-    
-    // Fallback: search for TokenCreated events
-    const filter = factoryContract.filters.TokenCreated(tokenAddress);
-    const events = await factoryContract.queryFilter(filter);
 
-    if (events.length > 0 && 'args' in events[0]) {
-      return events[0].args.ammAddress as string;
+    // Fallback: search for TokenCreated events
+    try {
+      const filtersObj = factoryContract.filters as { TokenCreated?: (addr: string) => ethers.ContractEventName } | undefined;
+      if (!filtersObj?.TokenCreated) return null;
+      const filter = filtersObj.TokenCreated(tokenAddress);
+      const events = await factoryContract.queryFilter(filter);
+
+      if (events.length > 0) {
+        const event = events[0];
+        if (event && 'args' in event && event.args) {
+          return (event.args as { ammAddress?: string }).ammAddress ?? null;
+        }
+      }
+    } catch {
+      // Event querying failed
     }
-    
+
     return null;
   } catch (error) {
     console.error(`Error getting AMM address for ${tokenAddress}:`, error);
@@ -192,7 +222,9 @@ async function getAMMAddress(tokenAddress: string, factoryContract: ethers.Contr
 async function getTradingData(provider: ethers.JsonRpcProvider, ammAddress: string) {
   try {
     const ammContract = new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider);
-    const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo();
+    const getTradingInfo = ammContract.getTradingInfo as (() => Promise<[bigint, bigint, bigint, bigint, boolean]>) | undefined;
+    if (!getTradingInfo) return null;
+    const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await getTradingInfo();
 
     return {
       currentSupply: parseFloat(ethers.formatEther(currentSupply)),
@@ -217,11 +249,16 @@ async function getTokenCreator(
 ): Promise<string> {
   try {
     // Query TokenCreated events to find the creator
-    const filter = factoryContract.filters.TokenCreated(tokenAddress);
+    const filtersObj = factoryContract.filters as { TokenCreated?: (addr: string) => ethers.ContractEventName } | undefined;
+    if (!filtersObj?.TokenCreated) return ethers.ZeroAddress;
+    const filter = filtersObj.TokenCreated(tokenAddress);
     const events = await factoryContract.queryFilter(filter);
 
-    if (events.length > 0 && 'args' in events[0]) {
-      return events[0].args.creator as string;
+    if (events.length > 0) {
+      const event = events[0];
+      if (event && 'args' in event && event.args) {
+        return (event.args as { creator?: string }).creator ?? ethers.ZeroAddress;
+      }
     }
 
     // If no event found, return zero address
@@ -239,14 +276,18 @@ async function getTokenCreationTime(
 ): Promise<string> {
   try {
     // Query TokenCreated events to find creation block
-    const filter = factoryContract.filters.TokenCreated(tokenAddress);
+    const filtersObj = factoryContract.filters as { TokenCreated?: (addr: string) => ethers.ContractEventName } | undefined;
+    if (!filtersObj?.TokenCreated) return new Date().toISOString();
+    const filter = filtersObj.TokenCreated(tokenAddress);
     const events = await factoryContract.queryFilter(filter);
 
     if (events.length > 0) {
       const event = events[0];
-      const block = await provider.getBlock(event.blockNumber);
-      if (block) {
-        return new Date(block.timestamp * 1000).toISOString();
+      if (event) {
+        const block = await provider.getBlock(event.blockNumber);
+        if (block) {
+          return new Date(block.timestamp * 1000).toISOString();
+        }
       }
     }
 
@@ -258,12 +299,8 @@ async function getTokenCreationTime(
   }
 }
 
-async function getHolderCount(provider: ethers.JsonRpcProvider, tokenAddress: string): Promise<number> {
-  try {
-    // Placeholder for holder count calculation
-    // In production, we'd need to track Transfer events or use indexing service
-    return 0;
-  } catch (error) {
-    return 0;
-  }
+async function getHolderCount(_provider: ethers.JsonRpcProvider, _tokenAddress: string): Promise<number> {
+  // Placeholder for holder count calculation
+  // In production, we'd need to track Transfer events or use indexing service
+  return 0;
 }

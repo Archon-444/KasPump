@@ -56,11 +56,15 @@ async function getPlatformAnalytics(
   factoryContract: ethers.Contract,
   timeframe: string
 ) {
-  
+
   try {
     // Get all tokens
-    const allTokens = await factoryContract.getAllTokens();
-    
+    const getAllTokens = factoryContract.getAllTokens as (() => Promise<string[]>) | undefined;
+    if (!getAllTokens) {
+      throw new Error('getAllTokens method not available on contract');
+    }
+    const allTokens = await getAllTokens();
+
     // Calculate platform metrics
     const totalTokens = allTokens.length;
     const totalVolume = await calculateTotalVolume(provider, factoryContract, allTokens);
@@ -68,7 +72,7 @@ async function getPlatformAnalytics(
     const graduatedTokens = await countGraduatedTokens(provider, factoryContract, allTokens);
     const activeTokens = await countActiveTokens(provider, allTokens, timeframe);
     const totalUsers = await calculateTotalUsers(provider, allTokens);
-    
+
     // Platform health metrics
     const successRate = totalTokens > 0 ? (graduatedTokens / totalTokens) * 100 : 0;
     const averageVolume = totalTokens > 0 ? totalVolume / totalTokens : 0;
@@ -80,8 +84,9 @@ async function getPlatformAnalytics(
 
     // Growth metrics
     const newTokens = await getNewTokensCount(factoryContract, timeframe);
-    const volumeGrowth = await getVolumeGrowth(provider, allTokens, timeframe);
-    const userGrowth = await getUserGrowth(provider, allTokens, timeframe);
+    // Note: volumeGrowth and userGrowth require historical data tracking
+    // const volumeGrowth = await getVolumeGrowth(provider, allTokens, timeframe);
+    // const userGrowth = await getUserGrowth(provider, allTokens, timeframe);
 
     return {
       timestamp: new Date().toISOString(),
@@ -147,7 +152,9 @@ async function calculateTotalVolume(
       if (!ammAddress) continue;
 
       const ammContract = new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider);
-      const [, , totalVolumeWei] = await ammContract.getTradingInfo();
+      const getTradingInfo = ammContract.getTradingInfo as (() => Promise<[bigint, bigint, bigint, bigint, boolean]>) | undefined;
+      if (!getTradingInfo) continue;
+      const [, , totalVolumeWei] = await getTradingInfo();
       totalVolume += parseFloat(ethers.formatEther(totalVolumeWei));
     } catch (error) {
       // Skip tokens with errors
@@ -206,7 +213,7 @@ async function countGraduatedTokens(
   return graduatedCount;
 }
 
-async function countActiveTokens(provider: ethers.JsonRpcProvider, tokens: string[], timeframe: string): Promise<number> {
+async function countActiveTokens(provider: ethers.JsonRpcProvider, tokens: string[], _timeframe: string): Promise<number> {
   // Count tokens with recent trading activity (volume > 0 and not graduated)
   // In production, this would query recent Trade events within the timeframe
   let activeCount = 0;
@@ -214,7 +221,9 @@ async function countActiveTokens(provider: ethers.JsonRpcProvider, tokens: strin
   for (const tokenAddress of tokens) {
     try {
       const ammContract = new ethers.Contract(tokenAddress, BONDING_CURVE_ABI, provider);
-      const [, , totalVolume, , isGraduated] = await ammContract.getTradingInfo();
+      const getTradingInfo = ammContract.getTradingInfo as (() => Promise<[bigint, bigint, bigint, bigint, boolean]>) | undefined;
+      if (!getTradingInfo) continue;
+      const [, , totalVolume, , isGraduated] = await getTradingInfo();
 
       // Consider active if has volume and not graduated
       if (parseFloat(ethers.formatEther(totalVolume)) > 0 && !isGraduated) {
@@ -228,7 +237,7 @@ async function countActiveTokens(provider: ethers.JsonRpcProvider, tokens: strin
   return activeCount;
 }
 
-async function calculateTotalUsers(_provider: ethers.JsonRpcProvider, tokens: string[]): Promise<number> {
+async function calculateTotalUsers(_provider: ethers.JsonRpcProvider, _tokens: string[]): Promise<number> {
   // Accurate user count would require:
   // 1. Parsing all Trade events across all tokens
   // 2. Tracking unique trader addresses
@@ -262,7 +271,9 @@ async function getNewTokensCount(factoryContract: ethers.Contract, timeframe: st
     };
 
     const fromBlock = Math.max(0, currentBlock - (timeframeBlocks[timeframe as keyof typeof timeframeBlocks] || currentBlock));
-    const filter = factoryContract.filters.TokenCreated();
+    const filtersObj = factoryContract.filters as { TokenCreated?: () => ethers.ContractEventName } | undefined;
+    if (!filtersObj?.TokenCreated) return 0;
+    const filter = filtersObj.TokenCreated();
     const events = await factoryContract.queryFilter(filter, fromBlock, currentBlock);
 
     return events.length;
@@ -366,19 +377,31 @@ async function getTopPerformingTokens(
 // Simplified helper functions (would be more robust in production)
 async function getAMMAddressForToken(factoryContract: ethers.Contract, tokenAddress: string): Promise<string | null> {
   try {
-    const ammAddress = await factoryContract.getTokenAMM(tokenAddress);
-    if (ammAddress && ammAddress !== ethers.ZeroAddress) {
-      return ammAddress;
+    const getTokenAMM = factoryContract.getTokenAMM as ((addr: string) => Promise<string>) | undefined;
+    if (getTokenAMM) {
+      const ammAddress = await getTokenAMM(tokenAddress);
+      if (ammAddress && ammAddress !== ethers.ZeroAddress) {
+        return ammAddress;
+      }
     }
   } catch {
     // Method might not exist, fall through to events
   }
 
-  const filter = factoryContract.filters.TokenCreated(tokenAddress);
-  const events = await factoryContract.queryFilter(filter);
+  try {
+    const filtersObj = factoryContract.filters as { TokenCreated?: (addr: string) => ethers.ContractEventName } | undefined;
+    if (!filtersObj?.TokenCreated) return null;
+    const filter = filtersObj.TokenCreated(tokenAddress);
+    const events = await factoryContract.queryFilter(filter);
 
-  if (events.length > 0 && 'args' in events[0]) {
-    return events[0].args.ammAddress as string;
+    if (events.length > 0) {
+      const event = events[0];
+      if (event && 'args' in event && event.args) {
+        return (event.args as { ammAddress?: string }).ammAddress ?? null;
+      }
+    }
+  } catch {
+    // Event querying failed
   }
 
   return null;
@@ -387,7 +410,9 @@ async function getAMMAddressForToken(factoryContract: ethers.Contract, tokenAddr
 async function getTradingDataForAnalytics(provider: ethers.JsonRpcProvider, ammAddress: string) {
   try {
     const ammContract = new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider);
-    const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo();
+    const getTradingInfo = ammContract.getTradingInfo as (() => Promise<[bigint, bigint, bigint, bigint, boolean]>) | undefined;
+    if (!getTradingInfo) return null;
+    const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await getTradingInfo();
 
     return {
       currentSupply: parseFloat(ethers.formatEther(currentSupply)),
@@ -396,7 +421,7 @@ async function getTradingDataForAnalytics(provider: ethers.JsonRpcProvider, ammA
       graduation: parseFloat(ethers.formatUnits(graduation, 2)),
       isGraduated
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 }
