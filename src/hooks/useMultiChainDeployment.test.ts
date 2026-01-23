@@ -106,6 +106,7 @@ describe('useMultiChainDeployment', () => {
     // Setup mock factory contract
     mockFactoryContract = {
       createToken: vi.fn(),
+      CREATION_FEE: vi.fn().mockResolvedValue(BigInt('25000000000000000')),
       interface: {
         parseLog: vi.fn(),
       },
@@ -119,7 +120,7 @@ describe('useMultiChainDeployment', () => {
     (useMultichainWallet as any).mockReturnValue(mockWallet);
 
     // Mock environment variables
-    process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS = '0xfactory123456789012345678901234567890';
+    process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY = '0xfactory123456789012345678901234567890';
 
     // Mock successful deployment by default
     mockWallet.switchNetwork.mockResolvedValue(true);
@@ -145,7 +146,7 @@ describe('useMultiChainDeployment', () => {
   });
 
   afterEach(() => {
-    delete process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS;
+    delete process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY;
   });
 
   describe('Initial State', () => {
@@ -298,7 +299,7 @@ describe('useMultiChainDeployment', () => {
     });
 
     it('should handle missing factory address', async () => {
-      delete process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS;
+      delete process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY;
 
       const { result } = renderHook(() => useMultiChainDeployment());
 
@@ -728,7 +729,7 @@ describe('useMultiChainDeployment', () => {
 
   describe('Chain-specific Environment Variables', () => {
     it('should use chain-specific factory address if available', async () => {
-      process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS_56 = '0xchain56specific123456789012345678901234';
+      process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY = '0xchain56specific123456789012345678901234';
 
       const { result } = renderHook(() => useMultiChainDeployment());
 
@@ -740,7 +741,7 @@ describe('useMultiChainDeployment', () => {
       const result56 = result.current.deployments.find(d => d.chainId === 56);
       expect(result56?.status).toBe('success');
 
-      delete process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS_56;
+      delete process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY;
     });
 
     it('should fall back to default factory address', async () => {

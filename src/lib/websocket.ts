@@ -35,13 +35,19 @@ export interface TokenCreatedEvent {
   name: string;
   symbol: string;
   creator: string;
+  ammAddress?: string;
+  totalSupply?: string;
+  timestamp?: number;
   txHash: string;
 }
 
 export interface TokenGraduatedEvent {
   tokenAddress: string;
   chainId: number;
-  ammAddress: string;
+  ammAddress?: string;
+  finalSupply?: string;
+  liquidityAdded?: string;
+  nativeReserve?: string;
   timestamp: number;
 }
 

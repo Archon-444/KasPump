@@ -22,6 +22,7 @@ export interface TokenCreatedEvent {
   creator: string;
   name: string;
   symbol: string;
+  totalSupply?: string;
   timestamp: number;
   txHash: string;
   blockNumber: number;
@@ -33,6 +34,7 @@ export interface GraduationEvent {
   ammAddress?: string;
   finalSupply: string;
   totalRaised?: string;
+  liquidityAdded?: string;
   nativeReserve?: string;
   timestamp: number;
   txHash: string;

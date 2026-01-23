@@ -248,7 +248,7 @@ const TOKEN_FACTORY_ABI = [
   "function getTokenConfig(address tokenAddress) external view returns (tuple(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType, uint256 graduationThreshold))",
   "function getTokenAMM(address tokenAddress) external view returns (address)",
   "function isKasPumpToken(address tokenAddress) external view returns (bool)",
-  "event TokenCreated(address indexed tokenAddress, address indexed creator, string name, string symbol, uint256 totalSupply, address ammAddress)"
+  "event TokenCreated(address indexed tokenAddress, address indexed ammAddress, address indexed creator, string name, string symbol, uint256 totalSupply, uint256 timestamp)"
 ];
 
 const BONDING_CURVE_AMM_ABI = [

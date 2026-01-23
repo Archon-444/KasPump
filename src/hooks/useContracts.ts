@@ -1,6 +1,8 @@
 // Enhanced Smart Contract Integration with AMM Address Resolution
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { ethers } from 'ethers';
+import TokenFactoryABI from '@/abis/TokenFactory.json';
+import BondingCurveAMMABI from '@/abis/BondingCurveAMM.json';
 import {
   KasPumpToken,
   TradeData,
@@ -15,31 +17,6 @@ import { useContractProvider } from './contracts/useContractProvider';
 import { parseContractError } from '../utils/contractErrors';
 import { getTokenFactoryAddress, getChainName, getSupportedChains } from '../config/contracts';
 
-// Enhanced ABI definitions with events
-const TOKEN_FACTORY_ABI = [
-  "function createToken(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType) external payable returns (address, address)",
-  "function getAllTokens() external view returns (address[])",
-  "function getTokenConfig(address tokenAddress) external view returns (tuple(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType, uint256 graduationThreshold))",
-  "function getTokenAMM(address tokenAddress) external view returns (address)",
-  "function isKasPumpToken(address tokenAddress) external view returns (bool)",
-  "event TokenCreated(address indexed tokenAddress, address indexed creator, string name, string symbol, uint256 totalSupply, address ammAddress)"
-];
-
-const BONDING_CURVE_AMM_ABI = [
-  "function buyTokens(uint256 minTokensOut) external payable",
-  "function sellTokens(uint256 tokenAmount, uint256 minNativeOut) external",
-  "function getCurrentPrice() external view returns (uint256)",
-  "function getTradingInfo() external view returns (uint256 currentSupply, uint256 currentPrice, uint256 totalVolume, uint256 graduation, bool isGraduated)",
-  "function calculateTokensOut(uint256 nativeIn, uint256 supply) external view returns (uint256)",
-  "function calculateNativeOut(uint256 tokensIn, uint256 supply) external view returns (uint256)",
-  "function getPriceImpact(uint256 amount, bool isBuy) external view returns (uint256)",
-  "function token() external view returns (address)",
-  "function currentSupply() external view returns (uint256)",
-  "function totalVolume() external view returns (uint256)",
-  "function isGraduated() external view returns (bool)",
-  "event Trade(address indexed trader, bool indexed isBuy, uint256 nativeAmount, uint256 tokenAmount, uint256 newPrice, uint256 fee)"
-];
-
 const ERC20_ABI = [
   "function balanceOf(address account) external view returns (uint256)",
   "function approve(address spender, uint256 amount) external returns (bool)",
@@ -53,6 +30,8 @@ const ERC20_ABI = [
 
 // AMM address cache for performance
 const ammAddressCache = new Map<string, string>();
+const getAmmCacheKey = (chainId: number, tokenAddress: string) =>
+  `${chainId}:${tokenAddress.toLowerCase()}`;
 
 export function useContracts() {
   const wallet = useMultichainWallet();
@@ -92,7 +71,7 @@ export function useContracts() {
     if (!signer || typeof signer !== 'object') {
       throw new Error('Invalid signer');
     }
-    return new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
+    return new ethers.Contract(factoryAddress, TokenFactoryABI.abi, signer);
   }, [signer, currentChainId]);
 
   const getRunnerOrThrow = useCallback((): ethers.Signer | ethers.AbstractProvider => {
@@ -133,7 +112,7 @@ export function useContracts() {
       throw new Error('AMM address is required');
     }
     const runner = getRunnerOrThrow();
-    return new ethers.Contract(ammAddress, BONDING_CURVE_AMM_ABI, runner);
+    return new ethers.Contract(ammAddress, BondingCurveAMMABI.abi, runner);
   }, [getRunnerOrThrow]);
 
   const getTokenContract = useCallback((tokenAddress: string) => {
@@ -146,9 +125,9 @@ export function useContracts() {
 
   // Resolve AMM address for a token (with caching)
   const getTokenAMMAddress = useCallback(async (tokenAddress: string): Promise<string> => {
-    // Check cache first
-    if (ammAddressCache.has(tokenAddress)) {
-      return ammAddressCache.get(tokenAddress)!;
+    const cacheKey = getAmmCacheKey(currentChainId, tokenAddress);
+    if (ammAddressCache.has(cacheKey)) {
+      return ammAddressCache.get(cacheKey)!;
     }
 
     try {
@@ -158,7 +137,7 @@ export function useContracts() {
       }
 
       const runner = getReadProviderOrThrow();
-      const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, runner);
+      const factoryContract = new ethers.Contract(factoryAddress, TokenFactoryABI.abi, runner);
       
       // Check if we have a getTokenAMM function (newer factory version)
       try {
@@ -166,7 +145,7 @@ export function useContracts() {
         if (!ammAddress || ammAddress === ethers.ZeroAddress) {
           throw new Error('AMM address not found');
         }
-        ammAddressCache.set(tokenAddress, ammAddress);
+        ammAddressCache.set(cacheKey, ammAddress);
         return ammAddress;
       } catch (error) {
         // Fallback: search TokenCreated events
@@ -178,7 +157,7 @@ export function useContracts() {
           if ('args' in event && event.args) {
             // Type assertion for TokenCreated event args
             const args = event.args as unknown as TokenCreatedEventArgs;
-            ammAddressCache.set(tokenAddress, args.ammAddress);
+            ammAddressCache.set(cacheKey, args.ammAddress);
             return args.ammAddress;
           }
         }
@@ -189,7 +168,7 @@ export function useContracts() {
       console.error('Failed to resolve AMM address:', error);
       throw new Error(`Failed to resolve AMM address for token ${tokenAddress}`);
     }
-  }, [getReadProviderOrThrow]);
+  }, [getReadProviderOrThrow, currentChainId]);
 
   // Create a new token with bonding curve
   const createToken = useCallback(async (tokenData: TokenCreationForm, imageUrl?: string): Promise<{ tokenAddress: string; ammAddress: string; txHash: string }> => {
@@ -207,6 +186,7 @@ export function useContracts() {
       
       // Estimate gas
       const imageUrlToUse = imageUrl || ''; // Use provided IPFS URL or empty string
+      const creationFee = await contract.CREATION_FEE();
       const gasEstimate = await contract.createToken.estimateGas(
         tokenData.name,
         tokenData.symbol,
@@ -215,7 +195,8 @@ export function useContracts() {
         totalSupply,
         basePrice,
         slope,
-        curveType
+        curveType,
+        { value: creationFee }
       );
 
       // Add 20% buffer to gas estimate
@@ -231,7 +212,7 @@ export function useContracts() {
         basePrice,
         slope,
         curveType,
-        { gasLimit }
+        { gasLimit, value: creationFee }
       );
 
       const receipt = await tx.wait();
@@ -261,7 +242,7 @@ export function useContracts() {
       const ammAddress = decodedEvent.args.ammAddress as string;
       
       // Cache the AMM address
-      ammAddressCache.set(tokenAddress, ammAddress);
+      ammAddressCache.set(getAmmCacheKey(currentChainId, tokenAddress), ammAddress);
       
       return {
         tokenAddress,
@@ -389,7 +370,7 @@ export function useContracts() {
         );
       }
       const runner = getReadProviderOrThrow();
-      const contract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, runner);
+      const contract = new ethers.Contract(factoryAddress, TokenFactoryABI.abi, runner);
       
       // Validate contract before calling
       if (!contract || typeof contract !== 'object') {
@@ -427,7 +408,7 @@ export function useContracts() {
         throw new Error(`Token factory address not configured for chain ${currentChainId}`);
       }
       const runner = getReadProviderOrThrow();
-      const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, runner);
+      const factoryContract = new ethers.Contract(factoryAddress, TokenFactoryABI.abi, runner);
       const tokenContract = getTokenContract(tokenAddress);
       
       // Check if it's a KasPump token

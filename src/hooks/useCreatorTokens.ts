@@ -34,11 +34,14 @@
  * @returns Object containing created tokens, stats, and management functions
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ethers } from 'ethers';
+import TokenFactoryABI from '@/abis/TokenFactory.json';
+import BondingCurveAMMABI from '@/abis/BondingCurveAMM.json';
 import { KasPumpToken } from '../types';
 import { useMultichainWallet } from './useMultichainWallet';
 import { supportedChains, getChainById, getChainMetadata, isTestnet } from '../config/chains';
+import { getTokenFactoryAddress } from '../config/contracts';
 
 /**
  * Creator token with additional creator-specific fields
@@ -82,18 +85,6 @@ export interface CreatorStats {
     totalVolume: number;
   }[];
 }
-
-const TOKEN_FACTORY_ABI = [
-  "function getAllTokens() external view returns (address[])",
-  "function getTokenConfig(address tokenAddress) external view returns (tuple(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType, uint256 graduationThreshold, address creator, uint256 createdAt))",
-  "function getTokenAMM(address tokenAddress) external view returns (address)",
-  "event TokenCreated(address indexed tokenAddress, address indexed ammAddress, address indexed creator, string name, string symbol, uint256 totalSupply, uint256 timestamp)"
-];
-
-const BONDING_CURVE_ABI = [
-  "function getTradingInfo() external view returns (uint256 currentSupply, uint256 currentPrice, uint256 totalVolume, uint256 graduation, bool isGraduated)",
-  "function token() external view returns (address)",
-];
 
 const ERC20_ABI = [
   "function balanceOf(address account) external view returns (uint256)",
@@ -152,12 +143,11 @@ export function useCreatorTokens() {
           const provider = new ethers.JsonRpcProvider(rpcUrl);
           
           // Get factory address for this chain
-          const factoryAddress = process.env[`NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS_${chain.id}`] ||
-                                 process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS;
+          const factoryAddress = getTokenFactoryAddress(chain.id);
 
           if (!factoryAddress) continue;
 
-          const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, provider);
+          const factoryContract = new ethers.Contract(factoryAddress, TokenFactoryABI.abi, provider);
           
           // Get all tokens
           const allTokens = await factoryContract.getAllTokens();
@@ -177,7 +167,7 @@ export function useCreatorTokens() {
               if (!ammAddress || ammAddress === ethers.ZeroAddress) continue;
 
               // Get trading data
-              const ammContract = new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider);
+              const ammContract = new ethers.Contract(ammAddress, BondingCurveAMMABI.abi, provider);
               const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = 
                 await ammContract.getTradingInfo();
 

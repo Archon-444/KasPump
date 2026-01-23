@@ -312,11 +312,12 @@ declare global {
 // Contract Event Types
 export interface TokenCreatedEventArgs {
   tokenAddress: string;
+  ammAddress: string;
   creator: string;
   name: string;
   symbol: string;
   totalSupply: bigint;
-  ammAddress: string;
+  timestamp: bigint;
 }
 
 export interface TradeEventArgs {

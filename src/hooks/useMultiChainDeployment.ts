@@ -1,8 +1,10 @@
 // Multi-chain deployment hook for deploying tokens across multiple chains
 import { useCallback, useState } from 'react';
 import { ethers } from 'ethers';
+import TokenFactoryABI from '@/abis/TokenFactory.json';
 import { TokenCreationForm } from '../types';
 import { supportedChains, getChainById, getChainMetadata, isTestnet } from '../config/chains';
+import { getTokenFactoryAddress } from '../config/contracts';
 import { useMultichainWallet } from './useMultichainWallet';
 
 /**
@@ -42,11 +44,6 @@ export interface DeploymentState {
   error?: string;
   result?: DeploymentResult;
 }
-
-const TOKEN_FACTORY_ABI = [
-  "function createToken(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType) external payable returns (address, address)",
-  "event TokenCreated(address indexed tokenAddress, address indexed creator, string name, string symbol, uint256 totalSupply, address ammAddress)"
-];
 
 export function useMultiChainDeployment() {
   const wallet = useMultichainWallet();
@@ -150,14 +147,13 @@ export function useMultiChainDeployment() {
       const signer = await browserProvider.getSigner();
 
       // Get factory address for this chain
-      const factoryAddress = process.env[`NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS_${chainId}`] || 
-                             process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS;
+      const factoryAddress = getTokenFactoryAddress(chainId);
       
       if (!factoryAddress) {
         throw new Error(`Factory not deployed on chain ${chainId}`);
       }
 
-      const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
+      const factoryContract = new ethers.Contract(factoryAddress, TokenFactoryABI.abi, signer);
 
       // Prepare contract parameters
       const totalSupply = ethers.parseEther(tokenData.totalSupply.toString());
@@ -175,6 +171,7 @@ export function useMultiChainDeployment() {
       });
 
       // Estimate gas
+      const creationFee = await factoryContract.CREATION_FEE();
       const gasEstimate = await factoryContract.createToken.estimateGas(
         tokenData.name,
         tokenData.symbol,
@@ -183,7 +180,8 @@ export function useMultiChainDeployment() {
         totalSupply,
         basePrice,
         slope,
-        curveType
+        curveType,
+        { value: creationFee }
       );
 
       const gasLimit = (gasEstimate * BigInt(120)) / BigInt(100);
@@ -207,7 +205,7 @@ export function useMultiChainDeployment() {
         basePrice,
         slope,
         curveType,
-        { gasLimit }
+        { gasLimit, value: creationFee }
       );
 
       setDeployments(prev => {

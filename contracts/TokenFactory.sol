@@ -19,7 +19,7 @@ import "./libraries/DexConfig.sol";
  *  - Safe CREATE2 deployment
  * @notice DEX Integration:
  *  - Auto-detects chain and uses appropriate DEX router
- *  - Supports BSC (PancakeSwap), Arbitrum (Uniswap), Base (Uniswap)
+ *  - Supports BSC (PancakeSwap V2), Arbitrum (Uniswap V2), Base (BaseSwap V2)
  *  - AMM automatically adds liquidity on graduation
  */
 contract TokenFactory is Ownable, ReentrancyGuard, Pausable {

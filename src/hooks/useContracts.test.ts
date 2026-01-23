@@ -95,12 +95,22 @@ describe('useContracts', () => {
   let mockAmmContract: any;
   let mockTokenContract: any;
 
+  const abiHasFunction = (abi: any, name: string) =>
+    Array.isArray(abi) &&
+    abi.some((item) => {
+      if (typeof item === 'string') {
+        return item.includes(` ${name}(`) || item.includes(`${name}(`);
+      }
+      return item?.type === 'function' && item?.name === name;
+    });
+
   beforeEach(() => {
     vi.clearAllMocks();
 
     // Setup mock contracts
     mockFactoryContract = {
       createToken: vi.fn(),
+      CREATION_FEE: vi.fn().mockResolvedValue(BigInt('25000000000000000')),
       getAllTokens: vi.fn(),
       getTokenConfig: vi.fn(),
       getTokenAMM: vi.fn(),
@@ -131,9 +141,9 @@ describe('useContracts', () => {
 
     // Mock ethers Contract constructor
     (ethers.Contract as any).mockImplementation((address: string, abi: any, runner: any) => {
-      if (abi.includes('createToken')) return mockFactoryContract;
-      if (abi.includes('buyTokens')) return mockAmmContract;
-      if (abi.includes('balanceOf')) return mockTokenContract;
+      if (abiHasFunction(abi, 'createToken')) return mockFactoryContract;
+      if (abiHasFunction(abi, 'buyTokens')) return mockAmmContract;
+      if (abiHasFunction(abi, 'balanceOf')) return mockTokenContract;
       return {};
     });
 
@@ -260,7 +270,10 @@ describe('useContracts', () => {
         BigInt(0.001 * 1e18),
         BigInt(0.00001 * 1e18),
         0, // linear curve type
-        expect.objectContaining({ gasLimit: expect.any(BigInt) })
+        expect.objectContaining({
+          gasLimit: expect.any(BigInt),
+          value: BigInt('25000000000000000'),
+        })
       );
     });
 

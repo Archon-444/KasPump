@@ -36,10 +36,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ethers } from 'ethers';
+import TokenFactoryABI from '@/abis/TokenFactory.json';
+import BondingCurveAMMABI from '@/abis/BondingCurveAMM.json';
 import { KasPumpToken } from '../types';
 import { useMultichainWallet } from './useMultichainWallet';
 import { useContracts } from './useContracts';
 import { getChainById, getChainMetadata } from '../config/chains';
+import { getTokenFactoryAddress } from '../config/contracts';
 import { formatCurrency } from '../utils';
 
 /**
@@ -138,18 +141,11 @@ export function usePortfolio() {
 
           const rpcUrl = chainConfig.rpcUrls.default.http[0];
           const provider = new ethers.JsonRpcProvider(rpcUrl);
-          const factoryAddress = process.env[`NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS_${chain.chainId}`] ||
-                                 process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS;
+          const factoryAddress = getTokenFactoryAddress(chain.chainId);
 
           if (!factoryAddress) continue;
 
-          const TOKEN_FACTORY_ABI = [
-            "function getAllTokens() external view returns (address[])",
-            "function getTokenConfig(address tokenAddress) external view returns (tuple(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType, uint256 graduationThreshold))",
-            "function getTokenAMM(address tokenAddress) external view returns (address)",
-          ];
-
-          const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, provider);
+          const factoryContract = new ethers.Contract(factoryAddress, TokenFactoryABI.abi, provider);
           const allTokens = await factoryContract.getAllTokens();
 
           // Check balance for each token
@@ -173,17 +169,13 @@ export function usePortfolio() {
                 const ammAddress = await factoryContract.getTokenAMM(tokenAddress);
 
                 // Fetch complete token configuration and trading info
-                const BONDING_CURVE_ABI = [
-                  "function getTradingInfo() external view returns (uint256 currentSupply, uint256 currentPrice, uint256 totalVolume, uint256 graduation, bool isGraduated)",
-                ];
-
                 try {
                   const [config, name, symbol, totalSupply, ammContract] = await Promise.all([
                     factoryContract.getTokenConfig(tokenAddress),
                     tokenContract.name(),
                     tokenContract.symbol(),
                     tokenContract.totalSupply(),
-                    new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider),
+                    new ethers.Contract(ammAddress, BondingCurveAMMABI.abi, provider),
                   ]);
 
                   const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo();

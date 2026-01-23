@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
+import BondingCurveAMMABI from '@/abis/BondingCurveAMM.json';
+import TokenFactoryABI from '@/abis/TokenFactory.json';
+import { getChainById, getDefaultChain } from '@/config/chains';
+import { getTokenFactoryAddress } from '@/config/contracts';
 
-const TOKEN_FACTORY_ABI = [
-  "function getAllTokens() external view returns (address[])",
-  "function getTokenConfig(address tokenAddress) external view returns (tuple(string name, string symbol, string description, string imageUrl, uint256 totalSupply, uint256 basePrice, uint256 slope, uint8 curveType, uint256 graduationThreshold))",
-  "function getTokenAMM(address tokenAddress) external view returns (address)",
-  "event TokenCreated(address indexed tokenAddress, address indexed creator, string name, string symbol, uint256 totalSupply, address ammAddress)",
-  "event TokenGraduated(address indexed tokenAddress, uint256 finalSupply, uint256 liquidityAdded)"
-];
+const RPC_URLS_BY_CHAIN: Record<number, string | undefined> = {
+  56: process.env.NEXT_PUBLIC_BSC_RPC_URL,
+  97: process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL,
+  42161: process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL,
+  421614: process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL,
+  8453: process.env.NEXT_PUBLIC_BASE_RPC_URL,
+  84532: process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL,
+};
 
-const BONDING_CURVE_ABI = [
-  "function getTradingInfo() external view returns (uint256 _currentSupply, uint256 _currentPrice, uint256 _totalVolume, uint256 _graduation, bool _isGraduated)"
-];
+const DEFAULT_CHAIN_ID = getDefaultChain().id;
+
+function resolveRpcUrl(chainId: number): string | undefined {
+  return RPC_URLS_BY_CHAIN[chainId] || getChainById(chainId)?.rpcUrls?.default?.http?.[0];
+}
 
 // Analytics API endpoint - crucial for partnerships and business intelligence
 export const dynamic = 'force-dynamic'; // API routes are always dynamic
@@ -21,8 +28,11 @@ export async function GET(request: NextRequest) {
     const timeframe = searchParams.get('timeframe') || '24h'; // 24h, 7d, 30d, all
     const metric = searchParams.get('metric'); // Optional: specific metric
 
-    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL;
-    const factoryAddress = process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS;
+    const chainIdParam = searchParams.get('chainId');
+    const parsedChainId = chainIdParam ? parseInt(chainIdParam, 10) : NaN;
+    const resolvedChainId = Number.isFinite(parsedChainId) ? parsedChainId : DEFAULT_CHAIN_ID;
+    const rpcUrl = resolveRpcUrl(resolvedChainId);
+    const factoryAddress = getTokenFactoryAddress(resolvedChainId);
 
     if (!rpcUrl || !factoryAddress) {
       return NextResponse.json({ error: 'Factory contract not deployed' }, { status: 500 });
@@ -30,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     // Initialize provider and contracts
     const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, provider);
+    const factoryContract = new ethers.Contract(factoryAddress, TokenFactoryABI.abi, provider);
     
     const analytics = await getPlatformAnalytics(provider, factoryContract, timeframe);
 
@@ -146,7 +156,7 @@ async function calculateTotalVolume(
       const ammAddress = await getAMMAddressForToken(factoryContract, tokenAddress);
       if (!ammAddress) continue;
 
-      const ammContract = new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider);
+      const ammContract = new ethers.Contract(ammAddress, BondingCurveAMMABI.abi, provider);
       const [, , totalVolumeWei] = await ammContract.getTradingInfo();
       totalVolume += parseFloat(ethers.formatEther(totalVolumeWei));
     } catch (error) {
@@ -213,7 +223,11 @@ async function countActiveTokens(provider: ethers.JsonRpcProvider, tokens: strin
 
   for (const tokenAddress of tokens) {
     try {
-      const ammContract = new ethers.Contract(tokenAddress, BONDING_CURVE_ABI, provider);
+    const ammAddress = await getAMMAddressForToken(factoryContract, tokenAddress);
+    if (!ammAddress) {
+      continue;
+    }
+    const ammContract = new ethers.Contract(ammAddress, BondingCurveAMMABI.abi, provider);
       const [, , totalVolume, , isGraduated] = await ammContract.getTradingInfo();
 
       // Consider active if has volume and not graduated
@@ -386,7 +400,7 @@ async function getAMMAddressForToken(factoryContract: ethers.Contract, tokenAddr
 
 async function getTradingDataForAnalytics(provider: ethers.JsonRpcProvider, ammAddress: string) {
   try {
-    const ammContract = new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider);
+    const ammContract = new ethers.Contract(ammAddress, BondingCurveAMMABI.abi, provider);
     const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo();
 
     return {

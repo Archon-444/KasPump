@@ -136,6 +136,34 @@ function getOrCreateDailyMetric(
   return metric
 }
 
+function getOrCreateGraduationEvent(
+  token: Token,
+  event: ethereum.Event
+): TokenGraduatedEvent {
+  let eventId = event.transaction.hash.toHex() + "-graduation"
+  let graduatedEvent = TokenGraduatedEvent.load(eventId)
+
+  if (graduatedEvent === null) {
+    graduatedEvent = new TokenGraduatedEvent(eventId)
+    graduatedEvent.token = token.id
+    graduatedEvent.finalSupply = ZERO_BI
+    graduatedEvent.nativeReserve = ZERO_BI
+    graduatedEvent.liquidityAmount = ZERO_BI
+    graduatedEvent.creatorShare = ZERO_BI
+    graduatedEvent.platformShare = ZERO_BI
+    graduatedEvent.dexPairAddress = null
+    graduatedEvent.lpTokenAddress = null
+    graduatedEvent.lpTokensLocked = null
+    graduatedEvent.lpUnlockTime = null
+    graduatedEvent.txHash = event.transaction.hash
+    graduatedEvent.blockNumber = event.block.number
+    graduatedEvent.timestamp = event.block.timestamp
+    graduatedEvent.logIndex = event.logIndex
+  }
+
+  return graduatedEvent
+}
+
 /**
  * Handle Trade event
  * Updates Token, User, TokenHolder, and time-series metrics
@@ -353,21 +381,11 @@ export function handleGraduated(event: GraduatedEvent): void {
   }
 
   // Create TokenGraduatedEvent entity
-  let eventId = event.transaction.hash.toHex() + "-" + event.logIndex.toString()
-  let graduatedEvent = new TokenGraduatedEvent(eventId)
-  graduatedEvent.token = token.id
+  let graduatedEvent = getOrCreateGraduationEvent(token, event)
   graduatedEvent.finalSupply = finalSupply
   graduatedEvent.nativeReserve = nativeReserve
-  graduatedEvent.liquidityAmount = ZERO_BI // Will be updated by GraduationFundsSplit event
-  graduatedEvent.creatorShare = ZERO_BI
-  graduatedEvent.platformShare = ZERO_BI
-  graduatedEvent.dexPairAddress = null
-  graduatedEvent.lpTokenAddress = null
-  graduatedEvent.lpTokensLocked = null
-  graduatedEvent.lpUnlockTime = null
-  graduatedEvent.txHash = event.transaction.hash
-  graduatedEvent.blockNumber = event.block.number
   graduatedEvent.timestamp = timestamp
+  graduatedEvent.blockNumber = event.block.number
   graduatedEvent.logIndex = event.logIndex
   graduatedEvent.save()
 }
@@ -395,14 +413,10 @@ export function handleGraduationFundsSplit(event: GraduationFundsSplitEvent): vo
 
   // Update the graduation event if it exists
   // Find the most recent graduation event for this token
-  let eventId = event.transaction.hash.toHex() + "-" + event.logIndex.minus(ONE_BI).toString()
-  let graduatedEvent = TokenGraduatedEvent.load(eventId)
-
-  if (graduatedEvent !== null) {
-    graduatedEvent.creatorShare = creatorShare
-    graduatedEvent.platformShare = platformShare
-    graduatedEvent.save()
-  }
+  let graduatedEvent = getOrCreateGraduationEvent(token, event)
+  graduatedEvent.creatorShare = creatorShare
+  graduatedEvent.platformShare = platformShare
+  graduatedEvent.save()
 }
 
 /**
@@ -434,14 +448,11 @@ export function handleLiquidityAdded(event: LiquidityAddedEvent): void {
   token.save()
 
   // Update the graduation event if it exists
-  let graduationEvents = token.id + "-graduation"
-  let graduatedEvent = TokenGraduatedEvent.load(graduationEvents)
-  if (graduatedEvent !== null) {
-    graduatedEvent.liquidityAmount = nativeAmount
-    graduatedEvent.dexPairAddress = dexPair
-    graduatedEvent.lpTokenAddress = lpTokenAddress
-    graduatedEvent.save()
-  }
+  let graduatedEvent = getOrCreateGraduationEvent(token, event)
+  graduatedEvent.liquidityAmount = nativeAmount
+  graduatedEvent.dexPairAddress = dexPair
+  graduatedEvent.lpTokenAddress = lpTokenAddress
+  graduatedEvent.save()
 
   log.info("Liquidity added for token {}: {} tokens, {} native, {} LP tokens", [
     token.name,
@@ -478,13 +489,10 @@ export function handleLPTokensLocked(event: LPTokensLockedEvent): void {
   token.save()
 
   // Update the graduation event if it exists
-  let graduationEvents = token.id + "-graduation"
-  let graduatedEvent = TokenGraduatedEvent.load(graduationEvents)
-  if (graduatedEvent !== null) {
-    graduatedEvent.lpTokensLocked = amount
-    graduatedEvent.lpUnlockTime = unlockTime
-    graduatedEvent.save()
-  }
+  let graduatedEvent = getOrCreateGraduationEvent(token, event)
+  graduatedEvent.lpTokensLocked = amount
+  graduatedEvent.lpUnlockTime = unlockTime
+  graduatedEvent.save()
 
   log.info("LP tokens locked for token {}: {} LP tokens until timestamp {}", [
     token.name,
