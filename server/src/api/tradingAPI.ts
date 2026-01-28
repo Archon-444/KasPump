@@ -5,9 +5,8 @@ import { RedisService } from '../services/RedisService';
 import { RateLimiterService } from '../services/RateLimiterService';
 
 // Import ABIs
-import BondingCurveAMMABI from '../../../contracts/artifacts/contracts/BondingCurveAMM.sol/BondingCurveAMM.json';
-import LimitOrderBookABI from '../../../contracts/artifacts/contracts/LimitOrderBook.sol/LimitOrderBook.json';
-import StopLossOrderBookABI from '../../../contracts/artifacts/contracts/StopLossOrderBook.sol/StopLossOrderBook.json';
+import LimitOrderBookABI from '../abis/LimitOrderBook.json';
+import StopLossOrderBookABI from '../abis/StopLossOrderBook.json';
 
 export class TradingAPI {
   private router: Router;
@@ -34,11 +33,82 @@ export class TradingAPI {
     this.providers.set(
       'bscTestnet',
       new ethers.JsonRpcProvider(
-        process.env.BSC_TESTNET_RPC_URL || 'https://data-seed-prebsc-1-s1.binance.org:8545'
+        process.env.BSC_TESTNET_RPC_URL ||
+          process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ||
+          'https://data-seed-prebsc-1-s1.binance.org:8545'
       )
     );
 
-    // Add more networks as needed
+    // BSC Mainnet
+    this.providers.set(
+      'bsc',
+      new ethers.JsonRpcProvider(
+        process.env.BSC_RPC_URL ||
+          process.env.NEXT_PUBLIC_BSC_RPC_URL ||
+          'https://bsc-dataseed1.binance.org'
+      )
+    );
+
+    // Arbitrum One
+    this.providers.set(
+      'arbitrum',
+      new ethers.JsonRpcProvider(
+        process.env.ARBITRUM_RPC_URL ||
+          process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL ||
+          'https://arb1.arbitrum.io/rpc'
+      )
+    );
+
+    // Arbitrum Sepolia
+    this.providers.set(
+      'arbitrumSepolia',
+      new ethers.JsonRpcProvider(
+        process.env.ARBITRUM_SEPOLIA_RPC_URL ||
+          process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL ||
+          'https://sepolia-rollup.arbitrum.io/rpc'
+      )
+    );
+
+    // Base Mainnet
+    this.providers.set(
+      'base',
+      new ethers.JsonRpcProvider(
+        process.env.BASE_RPC_URL ||
+          process.env.NEXT_PUBLIC_BASE_RPC_URL ||
+          'https://mainnet.base.org'
+      )
+    );
+
+    // Base Sepolia
+    this.providers.set(
+      'baseSepolia',
+      new ethers.JsonRpcProvider(
+        process.env.BASE_SEPOLIA_RPC_URL ||
+          process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL ||
+          'https://sepolia.base.org'
+      )
+    );
+  }
+
+  private normalizeNetworkKey(network: string): string {
+    return network.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase();
+  }
+
+  private getNetworkFromRequest(req: Request): string {
+    const paramNetwork = req.params?.network;
+    const queryNetwork = typeof req.query?.network === 'string' ? req.query.network : undefined;
+    return paramNetwork || queryNetwork || 'bscTestnet';
+  }
+
+  private getProviderForNetwork(network: string): ethers.JsonRpcProvider | undefined {
+    return this.providers.get(network);
+  }
+
+  private getOrderBookAddress(network: string, type: 'limit' | 'stoploss'): string {
+    const baseAddress = type === 'limit' ? this.limitOrderBook : this.stopLossOrderBook;
+    const normalized = this.normalizeNetworkKey(network);
+    const envKey = `${type === 'limit' ? 'LIMIT_ORDER_BOOK_ADDRESS' : 'STOP_LOSS_ORDER_BOOK_ADDRESS'}_${normalized}`;
+    return process.env[envKey] || baseAddress || '';
   }
 
   private setupRoutes(): void {
@@ -99,7 +169,7 @@ export class TradingAPI {
    */
   private async getTokenPrice(req: Request, res: Response): Promise<void> {
     try {
-      const { network, address } = req.params;
+      const { network } = req.params;
 
       // Check cache first
       const cacheKey = `price:${network}:${address}`;
@@ -120,7 +190,7 @@ export class TradingAPI {
       }
 
       // Fetch from blockchain
-      const provider = this.providers.get(network);
+      const provider = this.getProviderForNetwork(network);
       if (!provider) {
         res.status(400).json({ success: false, error: 'Network not supported' });
         return;
@@ -143,7 +213,7 @@ export class TradingAPI {
    */
   private async getTokenInfo(req: Request, res: Response): Promise<void> {
     try {
-      const { network, address } = req.params;
+      const { network } = req.params;
 
       const cacheKey = `token:${network}:${address}`;
       const tokenData = await this.redis.getJSON(cacheKey);
@@ -198,7 +268,7 @@ export class TradingAPI {
         return;
       }
 
-      const provider = this.providers.get(network);
+      const provider = this.getProviderForNetwork(network);
       if (!provider) {
         res.status(400).json({ success: false, error: 'Network not supported' });
         return;
@@ -238,6 +308,7 @@ export class TradingAPI {
       res.json({
         success: true,
         data: {
+          network,
           tokenAmount: tokenAmount,
           nativeAmount: '0', // Calculate from AMM
           price: '0',
@@ -257,20 +328,22 @@ export class TradingAPI {
   private async getLimitBuyOrders(req: Request, res: Response): Promise<void> {
     try {
       const { token } = req.params;
+      const network = this.getNetworkFromRequest(req);
+      const limitOrderBookAddress = this.getOrderBookAddress(network, 'limit');
 
-      if (!this.limitOrderBook) {
+      if (!limitOrderBookAddress) {
         res.status(503).json({ success: false, error: 'Limit order book not configured' });
         return;
       }
 
-      const provider = this.providers.get('bscTestnet'); // TODO: Dynamic network
+      const provider = this.getProviderForNetwork(network);
       if (!provider) {
         res.status(400).json({ success: false, error: 'Provider not available' });
         return;
       }
 
       const orderBook = new ethers.Contract(
-        this.limitOrderBook,
+        limitOrderBookAddress,
         LimitOrderBookABI.abi,
         provider
       );
@@ -306,20 +379,22 @@ export class TradingAPI {
   private async getLimitSellOrders(req: Request, res: Response): Promise<void> {
     try {
       const { token } = req.params;
+      const network = this.getNetworkFromRequest(req);
+      const limitOrderBookAddress = this.getOrderBookAddress(network, 'limit');
 
-      if (!this.limitOrderBook) {
+      if (!limitOrderBookAddress) {
         res.status(503).json({ success: false, error: 'Limit order book not configured' });
         return;
       }
 
-      const provider = this.providers.get('bscTestnet');
+      const provider = this.getProviderForNetwork(network);
       if (!provider) {
         res.status(400).json({ success: false, error: 'Provider not available' });
         return;
       }
 
       const orderBook = new ethers.Contract(
-        this.limitOrderBook,
+        limitOrderBookAddress,
         LimitOrderBookABI.abi,
         provider
       );
@@ -355,20 +430,22 @@ export class TradingAPI {
   private async getLimitOrderDetails(req: Request, res: Response): Promise<void> {
     try {
       const { orderId } = req.params;
+      const network = this.getNetworkFromRequest(req);
+      const limitOrderBookAddress = this.getOrderBookAddress(network, 'limit');
 
-      if (!this.limitOrderBook) {
+      if (!limitOrderBookAddress) {
         res.status(503).json({ success: false, error: 'Limit order book not configured' });
         return;
       }
 
-      const provider = this.providers.get('bscTestnet');
+      const provider = this.getProviderForNetwork(network);
       if (!provider) {
         res.status(400).json({ success: false, error: 'Provider not available' });
         return;
       }
 
       const orderBook = new ethers.Contract(
-        this.limitOrderBook,
+        limitOrderBookAddress,
         LimitOrderBookABI.abi,
         provider
       );
@@ -403,7 +480,7 @@ export class TradingAPI {
       const { token } = req.params;
 
       // Implementation similar to limit orders
-      res.json({ success: true, data: [] });
+      res.json({ success: true, data: { token, orders: [] } });
     } catch (error) {
       logger.error('Error getting stop-loss orders:', error);
       res.status(500).json({ success: false, error: 'Internal server error' });
@@ -418,7 +495,7 @@ export class TradingAPI {
       const { orderId } = req.params;
 
       // Implementation
-      res.json({ success: true, data: {} });
+      res.json({ success: true, data: { orderId } });
     } catch (error) {
       logger.error('Error getting stop-loss details:', error);
       res.status(500).json({ success: false, error: 'Internal server error' });
@@ -431,20 +508,22 @@ export class TradingAPI {
   private async getExecutableStopLoss(req: Request, res: Response): Promise<void> {
     try {
       const { token } = req.params;
+      const network = this.getNetworkFromRequest(req);
+      const stopLossOrderBookAddress = this.getOrderBookAddress(network, 'stoploss');
 
-      if (!this.stopLossOrderBook) {
+      if (!stopLossOrderBookAddress) {
         res.status(503).json({ success: false, error: 'Stop-loss order book not configured' });
         return;
       }
 
-      const provider = this.providers.get('bscTestnet');
+      const provider = this.getProviderForNetwork(network);
       if (!provider) {
         res.status(400).json({ success: false, error: 'Provider not available' });
         return;
       }
 
       const orderBook = new ethers.Contract(
-        this.stopLossOrderBook,
+        stopLossOrderBookAddress,
         StopLossOrderBookABI.abi,
         provider
       );

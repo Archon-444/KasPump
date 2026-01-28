@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 /**
  * @title DexConfig
  * @dev Library for managing DEX router addresses across different chains
- * @notice Provides chain-specific DEX router addresses for automated liquidity
+ * @notice Provides chain-specific V2-compatible router addresses for automated liquidity
  */
 library DexConfig {
     /**
@@ -15,10 +15,8 @@ library DexConfig {
      * Chain IDs:
      * - 56: BSC Mainnet
      * - 97: BSC Testnet
-     * - 42161: Arbitrum One
-     * - 421614: Arbitrum Sepolia
-     * - 8453: Base
-     * - 84532: Base Sepolia
+     * - 42161: Arbitrum One (Uniswap V2 Router)
+     * - 8453: Base (BaseSwap V2 Router)
      */
     function getRouterAddress(uint256 chainId) internal pure returns (address router) {
         // BSC Mainnet - PancakeSwap V2
@@ -31,24 +29,14 @@ library DexConfig {
             return 0xD99D1c33F9fC3444f8101754aBC46c52416550D1;
         }
 
-        // Arbitrum One - Uniswap V3 SwapRouter
+        // Arbitrum One - Uniswap V2 Router
         if (chainId == 42161) {
-            return 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+            return 0x4752ba5dBc23f44D87826276BF6Fd6b1C372aD24;
         }
 
-        // Arbitrum Sepolia - Uniswap V3 SwapRouter
-        if (chainId == 421614) {
-            return 0xE592427A0AEce92De3Edee1F18E0157C05861564;
-        }
-
-        // Base Mainnet - Uniswap V3 SwapRouter
+        // Base Mainnet - BaseSwap V2 Router
         if (chainId == 8453) {
-            return 0x2626664c2603336E57B271c5C0b26F421741e481;
-        }
-
-        // Base Sepolia - Uniswap V3 SwapRouter
-        if (chainId == 84532) {
-            return 0x2626664c2603336E57B271c5C0b26F421741e481;
+            return 0x327Df1E6de05895d2ab08513aaDD9313Fe505d86;
         }
 
         // Unsupported chain - revert
@@ -71,28 +59,9 @@ library DexConfig {
             return 0x6725F303b657a9451d8BA641348b6761A6CC7a17;
         }
 
-        // Arbitrum One - Uniswap V3
-        if (chainId == 42161) {
-            return 0x1F98431c8aD98523631AE4a59f267346ea31F984;
-        }
-
-        // Arbitrum Sepolia - Uniswap V3
-        if (chainId == 421614) {
-            return 0x1F98431c8aD98523631AE4a59f267346ea31F984;
-        }
-
-        // Base Mainnet - Uniswap V3
-        if (chainId == 8453) {
-            return 0x33128a8fC17869897dcE68Ed026d694621f6FDfD;
-        }
-
-        // Base Sepolia - Uniswap V3
-        if (chainId == 84532) {
-            return 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
-        }
-
-        // Unsupported chain - revert
-        revert("DexConfig: Unsupported chain");
+        // Arbitrum/Base factory addresses are discovered via router.factory()
+        // to avoid hardcoding chain-specific V2 factories in this library.
+        return address(0);
     }
 
     /**
@@ -105,9 +74,7 @@ library DexConfig {
             chainId == 56 ||   // BSC Mainnet
             chainId == 97 ||   // BSC Testnet
             chainId == 42161 || // Arbitrum One
-            chainId == 421614 || // Arbitrum Sepolia
-            chainId == 8453 ||  // Base
-            chainId == 84532;   // Base Sepolia
+            chainId == 8453;   // Base
     }
 
     /**

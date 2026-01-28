@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 /**
  * @title IPancakeRouter
- * @dev Interface for PancakeSwap V2 Router (compatible with Uniswap V2)
+ * @dev Interface for PancakeSwap V2 Router (compatible with Uniswap V2, Sushi, BaseSwap)
  * Used for automated liquidity provision on token graduation
  */
 interface IPancakeRouter {

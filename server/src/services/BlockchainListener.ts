@@ -2,8 +2,8 @@ import { ethers, WebSocketProvider } from 'ethers';
 import { Server as SocketIOServer } from 'socket.io';
 import { logger } from '../utils/logger';
 import { RedisService } from './RedisService';
-import TokenFactoryABI from '../../../contracts/artifacts/contracts/TokenFactory.sol/TokenFactory.json';
-import BondingCurveAMMABI from '../../../contracts/artifacts/contracts/BondingCurveAMM.sol/BondingCurveAMM.json';
+import TokenFactoryABI from '../abis/TokenFactory.json';
+import BondingCurveAMMABI from '../abis/BondingCurveAMM.json';
 
 interface NetworkConfig {
   name: string;
@@ -16,31 +16,81 @@ interface NetworkConfig {
 const NETWORK_CONFIGS: Record<string, NetworkConfig> = {
   bscTestnet: {
     name: 'BSC Testnet',
-    rpcUrl: process.env.BSC_TESTNET_RPC_URL || 'https://data-seed-prebsc-1-s1.binance.org:8545',
+    rpcUrl:
+      process.env.BSC_TESTNET_RPC_URL ||
+      process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ||
+      'https://data-seed-prebsc-1-s1.binance.org:8545',
     wsUrl: process.env.BSC_TESTNET_WS_URL || 'wss://bsc-testnet.publicnode.com',
     chainId: 97,
-    factoryAddress: process.env.BSC_TESTNET_FACTORY_ADDRESS || '',
+    factoryAddress:
+      process.env.BSC_TESTNET_FACTORY_ADDRESS ||
+      process.env.NEXT_PUBLIC_BSC_TESTNET_TOKEN_FACTORY ||
+      '',
   },
   bsc: {
     name: 'BSC Mainnet',
-    rpcUrl: process.env.BSC_RPC_URL || 'https://bsc-dataseed1.binance.org',
+    rpcUrl:
+      process.env.BSC_RPC_URL ||
+      process.env.NEXT_PUBLIC_BSC_RPC_URL ||
+      'https://bsc-dataseed1.binance.org',
     wsUrl: process.env.BSC_WS_URL || 'wss://bsc.publicnode.com',
     chainId: 56,
-    factoryAddress: process.env.BSC_FACTORY_ADDRESS || '',
+    factoryAddress:
+      process.env.BSC_FACTORY_ADDRESS ||
+      process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY ||
+      '',
   },
   arbitrumSepolia: {
     name: 'Arbitrum Sepolia',
-    rpcUrl: process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc',
+    rpcUrl:
+      process.env.ARBITRUM_SEPOLIA_RPC_URL ||
+      process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL ||
+      'https://sepolia-rollup.arbitrum.io/rpc',
     wsUrl: process.env.ARBITRUM_SEPOLIA_WS_URL,
     chainId: 421614,
-    factoryAddress: process.env.ARBITRUM_SEPOLIA_FACTORY_ADDRESS || '',
+    factoryAddress:
+      process.env.ARBITRUM_SEPOLIA_FACTORY_ADDRESS ||
+      process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_TOKEN_FACTORY ||
+      '',
   },
   arbitrum: {
     name: 'Arbitrum One',
-    rpcUrl: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
+    rpcUrl:
+      process.env.ARBITRUM_RPC_URL ||
+      process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL ||
+      'https://arb1.arbitrum.io/rpc',
     wsUrl: process.env.ARBITRUM_WS_URL,
     chainId: 42161,
-    factoryAddress: process.env.ARBITRUM_FACTORY_ADDRESS || '',
+    factoryAddress:
+      process.env.ARBITRUM_FACTORY_ADDRESS ||
+      process.env.NEXT_PUBLIC_ARBITRUM_TOKEN_FACTORY ||
+      '',
+  },
+  baseSepolia: {
+    name: 'Base Sepolia',
+    rpcUrl:
+      process.env.BASE_SEPOLIA_RPC_URL ||
+      process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL ||
+      'https://sepolia.base.org',
+    wsUrl: process.env.BASE_SEPOLIA_WS_URL,
+    chainId: 84532,
+    factoryAddress:
+      process.env.BASE_SEPOLIA_FACTORY_ADDRESS ||
+      process.env.NEXT_PUBLIC_BASE_SEPOLIA_TOKEN_FACTORY ||
+      '',
+  },
+  base: {
+    name: 'Base',
+    rpcUrl:
+      process.env.BASE_RPC_URL ||
+      process.env.NEXT_PUBLIC_BASE_RPC_URL ||
+      'https://mainnet.base.org',
+    wsUrl: process.env.BASE_WS_URL,
+    chainId: 8453,
+    factoryAddress:
+      process.env.BASE_FACTORY_ADDRESS ||
+      process.env.NEXT_PUBLIC_BASE_TOKEN_FACTORY ||
+      '',
   },
 };
 
@@ -115,7 +165,7 @@ export class BlockchainListener {
    */
   private setupFactoryListeners(network: string, factory: ethers.Contract): void {
     // Listen for new token creations
-    factory.on('TokenCreated', async (token, amm, creator, name, symbol, timestamp, event) => {
+    factory.on('TokenCreated', async (token, amm, creator, name, symbol, totalSupply, timestamp, event) => {
       logger.info(`New token created on ${network}: ${name} (${symbol})`);
 
       const tokenData = {
@@ -125,6 +175,7 @@ export class BlockchainListener {
         creator,
         name,
         symbol,
+        totalSupply: totalSupply.toString(),
         timestamp: Number(timestamp),
         txHash: event.log.transactionHash,
         blockNumber: event.log.blockNumber,
@@ -144,14 +195,14 @@ export class BlockchainListener {
     });
 
     // Listen for token graduations at factory level
-    factory.on('TokenGraduated', async (token, finalSupply, totalRaised, event) => {
+    factory.on('TokenGraduated', async (token, finalSupply, liquidityAdded, event) => {
       logger.info(`Token graduated on ${network}: ${token}`);
 
       const graduationData = {
         network,
         tokenAddress: token,
         finalSupply: finalSupply.toString(),
-        totalRaised: totalRaised.toString(),
+        liquidityAdded: liquidityAdded.toString(),
         txHash: event.log.transactionHash,
         blockNumber: event.log.blockNumber,
         timestamp: Date.now(),
@@ -282,23 +333,46 @@ export class BlockchainListener {
    */
   private async loadExistingAMMs(network: string, factory: ethers.Contract): Promise<void> {
     try {
-      const tokenCount = await factory.getTokenCount();
-      logger.info(`Loading ${tokenCount} existing tokens for ${network}...`);
+      let tokens: string[] | null = null;
+      let totalTokens = 0;
+
+      try {
+        const tokenCount = await factory.getTotalTokens();
+        totalTokens = Number(tokenCount);
+      } catch (error) {
+        tokens = await factory.getAllTokens();
+        totalTokens = tokens.length;
+      }
+
+      logger.info(`Loading ${totalTokens} existing tokens for ${network}...`);
+
+      if (tokens) {
+        for (const tokenAddress of tokens) {
+          try {
+            const ammAddress = await factory.tokenToAMM(tokenAddress);
+            await this.setupAMMListeners(network, ammAddress);
+          } catch (error) {
+            logger.error(`Failed to setup listeners for token ${tokenAddress}:`, error);
+          }
+        }
+        logger.info(`Finished loading existing tokens for ${network}`);
+        return;
+      }
 
       // Get all tokens (in batches to avoid RPC limits)
       const batchSize = 100;
-      for (let i = 0; i < tokenCount; i += batchSize) {
-        const end = Math.min(i + batchSize, Number(tokenCount));
+      for (let i = 0; i < totalTokens; i += batchSize) {
+        const end = Math.min(i + batchSize, totalTokens);
         const promises = [];
 
         for (let j = i; j < end; j++) {
           promises.push(factory.allTokens(j));
         }
 
-        const tokens = await Promise.all(promises);
+        const tokenBatch = await Promise.all(promises);
 
         // Setup listeners for each token's AMM
-        for (const tokenAddress of tokens) {
+        for (const tokenAddress of tokenBatch) {
           try {
             const ammAddress = await factory.tokenToAMM(tokenAddress);
             await this.setupAMMListeners(network, ammAddress);

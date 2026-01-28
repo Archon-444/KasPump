@@ -86,6 +86,74 @@ describe("DEX Integration", function () {
     };
   }
 
+  async function deployV3Fixture() {
+    const [deployer, creator, platform, trader1] = await ethers.getSigners();
+
+    const MockWETH = await ethers.getContractFactory("MockWETH");
+    const weth = await MockWETH.deploy();
+    await weth.waitForDeployment();
+
+    const MockPositionManager = await ethers.getContractFactory("MockNonfungiblePositionManager");
+    const positionManager = await MockPositionManager.deploy(await weth.getAddress());
+    await positionManager.waitForDeployment();
+
+    const MockDexRouterRegistry = await ethers.getContractFactory("MockDexRouterRegistry");
+    const routerRegistry = await MockDexRouterRegistry.deploy();
+    await routerRegistry.waitForDeployment();
+
+    const { chainId } = await ethers.provider.getNetwork();
+    await routerRegistry.setConfig(
+      Number(chainId),
+      1, // V3
+      ethers.ZeroAddress,
+      await positionManager.getAddress(),
+      await weth.getAddress(),
+      3000,
+      true
+    );
+
+    const totalSupply = ethers.parseEther("1000000");
+    const KRC20Token = await ethers.getContractFactory("KRC20Token");
+    const token = await KRC20Token.deploy(
+      "Test Token",
+      "TEST",
+      totalSupply,
+      deployer.address
+    );
+    await token.waitForDeployment();
+
+    const basePrice = ethers.parseUnits("0.000001", "ether"); // 1e12 wei
+    const slope = ethers.parseUnits("1", "gwei"); // 1 gwei
+    const graduationThreshold = ethers.parseEther("800000"); // 80% of supply
+    const tier = 0;
+
+    const BondingCurveAMM = await ethers.getContractFactory("BondingCurveAMM");
+    const amm = await BondingCurveAMM.deploy(
+      await token.getAddress(),
+      creator.address,
+      basePrice,
+      slope,
+      0,
+      graduationThreshold,
+      platform.address,
+      tier,
+      await routerRegistry.getAddress()
+    );
+    await amm.waitForDeployment();
+
+    await token.transfer(await amm.getAddress(), totalSupply);
+
+    return {
+      amm,
+      token,
+      weth,
+      positionManager,
+      routerRegistry,
+      trader1,
+      graduationThreshold,
+    };
+  }
+
   describe("Graduation with DEX Liquidity", function () {
     it("Should add liquidity to DEX on graduation", async function () {
       const { amm, token, trader1, graduationThreshold } = await loadFixture(deployDEXFixture);
@@ -100,7 +168,6 @@ describe("DEX Integration", function () {
       expect(await amm.isGraduated()).to.be.true;
 
       // Check if DEX liquidity was added (via mock router)
-      const dexRouter = await ethers.getContractAt("MockDEXRouter", await amm.dexRouter());
       const recordsCount = await dexRouter.getLiquidityRecordsCount();
       expect(recordsCount).to.equal(1);
 
@@ -394,9 +461,11 @@ describe("DEX Integration", function () {
 
   describe("DEX Router Configuration", function () {
     it("Should store correct DEX router address", async function () {
-      const { amm, dexRouter } = await loadFixture(deployDEXFixture);
+      const { dexRouter, routerRegistry } = await loadFixture(deployDEXFixture);
+      const { chainId } = await ethers.provider.getNetwork();
+      const config = await routerRegistry.getRouterConfig(Number(chainId));
 
-      expect(await amm.dexRouter()).to.equal(await dexRouter.getAddress());
+      expect(config.router).to.equal(await dexRouter.getAddress());
     });
 
     it("Should approve tokens to DEX router before adding liquidity", async function () {
@@ -412,6 +481,21 @@ describe("DEX Integration", function () {
       const dexRouterAddress = await dexRouter.getAddress();
       const routerBalance = await token.balanceOf(dexRouterAddress);
       expect(routerBalance).to.be.gt(0);
+    });
+  });
+
+  describe("V3 Liquidity Path", function () {
+    it("Should mint a V3 position on graduation", async function () {
+      const { amm, positionManager, trader1, graduationThreshold } =
+        await loadFixture(deployV3Fixture);
+
+      const nativeNeeded = await amm.calculateNativeIn(graduationThreshold, 0n);
+      await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
+
+      expect(await amm.isGraduated()).to.be.true;
+      expect(await amm.lpPositionTokenId()).to.be.gt(0);
+      expect(await amm.lpTokensLocked()).to.be.gt(0);
+      expect(await amm.lpTokenAddress()).to.equal(await positionManager.getAddress());
     });
   });
 });

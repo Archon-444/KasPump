@@ -207,16 +207,18 @@ Factory V2: 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73
 
 ### Arbitrum
 ```
-Uniswap V3 Router: 0xE592427A0AEce92De3Edee1F18E0157C05861564
-Uniswap V2 Router: 0x4752ba5dbc23f44d87826276bf6fd6b1c372ad24
-SushiSwap Router: 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506
+Uniswap V3 SwapRouter (USED): 0xE592427A0AEce92De3Edee1F18E0157C05861564
+Uniswap V3 PositionManager (USED): 0xC36442b4a4522E871399CD717aBDD847Ab11FE88
+Uniswap V2 Router (ALT): 0x4752ba5dbc23f44d87826276bf6fd6b1c372ad24
+SushiSwap Router (ALT): 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506
 ```
 
 ### Base
 ```
-Uniswap V3 Router: 0x2626664c2603336E57B271c5C0b26F421741e481
+Uniswap V3 SwapRouter (USED): 0x2626664c2603336E57B271c5C0b26F421741e481
+Uniswap V3 PositionManager (USED): 0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1
+BaseSwap V2 Router (ALT): 0x327Df1E6de05895d2ab08513aaDD9313Fe505d86
 Uniswap V2 Router: TBD
-BaseSwap Router: 0x327Df1E6de05895d2ab08513aaDD9313Fe505d86
 ```
 
 ---
@@ -229,24 +231,21 @@ BaseSwap Router: 0x327Df1E6de05895d2ab08513aaDD9313Fe505d86
 NEXT_PUBLIC_BSC_DEX_ROUTER=0x10ED43C718714eb63d5aA57B78B54704E256024E
 NEXT_PUBLIC_BSC_DEX_FACTORY=0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73
 
-# Arbitrum
+# Arbitrum (V3 router + position manager)
 NEXT_PUBLIC_ARBITRUM_DEX_ROUTER=0xE592427A0AEce92De3Edee1F18E0157C05861564
+NEXT_PUBLIC_ARBITRUM_DEX_POSITION_MANAGER=0xC36442b4a4522E871399CD717aBDD847Ab11FE88
 
-# Base
+# Base (V3 router + position manager)
 NEXT_PUBLIC_BASE_DEX_ROUTER=0x2626664c2603336E57B271c5C0b26F421741e481
+NEXT_PUBLIC_BASE_DEX_POSITION_MANAGER=0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1
 ```
 
 ### Factory Configuration
 ```solidity
-// contracts/config/DexConfig.sol
-library DexConfig {
-    function getRouterAddress(uint256 chainId) internal pure returns (address) {
-        if (chainId == 56) return 0x10ED43C718714eb63d5aA57B78B54704E256024E; // BSC
-        if (chainId == 97) return 0xD99D1c33F9fC3444f8101754aBC46c52416550D1; // BSC Testnet
-        if (chainId == 42161) return 0xE592427A0AEce92De3Edee1F18E0157C05861564; // Arbitrum
-        if (chainId == 8453) return 0x2626664c2603336E57B271c5C0b26F421741e481; // Base
-        revert("Unsupported chain");
-    }
+// contracts/DexRouterRegistry.sol
+contract DexRouterRegistry {
+    // Chain configs stored on-chain and upgradable by governance
+    // Supports both V2 and V3 routers
 }
 ```
 

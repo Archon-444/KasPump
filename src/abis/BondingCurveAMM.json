@@ -1,0 +1,166 @@
+{
+  "abi": [
+    {
+      "inputs": [{ "internalType": "uint256", "name": "minTokensOut", "type": "uint256" }],
+      "name": "buyTokens",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        { "internalType": "uint256", "name": "tokenAmount", "type": "uint256" },
+        { "internalType": "uint256", "name": "minNativeOut", "type": "uint256" }
+      ],
+      "name": "sellTokens",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getCurrentPrice",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getTradingInfo",
+      "outputs": [
+        { "internalType": "uint256", "name": "currentSupply", "type": "uint256" },
+        { "internalType": "uint256", "name": "currentPrice", "type": "uint256" },
+        { "internalType": "uint256", "name": "totalVolume", "type": "uint256" },
+        { "internalType": "uint256", "name": "graduationProgress", "type": "uint256" },
+        { "internalType": "bool", "name": "isGraduated", "type": "bool" }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        { "internalType": "uint256", "name": "nativeIn", "type": "uint256" },
+        { "internalType": "uint256", "name": "supply", "type": "uint256" }
+      ],
+      "name": "calculateTokensOut",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        { "internalType": "uint256", "name": "tokensIn", "type": "uint256" },
+        { "internalType": "uint256", "name": "supply", "type": "uint256" }
+      ],
+      "name": "calculateNativeOut",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        { "internalType": "uint256", "name": "amount", "type": "uint256" },
+        { "internalType": "bool", "name": "isBuy", "type": "bool" }
+      ],
+      "name": "getPriceImpact",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "token",
+      "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "currentSupply",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalVolume",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "isGraduated",
+      "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": true, "internalType": "address", "name": "trader", "type": "address" },
+        { "indexed": true, "internalType": "bool", "name": "isBuy", "type": "bool" },
+        { "indexed": false, "internalType": "uint256", "name": "nativeAmount", "type": "uint256" },
+        { "indexed": false, "internalType": "uint256", "name": "tokenAmount", "type": "uint256" },
+        { "indexed": false, "internalType": "uint256", "name": "newPrice", "type": "uint256" },
+        { "indexed": false, "internalType": "uint256", "name": "fee", "type": "uint256" },
+        { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+      ],
+      "name": "Trade",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": false, "internalType": "uint256", "name": "finalSupply", "type": "uint256" },
+        { "indexed": false, "internalType": "uint256", "name": "nativeReserve", "type": "uint256" },
+        { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+      ],
+      "name": "Graduated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": false, "internalType": "uint256", "name": "creatorShare", "type": "uint256" },
+        { "indexed": false, "internalType": "uint256", "name": "platformShare", "type": "uint256" },
+        { "indexed": true, "internalType": "address", "name": "creator", "type": "address" },
+        { "indexed": true, "internalType": "address", "name": "platform", "type": "address" }
+      ],
+      "name": "GraduationFundsSplit",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": false, "internalType": "uint256", "name": "tokenAmount", "type": "uint256" },
+        { "indexed": false, "internalType": "uint256", "name": "nativeAmount", "type": "uint256" },
+        { "indexed": false, "internalType": "uint256", "name": "liquidity", "type": "uint256" },
+        { "indexed": true, "internalType": "address", "name": "lpTokenAddress", "type": "address" },
+        { "indexed": true, "internalType": "address", "name": "dexPair", "type": "address" }
+      ],
+      "name": "LiquidityAdded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+        { "indexed": false, "internalType": "uint256", "name": "unlockTime", "type": "uint256" },
+        { "indexed": true, "internalType": "address", "name": "lpToken", "type": "address" }
+      ],
+      "name": "LPTokensLocked",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": true, "internalType": "address", "name": "creator", "type": "address" },
+        { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+        { "indexed": true, "internalType": "address", "name": "lpToken", "type": "address" }
+      ],
+      "name": "LPTokensWithdrawn",
+      "type": "event"
+    }
+  ]
+}

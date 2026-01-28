@@ -38,6 +38,14 @@ async function main() {
   const balance = await ethers.provider.getBalance(deployer.address);
   console.log("Account balance:", ethers.formatEther(balance));
 
+  // Deploy DexRouterRegistry
+  console.log("\n📄 Deploying DexRouterRegistry...");
+  const DexRouterRegistry = await ethers.getContractFactory("DexRouterRegistry");
+  const dexRouterRegistry = await DexRouterRegistry.deploy();
+  await dexRouterRegistry.waitForDeployment();
+  const registryAddress = await dexRouterRegistry.getAddress();
+  console.log("✅ DexRouterRegistry deployed to:", registryAddress);
+
   // Deploy TokenFactory
   console.log("\n📄 Deploying TokenFactory...");
   const TokenFactory = await ethers.getContractFactory("TokenFactory");
@@ -48,6 +56,11 @@ async function main() {
 
   const factoryAddress = await tokenFactory.getAddress();
   console.log("✅ TokenFactory deployed to:", factoryAddress);
+
+  // Configure registry
+  console.log("\n🔧 Configuring DexRouterRegistry on TokenFactory...");
+  await tokenFactory.updateDexRouterRegistry(registryAddress);
+  console.log("✅ DexRouterRegistry configured");
 
   // Verify deployment
   console.log("\n🔍 Verifying deployment...");
@@ -63,7 +76,7 @@ async function main() {
   console.log(`✅ Automatic DEX liquidity provision enabled`);
   console.log(`✅ Graduation split: 70% DEX liquidity, 20% creator, 10% platform`);
   console.log(`✅ LP tokens locked for 6 months after graduation`);
-  console.log(`✅ Chain-specific DEX router auto-configured via DexConfig library`);
+  console.log(`✅ Chain-specific DEX router auto-configured via DexRouterRegistry`);
 
   // Update deployments.json
   console.log("\n📝 Updating deployments.json...");
@@ -78,6 +91,7 @@ async function main() {
     name: displayName,
     contracts: {
       TokenFactory: factoryAddress,
+      DexRouterRegistry: registryAddress,
       FeeRecipient: feeRecipient,
     },
     deployedAt: new Date().toISOString(),
@@ -98,6 +112,9 @@ async function main() {
         address: factoryAddress,
         owner: owner,
         feeRecipient: feeRecipient
+      },
+      DexRouterRegistry: {
+        address: registryAddress
       }
     },
     deployer: {

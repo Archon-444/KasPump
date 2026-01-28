@@ -3,6 +3,8 @@
 
 import * as React from 'react';
 import { ethers } from 'ethers';
+import { getChainById, getDefaultChain } from '@/config/chains';
+import { getTokenFactoryAddress } from '@/config/contracts';
 
 // Types for partnership integrations
 export interface PartnerIntegration {
@@ -394,10 +396,12 @@ export function usePartnershipIntegration() {
   const [integrationManager, setIntegrationManager] = React.useState<PartnershipIntegrationManager | null>(null);
 
   React.useEffect(() => {
-    const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL);
-    const factoryAddress = process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS;
+    const defaultChain = getDefaultChain();
+    const rpcUrl = getChainById(defaultChain.id)?.rpcUrls?.default?.http?.[0];
+    const factoryAddress = getTokenFactoryAddress(defaultChain.id);
     
-    if (factoryAddress) {
+    if (rpcUrl && factoryAddress) {
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
       setIntegrationManager(new PartnershipIntegrationManager(provider, factoryAddress));
     }
   }, []);

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
-import StopLossOrderBookABI from '../../../contracts/artifacts/contracts/StopLossOrderBook.sol/StopLossOrderBook.json';
+import StopLossOrderBookABI from '@/abis/StopLossOrderBook.json';
 
 interface StopLossFormProps {
   tokenAddress: string;

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useTokenCreationState } from './useTokenCreationState';
 
@@ -17,6 +17,15 @@ describe('useTokenCreationState', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_BSC_TESTNET_TOKEN_FACTORY = '0xfactory';
+    process.env.NEXT_PUBLIC_BSC_TESTNET_FEE_RECIPIENT = '0xfee';
+    process.env.NEXT_PUBLIC_BSC_TESTNET_DEX_ROUTER_REGISTRY = '0xregistry';
+  });
+
+  afterEach(() => {
+    delete process.env.NEXT_PUBLIC_BSC_TESTNET_TOKEN_FACTORY;
+    delete process.env.NEXT_PUBLIC_BSC_TESTNET_FEE_RECIPIENT;
+    delete process.env.NEXT_PUBLIC_BSC_TESTNET_DEX_ROUTER_REGISTRY;
   });
 
   describe('Initial State', () => {

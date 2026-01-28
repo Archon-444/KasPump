@@ -74,6 +74,15 @@ describe('useCreatorTokens', () => {
   let mockAmmContract: any;
   let mockProvider: any;
 
+  const abiHasFunction = (abi: any, name: string) =>
+    Array.isArray(abi) &&
+    abi.some((item) => {
+      if (typeof item === 'string') {
+        return item.includes(` ${name}(`) || item.includes(`${name}(`);
+      }
+      return item?.type === 'function' && item?.name === name;
+    });
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -103,8 +112,8 @@ describe('useCreatorTokens', () => {
     // Mock ethers constructors
     (ethers.JsonRpcProvider as any).mockImplementation(() => mockProvider);
     (ethers.Contract as any).mockImplementation((address: string, abi: any) => {
-      if (abi.includes('getAllTokens')) return mockFactoryContract;
-      if (abi.includes('getTradingInfo')) return mockAmmContract;
+      if (abiHasFunction(abi, 'getAllTokens')) return mockFactoryContract;
+      if (abiHasFunction(abi, 'getTradingInfo')) return mockAmmContract;
       return {};
     });
 
@@ -112,11 +121,11 @@ describe('useCreatorTokens', () => {
     (useMultichainWallet as any).mockReturnValue(mockWallet);
 
     // Mock environment variables
-    process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS = '0xfactory123456789012345678901234567890';
+    process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY = '0xfactory123456789012345678901234567890';
   });
 
   afterEach(() => {
-    delete process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS;
+    delete process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY;
   });
 
   describe('Initial State', () => {
@@ -887,8 +896,7 @@ describe('useCreatorTokens', () => {
     });
 
     it('should handle missing factory address for chain', async () => {
-      delete process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS;
-      delete process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS_56;
+      delete process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY;
 
       const { result } = renderHook(() => useCreatorTokens());
 

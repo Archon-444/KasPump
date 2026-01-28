@@ -222,18 +222,21 @@ export function handleTokenGraduated(event: TokenGraduatedEvent): void {
   }
 
   // Create TokenGraduatedEvent entity
-  let eventId = event.transaction.hash.toHex() + "-" + event.logIndex.toString()
-  let graduatedEvent = new TokenGraduatedEventEntity(eventId)
-  graduatedEvent.token = token.id
+  let eventId = event.transaction.hash.toHex() + "-graduation"
+  let graduatedEvent = TokenGraduatedEventEntity.load(eventId)
+  if (graduatedEvent === null) {
+    graduatedEvent = new TokenGraduatedEventEntity(eventId)
+    graduatedEvent.token = token.id
+    graduatedEvent.nativeReserve = ZERO_BI // Not in this event
+    graduatedEvent.creatorShare = ZERO_BI // Not in this event
+    graduatedEvent.platformShare = ZERO_BI // Not in this event
+    graduatedEvent.dexPairAddress = null
+    graduatedEvent.lpTokenAddress = null
+    graduatedEvent.lpTokensLocked = null
+    graduatedEvent.lpUnlockTime = null
+  }
   graduatedEvent.finalSupply = event.params.finalSupply
-  graduatedEvent.nativeReserve = ZERO_BI // Not in this event
   graduatedEvent.liquidityAmount = event.params.liquidityAdded
-  graduatedEvent.creatorShare = ZERO_BI // Not in this event
-  graduatedEvent.platformShare = ZERO_BI // Not in this event
-  graduatedEvent.dexPairAddress = null
-  graduatedEvent.lpTokenAddress = null
-  graduatedEvent.lpTokensLocked = null
-  graduatedEvent.lpUnlockTime = null
   graduatedEvent.txHash = event.transaction.hash
   graduatedEvent.blockNumber = event.block.number
   graduatedEvent.timestamp = event.block.timestamp

@@ -1,0 +1,49 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        { "internalType": "address", "name": "tokenAddress", "type": "address" },
+        { "internalType": "address", "name": "ammAddress", "type": "address" },
+        { "internalType": "uint256", "name": "triggerPrice", "type": "uint256" },
+        { "internalType": "uint256", "name": "amount", "type": "uint256" },
+        { "internalType": "uint256", "name": "minReceive", "type": "uint256" }
+      ],
+      "name": "createStopLossOrder",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [{ "internalType": "address", "name": "tokenAddress", "type": "address" }],
+      "name": "getExecutableOrders",
+      "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{ "internalType": "uint256", "name": "orderId", "type": "uint256" }],
+      "name": "getOrder",
+      "outputs": [
+        {
+          "components": [
+            { "internalType": "uint256", "name": "orderId", "type": "uint256" },
+            { "internalType": "address", "name": "trader", "type": "address" },
+            { "internalType": "address", "name": "tokenAddress", "type": "address" },
+            { "internalType": "address", "name": "ammAddress", "type": "address" },
+            { "internalType": "uint256", "name": "triggerPrice", "type": "uint256" },
+            { "internalType": "uint256", "name": "amount", "type": "uint256" },
+            { "internalType": "uint256", "name": "minReceive", "type": "uint256" },
+            { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+            { "internalType": "bool", "name": "executed", "type": "bool" },
+            { "internalType": "bool", "name": "cancelled", "type": "bool" }
+          ],
+          "internalType": "struct StopLossOrderBook.StopLossOrder",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ]
+}

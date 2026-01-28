@@ -18,16 +18,18 @@ Implemented automated DEX liquidity provision with LP token locking to prevent r
 
 ### 1. Multi-Chain DEX Support
 
-**Supported Networks:**
+**Supported Networks (V2-compatible routers):**
 - BSC Mainnet (56) → PancakeSwap V2
 - BSC Testnet (97) → PancakeSwap V2 Testnet
-- Arbitrum One (42161) → Uniswap V3
-- Arbitrum Sepolia (421614) → Uniswap V3
-- Base (8453) → Uniswap V3
-- Base Sepolia (84532) → Uniswap V3
+- Arbitrum One (42161) → Uniswap V2 Router
+- Base (8453) → BaseSwap V2 Router
+
+**Testnets Note:**
+- Arbitrum Sepolia (421614) and Base Sepolia (84532) do not have
+  V2 router addresses configured yet, so DEX liquidity is disabled there.
 
 **Implementation:** `contracts/libraries/DexConfig.sol`
-- Chain ID-based router selection
+- Chain ID-based V2 router selection
 - Automatic configuration at deployment
 - No manual intervention required
 
@@ -318,10 +320,10 @@ Simply deploy using existing deployment scripts. DEX integration is automatic.
    - DexConfig must be updated for new chains
    - Unsupported chains revert on deployment
 
-2. **No V3 Liquidity Customization**
-   - Uses default V2-style liquidity provision
-   - For Uniswap V3, uses wide range (not optimized)
-   - Future: Could add V3-specific configuration
+2. **No V3 Liquidity Support (Yet)**
+   - Current implementation uses V2-compatible routers only
+   - Uniswap V3 requires the NonfungiblePositionManager flow
+   - Future: Add V3 adapter when position management is implemented
 
 3. **Fixed Lock Duration**
    - 6 months hardcoded

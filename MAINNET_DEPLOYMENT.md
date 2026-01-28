@@ -161,7 +161,7 @@ npm run deploy:deterministic:bsc
 🔄 DEX Integration:
 ✅ Chain: BNB Smart Chain (Chain ID: 56)
 ✅ Automatic DEX liquidity provision enabled
-✅ PancakeSwap router configured
+✅ DexRouterRegistry configured (chain-specific router)
 
 📄 Step 6: Saving deployment info...
 ✅ Saved to deployments.json

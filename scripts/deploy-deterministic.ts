@@ -76,9 +76,18 @@ async function main() {
     // because it's deployed normally (not via CREATE2)
     // Only TokenFactory will have the same address across chains
 
-    // ========== STEP 2: Compute Expected Factory Address ==========
+    // ========== STEP 2: Deploy DexRouterRegistry ==========
 
-    console.log("\n📄 Step 2: Computing expected TokenFactory address...");
+    console.log("\n📄 Step 2: Deploying DexRouterRegistry...");
+    const DexRouterRegistry = await ethers.getContractFactory("DexRouterRegistry");
+    const dexRouterRegistry = await DexRouterRegistry.deploy();
+    await dexRouterRegistry.waitForDeployment();
+    const registryAddress = await dexRouterRegistry.getAddress();
+    console.log("✅ DexRouterRegistry deployed to:", registryAddress);
+
+    // ========== STEP 3: Compute Expected Factory Address ==========
+
+    console.log("\n📄 Step 3: Computing expected TokenFactory address...");
 
     const expectedFactoryAddress = await deterministicDeployer.computeTokenFactoryAddress(
         DEPLOYMENT_SALT,
@@ -88,21 +97,22 @@ async function main() {
     console.log("🎯 Expected TokenFactory address:", expectedFactoryAddress);
     console.log("   This address will be IDENTICAL on all chains!\n");
 
-    // ========== STEP 3: Deploy TokenFactory Deterministically ==========
+    // ========== STEP 4: Deploy TokenFactory Deterministically ==========
 
-    console.log("📄 Step 3: Deploying TokenFactory via CREATE2...");
+    console.log("📄 Step 4: Deploying TokenFactory via CREATE2...");
 
-    const tx = await deterministicDeployer.deployTokenFactory(
+    const tx = await deterministicDeployer.deployTokenFactoryWithRegistry(
         deployer.address, // fee recipient
-        DEPLOYMENT_SALT
+        DEPLOYMENT_SALT,
+        registryAddress
     );
 
     const receipt = await tx.wait();
     console.log("✅ TokenFactory deployed!");
 
-    // ========== STEP 4: Verify Deployment ==========
+    // ========== STEP 5: Verify Deployment ==========
 
-    console.log("\n📄 Step 4: Verifying deployment...");
+    console.log("\n📄 Step 5: Verifying deployment...");
 
     const factoryAddress = await deterministicDeployer.deployedContracts(
         ethers.keccak256(
@@ -121,9 +131,15 @@ async function main() {
     console.log("   Deployed address:", factoryAddress);
     console.log("   Expected address:", expectedFactoryAddress);
 
-    // ========== STEP 5: Test Factory ==========
+    // ========== STEP 6: Transfer Ownership ==========
 
-    console.log("\n📄 Step 5: Testing TokenFactory...");
+    console.log("\n📄 Step 6: Transferring TokenFactory ownership to deployer...");
+    await deterministicDeployer.transferTokenFactoryOwnership(DEPLOYMENT_SALT, deployer.address);
+    console.log("✅ Ownership transferred");
+
+    // ========== STEP 7: Test Factory ==========
+
+    console.log("\n📄 Step 7: Testing TokenFactory...");
 
     const TokenFactory = await ethers.getContractAt("TokenFactory", factoryAddress);
 
@@ -141,11 +157,11 @@ async function main() {
     console.log("✅ Automatic DEX liquidity provision enabled");
     console.log("✅ Graduation split: 70% DEX liquidity, 20% creator, 10% platform");
     console.log("✅ LP tokens locked for 6 months after graduation");
-    console.log("✅ Chain-specific DEX router auto-configured via DexConfig library");
+    console.log("✅ Chain-specific DEX router auto-configured via DexRouterRegistry");
 
-    // ========== STEP 6: Save Deployment Info ==========
+    // ========== STEP 8: Save Deployment Info ==========
 
-    console.log("\n📄 Step 6: Saving deployment info...");
+    console.log("\n📄 Step 8: Saving deployment info...");
 
     const deploymentsPath = "./deployments";
     if (!existsSync(deploymentsPath)) {
@@ -164,6 +180,7 @@ async function main() {
         name: chainConfig.name,
         contracts: {
             DeterministicDeployer: deployerAddress,
+            DexRouterRegistry: registryAddress,
             TokenFactory: factoryAddress,
             FeeRecipient: feeRecipient,
         },
@@ -186,6 +203,10 @@ async function main() {
             DeterministicDeployer: {
                 address: deployerAddress,
                 note: "This address is DIFFERENT on each chain (normal deployment)"
+            },
+            DexRouterRegistry: {
+                address: registryAddress,
+                note: "Registry for chain-specific DEX router configuration"
             },
             TokenFactory: {
                 address: factoryAddress,

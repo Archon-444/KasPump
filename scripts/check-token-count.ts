@@ -53,8 +53,14 @@ async function checkTokenCount(chainId: number, factoryAddress: string, rpcUrl?:
 
 async function main() {
   // Try to get from environment variables first
-  const rpcUrl = process.env.RPC_URL || process.env.NEXT_PUBLIC_RPC_URL;
-  const factoryAddress = process.env.TOKEN_FACTORY_ADDRESS || process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS;
+  const rpcUrl =
+    process.env.RPC_URL ||
+    process.env.NEXT_PUBLIC_RPC_URL ||
+    process.env.NEXT_PUBLIC_BSC_RPC_URL;
+  const factoryAddress =
+    process.env.TOKEN_FACTORY_ADDRESS ||
+    process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS ||
+    process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY;
 
   // If single chain specified, check that
   if (rpcUrl && factoryAddress) {

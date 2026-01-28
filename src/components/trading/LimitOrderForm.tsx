@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
-import LimitOrderBookABI from '../../../contracts/artifacts/contracts/LimitOrderBook.sol/LimitOrderBook.json';
+import LimitOrderBookABI from '@/abis/LimitOrderBook.json';
 
 interface LimitOrderFormProps {
   tokenAddress: string;
