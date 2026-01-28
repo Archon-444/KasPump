@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./BondingCurveAMM.sol";
-import "./libraries/DexConfig.sol";
+import "./interfaces/IDexRouterRegistry.sol";
 
 /**
  * @title TokenFactory - PRODUCTION GRADE WITH DEX INTEGRATION
@@ -18,8 +18,8 @@ import "./libraries/DexConfig.sol";
  *  - Zero address checks
  *  - Safe CREATE2 deployment
  * @notice DEX Integration:
- *  - Auto-detects chain and uses appropriate DEX router
- *  - Supports BSC (PancakeSwap V2), Arbitrum (Uniswap V2), Base (BaseSwap V2)
+ *  - Uses DexRouterRegistry for chain-specific router configuration
+ *  - Supports V2 and V3 liquidity paths
  *  - AMM automatically adds liquidity on graduation
  */
 contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
@@ -53,6 +53,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     uint256 public constant PLATFORM_FEE = 50; // 0.5% in basis points
     uint256 public constant CREATION_FEE = 0.025 ether; // 0.025 BNB (~$25 USD) - BSC-only, no oracle needed
     address payable public feeRecipient;
+    IDexRouterRegistry public dexRouterRegistry;
 
     // Rate limiting
     mapping(address => uint256) public lastTokenCreation;
@@ -91,6 +92,11 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         address indexed newRecipient
     );
 
+    event DexRouterRegistryUpdated(
+        address indexed oldRegistry,
+        address indexed newRegistry
+    );
+
     event CreationFeeCollected(
         address indexed creator,
         uint256 amount,
@@ -104,6 +110,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     error RateLimitExceeded();
     error DeploymentFailed();
     error InsufficientCreationFee();
+    error DexRouterRegistryNotSet();
 
     // ========== CONSTRUCTOR ==========
 
@@ -177,6 +184,10 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         // Price validation
         if (_basePrice == 0) {
             revert InvalidInput("basePrice");
+        }
+
+        if (address(dexRouterRegistry) == address(0)) {
+            revert DexRouterRegistryNotSet();
         }
 
         // ========== DEPLOYMENT ==========
@@ -293,7 +304,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
      * @param _curveType Type of bonding curve (linear/exponential)
      * @param _graduationThreshold Supply threshold for graduation
      * @param _tier Membership tier for fees
-     * @notice Automatically detects chain and uses appropriate DEX router
+     * @notice Uses registry-configured router for the current chain
      */
     function deployAMM(
         address _tokenAddress,
@@ -304,9 +315,6 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         uint256 _graduationThreshold,
         uint8 _tier
     ) internal returns (address) {
-        // Get DEX router address for current chain
-        address dexRouter = DexConfig.getRouterAddress(block.chainid);
-
         BondingCurveAMM amm = new BondingCurveAMM(
             _tokenAddress,
             _creator,  // Token creator receives graduation funds
@@ -316,7 +324,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
             _graduationThreshold,
             feeRecipient,
             _tier,
-            dexRouter  // DEX router for automated liquidity
+            address(dexRouterRegistry)  // Registry for automated liquidity
         );
 
         return address(amm);
@@ -372,6 +380,18 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         feeRecipient = _newRecipient;
 
         emit FeeRecipientUpdated(oldRecipient, _newRecipient);
+    }
+
+    /**
+     * @dev Update dex router registry for long-term upgrades
+     */
+    function updateDexRouterRegistry(address _newRegistry) external onlyOwner {
+        if (_newRegistry == address(0)) revert ZeroAddress();
+
+        address oldRegistry = address(dexRouterRegistry);
+        dexRouterRegistry = IDexRouterRegistry(_newRegistry);
+
+        emit DexRouterRegistryUpdated(oldRegistry, _newRegistry);
     }
 
     /**

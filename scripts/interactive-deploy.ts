@@ -180,20 +180,32 @@ async function main() {
       const deployerAddress = await deterministicDeployer.getAddress();
       console.log("✅ DeterministicDeployer deployed to:", deployerAddress);
 
-      console.log("\n📄 Step 2: Computing expected TokenFactory address...");
+      console.log("\n📄 Step 2: Deploying DexRouterRegistry...");
+      const DexRouterRegistry = await ethers.getContractFactory("DexRouterRegistry");
+      const dexRouterRegistry = await DexRouterRegistry.deploy();
+      await dexRouterRegistry.waitForDeployment();
+      const registryAddress = await dexRouterRegistry.getAddress();
+      console.log("✅ DexRouterRegistry deployed to:", registryAddress);
+
+      console.log("\n📄 Step 3: Computing expected TokenFactory address...");
       const expectedFactoryAddress = await deterministicDeployer.computeTokenFactoryAddress(
         DEPLOYMENT_SALT,
         deployer.address
       );
       console.log("🎯 Expected TokenFactory address:", expectedFactoryAddress);
 
-      console.log("\n📄 Step 3: Deploying TokenFactory via CREATE2...");
-      const tx = await deterministicDeployer.deployTokenFactory(
+      console.log("\n📄 Step 4: Deploying TokenFactory via CREATE2...");
+      const tx = await deterministicDeployer.deployTokenFactoryWithRegistry(
         deployer.address,
-        DEPLOYMENT_SALT
+        DEPLOYMENT_SALT,
+        registryAddress
       );
       const receipt = await tx.wait();
       console.log("✅ TokenFactory deployed!");
+
+      console.log("\n📄 Step 5: Transferring TokenFactory ownership to deployer...");
+      await deterministicDeployer.transferTokenFactoryOwnership(DEPLOYMENT_SALT, deployer.address);
+      console.log("✅ Ownership transferred");
 
       // Get deployed address
       const factoryAddress = await deterministicDeployer.deployedContracts(
@@ -226,6 +238,7 @@ async function main() {
         name: networkConfig.name,
         contracts: {
           DeterministicDeployer: deployerAddress,
+          DexRouterRegistry: registryAddress,
           TokenFactory: factoryAddress,
           FeeRecipient: feeRecipient,
         },
@@ -241,6 +254,7 @@ async function main() {
 
       console.log("\n🎉 DEPLOYMENT COMPLETE!");
       console.log("=".repeat(60));
+      console.log(`📍 DexRouterRegistry: ${registryAddress}`);
       console.log(`📍 TokenFactory: ${factoryAddress}`);
       console.log(`🔍 View on explorer: ${networkConfig.explorer}/address/${factoryAddress}`);
       

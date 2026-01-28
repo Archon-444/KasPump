@@ -17,6 +17,14 @@ async function main() {
     process.exit(1);
   }
 
+  // Deploy DexRouterRegistry
+  console.log("\n📄 Deploying DexRouterRegistry...");
+  const DexRouterRegistry = await ethers.getContractFactory("DexRouterRegistry");
+  const dexRouterRegistry = await DexRouterRegistry.deploy();
+  await dexRouterRegistry.waitForDeployment();
+  const registryAddress = await dexRouterRegistry.getAddress();
+  console.log("✅ DexRouterRegistry deployed to:", registryAddress);
+
   // Deploy TokenFactory
   console.log("\n📄 Deploying TokenFactory...");
   const TokenFactory = await ethers.getContractFactory("TokenFactory");
@@ -29,6 +37,11 @@ async function main() {
   
   const factoryAddress = await tokenFactory.getAddress();
   console.log("✅ TokenFactory deployed to:", factoryAddress);
+
+  // Configure registry
+  console.log("\n🔧 Configuring DexRouterRegistry on TokenFactory...");
+  await tokenFactory.updateDexRouterRegistry(registryAddress);
+  console.log("✅ DexRouterRegistry configured");
 
   // Verify deployment
   console.log("\n🔍 Verifying deployment...");
@@ -67,6 +80,9 @@ async function main() {
         address: factoryAddress,
         owner: await tokenFactory.owner(),
         feeRecipient: await tokenFactory.feeRecipient()
+      },
+      DexRouterRegistry: {
+        address: registryAddress
       }
     },
     deployer: {
@@ -95,6 +111,7 @@ NEXT_PUBLIC_NETWORK=testnet
 NEXT_PUBLIC_DEFAULT_CHAIN_ID=97
 NEXT_PUBLIC_BSC_TESTNET_RPC_URL=https://data-seed-prebsc-1-s1.binance.org:8545
 NEXT_PUBLIC_BSC_TESTNET_TOKEN_FACTORY=${factoryAddress}
+NEXT_PUBLIC_BSC_TESTNET_DEX_ROUTER_REGISTRY=${registryAddress}
 NEXT_PUBLIC_BSC_TESTNET_FEE_RECIPIENT=${await tokenFactory.feeRecipient()}
 
 # WalletConnect Project ID

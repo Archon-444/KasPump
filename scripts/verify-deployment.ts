@@ -50,6 +50,7 @@ async function main() {
 
   const deployment = deployments[chainId.toString()];
   const factoryAddress = deployment.contracts?.TokenFactory;
+  const registryAddress = deployment.contracts?.DexRouterRegistry;
 
   if (!factoryAddress) {
     console.error("❌ TokenFactory address not found in deployment info");
@@ -85,11 +86,17 @@ async function main() {
     const owner = await factory.owner();
     const feeRecipient = await factory.feeRecipient();
     const isPaused = await factory.paused();
+    const configuredRegistry = await factory.dexRouterRegistry();
     
     console.log("   ✅ Contract is accessible");
     console.log(`   Owner: ${owner}`);
     console.log(`   Fee Recipient: ${feeRecipient}`);
     console.log(`   Paused: ${isPaused}`);
+    console.log(`   DexRouterRegistry: ${configuredRegistry}`);
+
+    if (registryAddress && configuredRegistry.toLowerCase() !== registryAddress.toLowerCase()) {
+      console.log(`   ⚠️  Registry mismatch (expected ${registryAddress})`);
+    }
 
     // Test 2: Can read token count
     try {
@@ -141,6 +148,7 @@ async function main() {
   const envVars = {
     "NEXT_PUBLIC_BSC_TESTNET_TOKEN_FACTORY": factoryAddress,
     "NEXT_PUBLIC_BSC_TESTNET_FEE_RECIPIENT": deployment.contracts?.FeeRecipient || deployment.deployer,
+    "NEXT_PUBLIC_BSC_TESTNET_DEX_ROUTER_REGISTRY": registryAddress || "",
   };
 
   console.log("   Add these to your .env.local:");

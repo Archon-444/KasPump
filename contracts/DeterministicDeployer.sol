@@ -30,6 +30,16 @@ contract DeterministicDeployer is Ownable {
         uint256 chainId
     );
 
+    event TokenFactoryRegistryConfigured(
+        address indexed factoryAddress,
+        address indexed registryAddress
+    );
+
+    event TokenFactoryOwnershipTransferred(
+        address indexed factoryAddress,
+        address indexed newOwner
+    );
+
     // ========== ERRORS ==========
 
     error DeploymentFailed();
@@ -68,51 +78,51 @@ contract DeterministicDeployer is Ownable {
         address payable _feeRecipient,
         bytes32 _baseSalt
     ) external returns (address factoryAddress) {
-
-        // Calculate deterministic salt
-        bytes32 salt = keccak256(abi.encodePacked(
-            _baseSalt,
-            "TokenFactory",
-            "v1.0.0" // Version control for upgrades
-        ));
-
-        // Check if already deployed
-        if (deployedContracts[salt] != address(0)) {
-            revert ContractAlreadyDeployed();
-        }
-
-        // Get creation bytecode
-        bytes memory bytecode = abi.encodePacked(
-            type(TokenFactory).creationCode,
-            abi.encode(_feeRecipient)
-        );
-
-        // Deploy using CREATE2
-        assembly {
-            factoryAddress := create2(
-                0, // no ETH sent
-                add(bytecode, 0x20), // skip length prefix
-                mload(bytecode), // bytecode length
-                salt // deterministic salt
-            )
-        }
-
-        // Check deployment success
-        if (factoryAddress == address(0)) {
-            revert DeploymentFailed();
-        }
-
-        // Store deployment
-        deployedContracts[salt] = factoryAddress;
+        (factoryAddress, ) = _deployTokenFactory(_feeRecipient, _baseSalt);
 
         emit ContractDeployed(
             factoryAddress,
-            salt,
+            _computeTokenFactorySalt(_baseSalt),
             "TokenFactory",
             block.chainid
         );
 
         return factoryAddress;
+    }
+
+    function deployTokenFactoryWithRegistry(
+        address payable _feeRecipient,
+        bytes32 _baseSalt,
+        address _dexRouterRegistry
+    ) external returns (address factoryAddress) {
+        (factoryAddress, ) = _deployTokenFactory(_feeRecipient, _baseSalt);
+
+        if (_dexRouterRegistry != address(0)) {
+            TokenFactory(factoryAddress).updateDexRouterRegistry(_dexRouterRegistry);
+            emit TokenFactoryRegistryConfigured(factoryAddress, _dexRouterRegistry);
+        }
+
+        emit ContractDeployed(
+            factoryAddress,
+            _computeTokenFactorySalt(_baseSalt),
+            "TokenFactory",
+            block.chainid
+        );
+
+        return factoryAddress;
+    }
+
+    function updateTokenFactoryRegistry(bytes32 _baseSalt, address _dexRouterRegistry) external onlyOwner {
+        if (_dexRouterRegistry == address(0)) revert DeploymentFailed();
+        address factoryAddress = _getTokenFactoryAddress(_baseSalt);
+        TokenFactory(factoryAddress).updateDexRouterRegistry(_dexRouterRegistry);
+        emit TokenFactoryRegistryConfigured(factoryAddress, _dexRouterRegistry);
+    }
+
+    function transferTokenFactoryOwnership(bytes32 _baseSalt, address _newOwner) external onlyOwner {
+        address factoryAddress = _getTokenFactoryAddress(_baseSalt);
+        TokenFactory(factoryAddress).transferOwnership(_newOwner);
+        emit TokenFactoryOwnershipTransferred(factoryAddress, _newOwner);
     }
 
     /**
@@ -127,12 +137,7 @@ contract DeterministicDeployer is Ownable {
         bytes32 _baseSalt,
         address payable _feeRecipient
     ) external view returns (address) {
-
-        bytes32 salt = keccak256(abi.encodePacked(
-            _baseSalt,
-            "TokenFactory",
-            "v1.0.0"
-        ));
+        bytes32 salt = _computeTokenFactorySalt(_baseSalt);
 
         bytes memory bytecode = abi.encodePacked(
             type(TokenFactory).creationCode,
@@ -149,6 +154,54 @@ contract DeterministicDeployer is Ownable {
         );
 
         return address(uint160(uint256(hash)));
+    }
+
+    function _deployTokenFactory(
+        address payable _feeRecipient,
+        bytes32 _baseSalt
+    ) internal returns (address factoryAddress, bytes32 salt) {
+        salt = _computeTokenFactorySalt(_baseSalt);
+
+        if (deployedContracts[salt] != address(0)) {
+            revert ContractAlreadyDeployed();
+        }
+
+        bytes memory bytecode = abi.encodePacked(
+            type(TokenFactory).creationCode,
+            abi.encode(_feeRecipient)
+        );
+
+        assembly {
+            factoryAddress := create2(
+                0,
+                add(bytecode, 0x20),
+                mload(bytecode),
+                salt
+            )
+        }
+
+        if (factoryAddress == address(0)) {
+            revert DeploymentFailed();
+        }
+
+        deployedContracts[salt] = factoryAddress;
+    }
+
+    function _computeTokenFactorySalt(bytes32 _baseSalt) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(
+            _baseSalt,
+            "TokenFactory",
+            "v1.0.0"
+        ));
+    }
+
+    function _getTokenFactoryAddress(bytes32 _baseSalt) internal view returns (address) {
+        bytes32 salt = _computeTokenFactorySalt(_baseSalt);
+        address factoryAddress = deployedContracts[salt];
+        if (factoryAddress == address(0)) {
+            revert DeploymentFailed();
+        }
+        return factoryAddress;
     }
 
     /**

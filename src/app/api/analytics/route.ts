@@ -76,7 +76,7 @@ async function getPlatformAnalytics(
     const totalVolume = await calculateTotalVolume(provider, factoryContract, allTokens);
     const totalMarketCap = await calculateTotalMarketCap(provider, factoryContract, allTokens);
     const graduatedTokens = await countGraduatedTokens(provider, factoryContract, allTokens);
-    const activeTokens = await countActiveTokens(provider, allTokens, timeframe);
+    const activeTokens = await countActiveTokens(provider, factoryContract, allTokens, timeframe);
     const totalUsers = await calculateTotalUsers(provider, allTokens);
     
     // Platform health metrics
@@ -216,7 +216,12 @@ async function countGraduatedTokens(
   return graduatedCount;
 }
 
-async function countActiveTokens(provider: ethers.JsonRpcProvider, tokens: string[], timeframe: string): Promise<number> {
+async function countActiveTokens(
+  provider: ethers.JsonRpcProvider,
+  factoryContract: ethers.Contract,
+  tokens: string[],
+  timeframe: string
+): Promise<number> {
   // Count tokens with recent trading activity (volume > 0 and not graduated)
   // In production, this would query recent Trade events within the timeframe
   let activeCount = 0;
