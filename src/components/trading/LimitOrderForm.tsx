@@ -73,27 +73,27 @@ export function LimitOrderForm({
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6">
-      <h3 className="text-xl font-bold mb-4">Limit Order</h3>
+    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-6">
+      <h3 className="text-xl font-bold text-white mb-4">Limit Order</h3>
 
       {/* Order Type Selector */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 p-1 rounded-full bg-white/5 border border-white/5">
         <button
           onClick={() => setOrderType('buy')}
-          className={`flex-1 py-2 px-4 rounded ${
+          className={`flex-1 py-2 px-4 rounded-full font-medium transition-all duration-200 ${
             orderType === 'buy'
-              ? 'bg-green-600 text-white'
-              : 'bg-gray-700 text-gray-300'
+              ? 'bg-green-500/15 text-green-400 border border-green-500/20 shadow-[0_0_12px_rgba(34,197,94,0.15)]'
+              : 'text-gray-400 hover:text-white'
           }`}
         >
           Buy
         </button>
         <button
           onClick={() => setOrderType('sell')}
-          className={`flex-1 py-2 px-4 rounded ${
+          className={`flex-1 py-2 px-4 rounded-full font-medium transition-all duration-200 ${
             orderType === 'sell'
-              ? 'bg-red-600 text-white'
-              : 'bg-gray-700 text-gray-300'
+              ? 'bg-red-500/15 text-red-400 border border-red-500/20 shadow-[0_0_12px_rgba(239,68,68,0.15)]'
+              : 'text-gray-400 hover:text-white'
           }`}
         >
           Sell
@@ -102,9 +102,9 @@ export function LimitOrderForm({
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Current Price Display */}
-        <div className="bg-gray-700 p-3 rounded">
+        <div className="bg-white/[0.02] border border-white/5 p-3 rounded-xl">
           <div className="text-sm text-gray-400">Current Price</div>
-          <div className="text-lg font-semibold">
+          <div className="text-lg font-semibold text-white">
             {formatEther(BigInt(currentPrice || 0))} BNB
           </div>
         </div>
@@ -120,7 +120,7 @@ export function LimitOrderForm({
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             placeholder="0.00"
-            className="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white"
+            className="w-full bg-white/[0.02] border border-white/10 rounded-xl px-4 py-2 text-white placeholder:text-gray-500 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30 transition-all duration-200"
             required
           />
         </div>
@@ -136,16 +136,16 @@ export function LimitOrderForm({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
-            className="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white"
+            className="w-full bg-white/[0.02] border border-white/10 rounded-xl px-4 py-2 text-white placeholder:text-gray-500 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30 transition-all duration-200"
             required
           />
         </div>
 
         {/* Total Display */}
-        <div className="bg-gray-700 p-3 rounded">
+        <div className="bg-white/[0.02] border border-white/5 p-3 rounded-xl">
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-400">Total</span>
-            <span className="text-lg font-semibold">{calculateTotal()} BNB</span>
+            <span className="text-lg font-semibold text-white">{calculateTotal()} BNB</span>
           </div>
         </div>
 
@@ -164,11 +164,11 @@ export function LimitOrderForm({
         <button
           type="submit"
           disabled={!address || isConfirming || !price || !amount}
-          className={`w-full py-3 px-4 rounded font-semibold ${
+          className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-200 ${
             orderType === 'buy'
-              ? 'bg-green-600 hover:bg-green-700'
-              : 'bg-red-600 hover:bg-red-700'
-          } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+              ? 'bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25 hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]'
+              : 'bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/25 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)]'
+          } disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none`}
         >
           {isConfirming
             ? 'Confirming...'
@@ -179,7 +179,7 @@ export function LimitOrderForm({
       </form>
 
       {/* Info */}
-      <div className="mt-4 text-xs text-gray-400">
+      <div className="mt-4 text-xs text-gray-500 space-y-1">
         <p>• Orders execute automatically when price reaches your limit</p>
         <p>• Platform fee: 0.3%</p>
         <p>• You can cancel anytime before execution</p>

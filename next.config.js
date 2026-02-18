@@ -80,6 +80,7 @@ const nextConfig = {
   // Turbopack config (Next.js 16+ default bundler)
   // Resolve aliases for optional dependencies that should not be bundled client-side
   turbopack: {
+    root: __dirname,
     resolveAlias: {
       '@react-native-async-storage/async-storage': { browser: '' },
       'pino-pretty': { browser: '' },

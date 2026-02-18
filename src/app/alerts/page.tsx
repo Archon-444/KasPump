@@ -203,7 +203,7 @@ export default function AlertsPage() {
                         )}
                         <button
                           onClick={() => removeAlert(alert.id)}
-                          className="p-2 hover:bg-gray-700 rounded transition-colors"
+                          className="p-2 hover:bg-white/5 rounded-lg transition-colors"
                           title="Remove alert"
                         >
                           <X size={16} className="text-gray-400 hover:text-red-400" />
@@ -218,7 +218,7 @@ export default function AlertsPage() {
                           <span>{isAbove ? 'Price increase needed' : 'Price decrease needed'}</span>
                           <span>{progress.toFixed(1)}%</span>
                         </div>
-                        <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${progress}%` }}

@@ -273,7 +273,7 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
             {showActions && (
               <div className="flex space-x-1">
                 <button
-                  className="px-3 py-1 text-xs font-medium rounded-md text-green-400 bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 hover:shadow-[0_0_12px_rgba(34,197,94,0.3)] transition-all"
+                  className="px-3 py-1 text-xs font-medium rounded-xl text-green-400 bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 hover:shadow-[0_0_12px_rgba(34,197,94,0.3)] transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     // Handle buy
@@ -283,7 +283,7 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
                   Buy
                 </button>
                 <button
-                  className="px-3 py-1 text-xs font-medium rounded-md text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_12px_rgba(239,68,68,0.3)] transition-all"
+                  className="px-3 py-1 text-xs font-medium rounded-xl text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_12px_rgba(239,68,68,0.3)] transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     // Handle sell

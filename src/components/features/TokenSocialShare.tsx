@@ -70,7 +70,7 @@ export const TokenSocialShare: React.FC<TokenSocialShareProps> = ({
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleTwitterShare}
-          className="flex items-center space-x-2 px-4 py-2 bg-[#1DA1F2] hover:bg-[#1a8cd8] text-white rounded-lg text-sm font-medium transition-colors"
+          className="flex items-center space-x-2 px-4 py-2 bg-[#1DA1F2]/15 hover:bg-[#1DA1F2]/25 text-[#1DA1F2] border border-[#1DA1F2]/20 rounded-xl text-sm font-medium transition-all duration-200"
         >
           <Twitter size={16} />
           <span>Twitter</span>
@@ -82,7 +82,7 @@ export const TokenSocialShare: React.FC<TokenSocialShareProps> = ({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleNativeShare}
-            className="flex items-center space-x-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-400 border border-yellow-500/20 rounded-xl text-sm font-medium transition-all duration-200"
           >
             <Share2 size={16} />
             <span>Share</span>
@@ -97,8 +97,8 @@ export const TokenSocialShare: React.FC<TokenSocialShareProps> = ({
           className={cn(
             'flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
             copied
-              ? 'bg-green-600 text-white'
-              : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+              ? 'bg-green-500/15 text-green-400 border border-green-500/20'
+              : 'bg-white/5 hover:bg-white/10 text-gray-300 border border-white/5'
           )}
         >
           {copied ? (
@@ -120,7 +120,7 @@ export const TokenSocialShare: React.FC<TokenSocialShareProps> = ({
             href={explorerUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 border border-white/5 rounded-xl text-sm font-medium transition-all duration-200"
           >
             <ExternalLink size={16} />
             <span>Explorer</span>
@@ -129,15 +129,15 @@ export const TokenSocialShare: React.FC<TokenSocialShareProps> = ({
       </div>
 
       {/* Token Address */}
-      <div className="pt-3 border-t border-gray-700">
+      <div className="pt-3 border-t border-white/5">
         <div className="text-xs text-gray-400 mb-1">Contract Address</div>
         <div className="flex items-center space-x-2">
-          <code className="text-xs text-gray-300 font-mono bg-gray-800/50 px-2 py-1 rounded">
+          <code className="text-xs text-gray-300 font-mono bg-white/[0.02] border border-white/5 px-2 py-1 rounded-lg">
             {truncateAddress(token.address, 8, 6)}
           </code>
           <button
             onClick={() => copyToClipboard(token.address)}
-            className="p-1 hover:bg-gray-700 rounded transition-colors"
+            className="p-1 hover:bg-white/5 rounded-lg transition-colors"
             title="Copy address"
           >
             <Copy size={12} className="text-gray-400" />

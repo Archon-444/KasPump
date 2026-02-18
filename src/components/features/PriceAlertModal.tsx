@@ -91,7 +91,7 @@ export const PriceAlertModal: React.FC<PriceAlertModalProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative bg-gray-900 border border-gray-700 rounded-xl shadow-2xl max-w-md w-full z-10"
+          className="relative bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl max-w-md w-full z-10"
         >
           <Card className="glassmorphism border-0">
             {/* Header */}
@@ -107,14 +107,14 @@ export const PriceAlertModal: React.FC<PriceAlertModalProps> = ({
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/5 rounded-lg transition-colors"
               >
                 <X size={20} className="text-gray-400" />
               </button>
             </div>
 
             {/* Current Price */}
-            <div className="mb-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+            <div className="mb-6 p-4 bg-white/[0.02] rounded-xl border border-white/5">
               <div className="text-xs text-gray-400 mb-1">Current Price</div>
               <div className="text-2xl font-bold text-white">
                 {formatCurrency(token.price, '$', 6)}
@@ -130,8 +130,8 @@ export const PriceAlertModal: React.FC<PriceAlertModalProps> = ({
                   className={cn(
                     'flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-lg font-medium transition-all',
                     direction === 'above'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                      ? 'bg-green-500/15 text-green-400 border border-green-500/20'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-white/5'
                   )}
                 >
                   <TrendingUp size={18} />
@@ -142,8 +142,8 @@ export const PriceAlertModal: React.FC<PriceAlertModalProps> = ({
                   className={cn(
                     'flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-lg font-medium transition-all',
                     direction === 'below'
-                      ? 'bg-red-600 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                      ? 'bg-red-500/15 text-red-400 border border-red-500/20'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-white/5'
                   )}
                 >
                   <TrendingDown size={18} />
@@ -182,7 +182,7 @@ export const PriceAlertModal: React.FC<PriceAlertModalProps> = ({
                   {existingAlerts.map((alert) => (
                     <div
                       key={alert.id}
-                      className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"
+                      className="flex items-center justify-between p-3 bg-white/[0.02] border border-white/5 rounded-xl"
                     >
                       <div>
                         <div className="text-sm text-white">

@@ -78,7 +78,7 @@ export const SuccessToast: React.FC<SuccessToastProps> = ({
                     </code>
                     <button
                       onClick={handleCopyTxHash}
-                      className="p-1 hover:bg-gray-700 rounded transition-colors"
+                      className="p-1 hover:bg-white/5 rounded-lg transition-colors"
                       title="Copy transaction hash"
                     >
                       {copied ? (
@@ -92,7 +92,7 @@ export const SuccessToast: React.FC<SuccessToastProps> = ({
                         href={explorerUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1 hover:bg-gray-700 rounded transition-colors"
+                        className="p-1 hover:bg-white/5 rounded-lg transition-colors"
                         title="View on explorer"
                       >
                         <ExternalLink size={14} className="text-gray-400 hover:text-yellow-400" />
@@ -118,7 +118,7 @@ export const SuccessToast: React.FC<SuccessToastProps> = ({
               {/* Close Button */}
               <button
                 onClick={onClose}
-                className="flex-shrink-0 p-1 hover:bg-gray-700 rounded transition-colors"
+                className="flex-shrink-0 p-1 hover:bg-white/5 rounded-lg transition-colors"
               >
                 <X size={16} className="text-gray-400" />
               </button>

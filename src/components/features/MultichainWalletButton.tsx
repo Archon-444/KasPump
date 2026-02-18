@@ -54,7 +54,7 @@ export const MultichainWalletButton: React.FC<MultichainWalletButtonProps> = ({ 
           </Button>
 
           {wallet.error && (
-            <div className="absolute top-full mt-2 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800 max-w-sm z-50">
+            <div className="absolute top-full mt-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 max-w-sm backdrop-blur-sm z-50">
               {wallet.error}
             </div>
           )}
@@ -64,16 +64,16 @@ export const MultichainWalletButton: React.FC<MultichainWalletButtonProps> = ({ 
         {showConnectModal && (
           <>
             <div
-              className="fixed inset-0 bg-black/50 z-50"
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
               onClick={() => setShowConnectModal(false)}
             />
             <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+              <div className="bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl max-w-md w-full p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold">Connect Wallet</h2>
+                  <h2 className="text-xl font-bold text-white">Connect Wallet</h2>
                   <button
                     onClick={() => setShowConnectModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-white transition-colors"
                   >
                     ✕
                   </button>
@@ -86,18 +86,18 @@ export const MultichainWalletButton: React.FC<MultichainWalletButtonProps> = ({ 
                       await wallet.connectInjected();
                       setShowConnectModal(false);
                     }}
-                    className="w-full flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                    className="w-full flex items-center justify-between p-4 border border-white/10 rounded-xl hover:border-yellow-500/30 hover:bg-white/5 transition-all duration-200"
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <Wallet size={20} className="text-orange-600" />
+                      <div className="w-10 h-10 bg-orange-500/15 rounded-xl flex items-center justify-center">
+                        <Wallet size={20} className="text-orange-400" />
                       </div>
                       <div className="text-left">
-                        <div className="font-semibold">MetaMask</div>
-                        <div className="text-sm text-gray-500">Connect using MetaMask</div>
+                        <div className="font-semibold text-white">MetaMask</div>
+                        <div className="text-sm text-gray-400">Connect using MetaMask</div>
                       </div>
                     </div>
-                    <ChevronDown className="rotate-[-90deg]" size={20} />
+                    <ChevronDown className="rotate-[-90deg] text-gray-500" size={20} />
                   </button>
 
                   {/* WalletConnect */}
@@ -106,18 +106,18 @@ export const MultichainWalletButton: React.FC<MultichainWalletButtonProps> = ({ 
                       await wallet.connectWalletConnect();
                       setShowConnectModal(false);
                     }}
-                    className="w-full flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                    className="w-full flex items-center justify-between p-4 border border-white/10 rounded-xl hover:border-yellow-500/30 hover:bg-white/5 transition-all duration-200"
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Wallet size={20} className="text-blue-600" />
+                      <div className="w-10 h-10 bg-blue-500/15 rounded-xl flex items-center justify-center">
+                        <Wallet size={20} className="text-blue-400" />
                       </div>
                       <div className="text-left">
-                        <div className="font-semibold">WalletConnect</div>
-                        <div className="text-sm text-gray-500">Scan with mobile wallet</div>
+                        <div className="font-semibold text-white">WalletConnect</div>
+                        <div className="text-sm text-gray-400">Scan with mobile wallet</div>
                       </div>
                     </div>
-                    <ChevronDown className="rotate-[-90deg]" size={20} />
+                    <ChevronDown className="rotate-[-90deg] text-gray-500" size={20} />
                   </button>
 
                   {/* Coinbase Wallet */}
@@ -126,18 +126,18 @@ export const MultichainWalletButton: React.FC<MultichainWalletButtonProps> = ({ 
                       await wallet.connectCoinbase();
                       setShowConnectModal(false);
                     }}
-                    className="w-full flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                    className="w-full flex items-center justify-between p-4 border border-white/10 rounded-xl hover:border-yellow-500/30 hover:bg-white/5 transition-all duration-200"
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Wallet size={20} className="text-blue-600" />
+                      <div className="w-10 h-10 bg-blue-500/15 rounded-xl flex items-center justify-center">
+                        <Wallet size={20} className="text-blue-400" />
                       </div>
                       <div className="text-left">
-                        <div className="font-semibold">Coinbase Wallet</div>
-                        <div className="text-sm text-gray-500">Connect using Coinbase</div>
+                        <div className="font-semibold text-white">Coinbase Wallet</div>
+                        <div className="text-sm text-gray-400">Connect using Coinbase</div>
                       </div>
                     </div>
-                    <ChevronDown className="rotate-[-90deg]" size={20} />
+                    <ChevronDown className="rotate-[-90deg] text-gray-500" size={20} />
                   </button>
                 </div>
 
@@ -180,17 +180,17 @@ export const MultichainWalletButton: React.FC<MultichainWalletButtonProps> = ({ 
             className="fixed inset-0 z-40"
             onClick={() => setShowDropdown(false)}
           />
-          <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl z-50">
+          <div className="absolute top-full right-0 mt-2 w-80 bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-50">
             {/* Network Info */}
             {chainMeta && (
-              <div className="p-4 border-b border-gray-100">
-                <div className="text-xs font-medium text-gray-500 mb-2">Network</div>
+              <div className="p-4 border-b border-white/5">
+                <div className="text-xs font-medium text-gray-400 mb-2">Network</div>
                 <div className="flex items-center space-x-2">
                   <div
                     className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: chainMeta.color }}
                   />
-                  <span className="font-semibold">{chainMeta.name}</span>
+                  <span className="font-semibold text-white">{chainMeta.name}</span>
                   <span className="text-xs text-gray-500">({chainMeta.shortName})</span>
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
@@ -200,13 +200,13 @@ export const MultichainWalletButton: React.FC<MultichainWalletButtonProps> = ({ 
             )}
 
             {/* Account Info */}
-            <div className="p-4 border-b border-gray-100">
+            <div className="p-4 border-b border-white/5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-gray-500">Account</span>
+                <span className="text-xs font-medium text-gray-400">Account</span>
                 <div className="flex items-center space-x-1">
                   <button
                     onClick={handleCopyAddress}
-                    className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
+                    className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white transition-colors"
                     title="Copy address"
                   >
                     <Copy size={14} />
@@ -214,7 +214,7 @@ export const MultichainWalletButton: React.FC<MultichainWalletButtonProps> = ({ 
                   {explorerUrl && (
                     <button
                       onClick={() => window.open(explorerUrl, '_blank')}
-                      className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
+                      className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white transition-colors"
                       title="View on explorer"
                     >
                       <ExternalLink size={14} />
@@ -222,11 +222,11 @@ export const MultichainWalletButton: React.FC<MultichainWalletButtonProps> = ({ 
                   )}
                 </div>
               </div>
-              <div className="font-mono text-xs text-gray-900 break-all bg-gray-50 p-2 rounded">
+              <div className="font-mono text-xs text-gray-300 break-all bg-white/[0.02] border border-white/5 p-2 rounded-lg">
                 {wallet.address}
               </div>
               {copySuccess && (
-                <div className="text-xs text-green-600 mt-1">Address copied!</div>
+                <div className="text-xs text-green-400 mt-1">Address copied!</div>
               )}
               {wallet.connectorName && (
                 <div className="text-xs text-gray-500 mt-2">
@@ -236,17 +236,17 @@ export const MultichainWalletButton: React.FC<MultichainWalletButtonProps> = ({ 
             </div>
 
             {/* Balance */}
-            <div className="p-4 border-b border-gray-100">
+            <div className="p-4 border-b border-white/5">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-gray-500">Balance</span>
+                <span className="text-xs font-medium text-gray-400">Balance</span>
                 <button
                   onClick={wallet.refreshBalance}
-                  className="text-xs text-blue-600 hover:text-blue-800"
+                  className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
                 >
                   Refresh
                 </button>
               </div>
-              <div className="text-lg font-semibold text-gray-900">
+              <div className="text-lg font-semibold text-white">
                 {wallet.balanceFormatted}
               </div>
             </div>
@@ -276,7 +276,7 @@ export const WalletStatus: React.FC<{ className?: string }> = ({ className }) =>
 
   if (wallet.isConnecting) {
     return (
-      <div className={cn("flex items-center text-blue-600", className)}>
+      <div className={cn("flex items-center text-blue-400", className)}>
         <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse" />
         <span className="text-sm">Connecting...</span>
       </div>
@@ -285,7 +285,7 @@ export const WalletStatus: React.FC<{ className?: string }> = ({ className }) =>
 
   if (wallet.connected) {
     return (
-      <div className={cn("flex items-center text-green-600", className)}>
+      <div className={cn("flex items-center text-green-400", className)}>
         <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
         <span className="text-sm">Connected to {wallet.chainName}</span>
       </div>
@@ -293,7 +293,7 @@ export const WalletStatus: React.FC<{ className?: string }> = ({ className }) =>
   }
 
   return (
-    <div className={cn("flex items-center text-gray-600", className)}>
+    <div className={cn("flex items-center text-gray-400", className)}>
       <div className="w-2 h-2 bg-gray-500 rounded-full mr-2" />
       <span className="text-sm">Not connected</span>
     </div>

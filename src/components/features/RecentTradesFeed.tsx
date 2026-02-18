@@ -87,7 +87,7 @@ export const RecentTradesFeed: React.FC<RecentTradesFeedProps> = ({
                   'flex items-center justify-between p-3 rounded-lg transition-all',
                   isOwnTrade
                     ? 'bg-yellow-500/10 border border-yellow-500/30'
-                    : 'bg-gray-800/30 hover:bg-gray-800/50'
+                    : 'bg-white/[0.02] hover:bg-white/5'
                 )}
               >
                 <div className="flex items-center space-x-3 flex-1 min-w-0">
@@ -139,7 +139,7 @@ export const RecentTradesFeed: React.FC<RecentTradesFeedProps> = ({
                     href={explorerUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-shrink-0 ml-2 p-1.5 hover:bg-gray-700 rounded transition-colors"
+                    className="flex-shrink-0 ml-2 p-1.5 hover:bg-white/5 rounded-lg transition-colors"
                     title="View on explorer"
                   >
                     <ExternalLink size={14} className="text-gray-400 hover:text-yellow-400" />

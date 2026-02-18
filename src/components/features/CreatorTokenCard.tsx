@@ -125,7 +125,7 @@ const CreatorTokenCardComponent: React.FC<CreatorTokenCardProps> = ({
               <span>Graduation Progress</span>
               <span>{formatPercentage(token.bondingCurveProgress)}</span>
             </div>
-            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+            <div className="h-2 bg-white/5 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${token.bondingCurveProgress}%` }}
@@ -137,13 +137,13 @@ const CreatorTokenCardComponent: React.FC<CreatorTokenCardProps> = ({
         )}
 
         {/* Actions */}
-        <div className="flex space-x-2 pt-4 border-t border-gray-700">
+        <div className="flex space-x-2 pt-4 border-t border-white/5">
           <Link
             href={`/tokens/${token.address}?chain=${token.chainId}`}
             className="flex-1"
             onClick={(e) => e.stopPropagation()}
           >
-            <button className="w-full px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium transition-colors">
+            <button className="w-full px-4 py-2 bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-400 border border-yellow-500/20 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-[0_0_12px_rgba(234,179,8,0.15)]">
               View Token
             </button>
           </Link>
@@ -153,7 +153,7 @@ const CreatorTokenCardComponent: React.FC<CreatorTokenCardProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white border border-white/5 rounded-xl transition-all duration-200"
             >
               <ExternalLink size={16} />
             </a>

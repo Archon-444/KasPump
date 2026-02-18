@@ -186,7 +186,7 @@ export const TokenSearchFilters: React.FC<TokenSearchFiltersProps> = ({
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 space-y-4">
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-4">
               {/* Chain Filters */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-3">
@@ -205,8 +205,8 @@ export const TokenSearchFilters: React.FC<TokenSearchFiltersProps> = ({
                         className={cn(
                           'flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all',
                           isSelected
-                            ? 'bg-yellow-600 text-white shadow-lg'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20'
+                            : 'bg-white/5 text-gray-300 border border-white/5 hover:bg-white/10'
                         )}
                       >
                         <div
@@ -238,8 +238,8 @@ export const TokenSearchFilters: React.FC<TokenSearchFiltersProps> = ({
                       className={cn(
                         'px-3 py-2 rounded-lg text-sm font-medium transition-all',
                         filters.volumeRange === key
-                          ? 'bg-yellow-600 text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20'
+                          : 'bg-white/5 text-gray-300 border border-white/5 hover:bg-white/10'
                       )}
                     >
                       {label}

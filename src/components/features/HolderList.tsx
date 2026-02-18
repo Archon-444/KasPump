@@ -145,7 +145,7 @@ const HolderListComponent: React.FC<HolderListProps> = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors"
+              className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center space-x-3 flex-1 min-w-0">
                 {/* Rank Badge */}
@@ -154,7 +154,7 @@ const HolderListComponent: React.FC<HolderListProps> = ({
                   index === 0 ? 'bg-yellow-500/20 text-yellow-400' :
                   index === 1 ? 'bg-gray-400/20 text-gray-400' :
                   index === 2 ? 'bg-orange-500/20 text-orange-400' :
-                  'bg-gray-700/50 text-gray-400'
+                  'bg-white/5 text-gray-400'
                 )}>
                   {index + 1}
                 </div>
@@ -167,7 +167,7 @@ const HolderListComponent: React.FC<HolderListProps> = ({
                     </code>
                     <button
                       onClick={() => handleCopyAddress(holder.address)}
-                      className="p-1 hover:bg-gray-700 rounded transition-colors"
+                      className="p-1 hover:bg-white/5 rounded-lg transition-colors"
                       title="Copy address"
                     >
                       <Copy size={12} className={cn(
@@ -180,7 +180,7 @@ const HolderListComponent: React.FC<HolderListProps> = ({
                         href={explorerLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1 hover:bg-gray-700 rounded transition-colors"
+                        className="p-1 hover:bg-white/5 rounded-lg transition-colors"
                         title="View on explorer"
                       >
                         <ExternalLink size={12} className="text-gray-400 hover:text-yellow-400" />

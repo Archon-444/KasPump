@@ -279,7 +279,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
                     'px-2 py-1 text-xs rounded transition-colors',
                     timeframe === tf.value
                       ? 'bg-yellow-500 text-white'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
                   )}
                 >
                   {tf.label}
@@ -290,7 +290,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             {/* Fullscreen Toggle */}
             <button
               onClick={toggleFullscreen}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+              className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
             >
               <Maximize2 size={16} />
             </button>

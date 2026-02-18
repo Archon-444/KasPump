@@ -78,14 +78,14 @@ export function StopLossForm({
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6">
-      <h3 className="text-xl font-bold mb-4">Stop-Loss Order</h3>
+    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-6">
+      <h3 className="text-xl font-bold text-white mb-4">Stop-Loss Order</h3>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Current Price Display */}
-        <div className="bg-gray-700 p-3 rounded">
+        <div className="bg-white/[0.02] border border-white/5 p-3 rounded-xl">
           <div className="text-sm text-gray-400">Current Price</div>
-          <div className="text-lg font-semibold">
+          <div className="text-lg font-semibold text-white">
             {formatEther(BigInt(currentPrice || 0))} BNB
           </div>
         </div>
@@ -101,7 +101,7 @@ export function StopLossForm({
             value={triggerPrice}
             onChange={(e) => setTriggerPrice(e.target.value)}
             placeholder="0.00"
-            className="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white"
+            className="w-full bg-white/[0.02] border border-white/10 rounded-xl px-4 py-2 text-white placeholder:text-gray-500 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30 transition-all duration-200"
             required
           />
           {triggerPrice && currentPrice && (
@@ -131,18 +131,18 @@ export function StopLossForm({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white"
+              className="w-full bg-white/[0.02] border border-white/10 rounded-xl px-4 py-2 text-white placeholder:text-gray-500 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30 transition-all duration-200"
               required
             />
             <button
               type="button"
               onClick={() => setAmount(formatEther(BigInt(userBalance || 0)))}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-blue-400 hover:text-blue-300"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
             >
               MAX
             </button>
           </div>
-          <div className="mt-1 text-sm text-gray-400">
+          <div className="mt-1 text-sm text-gray-500">
             Balance: {formatEther(BigInt(userBalance || 0))} {tokenSymbol}
           </div>
         </div>
@@ -158,10 +158,10 @@ export function StopLossForm({
                 key={value}
                 type="button"
                 onClick={() => setSlippageTolerance(value)}
-                className={`px-3 py-1 rounded text-sm ${
+                className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                   slippageTolerance === value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-700 text-gray-300'
+                    ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20'
+                    : 'bg-white/5 border border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
                 }`}
               >
                 {value}%
@@ -172,29 +172,29 @@ export function StopLossForm({
               step="0.1"
               value={slippageTolerance}
               onChange={(e) => setSlippageTolerance(e.target.value)}
-              className="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+              className="w-20 bg-white/[0.02] border border-white/10 rounded-xl px-2 py-1 text-sm text-white focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30 transition-all duration-200"
             />
           </div>
         </div>
 
         {/* Estimated Receive */}
-        <div className="bg-gray-700 p-3 rounded">
+        <div className="bg-white/[0.02] border border-white/5 p-3 rounded-xl">
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-400">Minimum Receive</span>
-            <span className="text-lg font-semibold">
+            <span className="text-lg font-semibold text-white">
               {calculateEstimatedReceive()} BNB
             </span>
           </div>
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="text-xs text-gray-500 mt-1">
             After {slippageTolerance}% slippage tolerance
           </div>
         </div>
 
         {/* Warning */}
-        <div className="bg-yellow-900/30 border border-yellow-600/50 rounded p-3">
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3">
           <div className="flex items-start gap-2">
-            <span className="text-yellow-500 text-lg">⚠️</span>
-            <div className="text-sm text-yellow-200">
+            <span className="text-yellow-400 text-lg">⚠️</span>
+            <div className="text-sm text-yellow-300">
               <strong>Stop-Loss Protection:</strong> Your order will execute
               automatically when price drops to {triggerPrice || '___'} BNB. Tokens
               will be held in escrow until execution or cancellation.
@@ -206,7 +206,7 @@ export function StopLossForm({
         <button
           type="submit"
           disabled={!address || isConfirming || !triggerPrice || !amount}
-          className="w-full py-3 px-4 rounded font-semibold bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-3 px-4 rounded-xl font-semibold bg-orange-500/15 text-orange-400 border border-orange-500/20 hover:bg-orange-500/25 hover:shadow-[0_0_20px_rgba(249,115,22,0.15)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
         >
           {isConfirming
             ? 'Confirming...'
@@ -217,7 +217,7 @@ export function StopLossForm({
       </form>
 
       {/* Info */}
-      <div className="mt-4 text-xs text-gray-400 space-y-1">
+      <div className="mt-4 text-xs text-gray-500 space-y-1">
         <p>• Tokens will be escrowed in the smart contract</p>
         <p>• Automatic execution when trigger price is reached</p>
         <p>• Platform fee: 0.3% + Executor reward: 0.1%</p>

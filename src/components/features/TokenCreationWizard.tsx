@@ -40,7 +40,7 @@ export const WizardProgress: React.FC<{ currentStep: 1 | 2 | 3 }> = ({ currentSt
                   ? 'bg-green-500 text-white'
                   : currentStep === step.number
                   ? 'bg-yellow-500 text-white scale-110'
-                  : 'bg-gray-700 text-gray-400'
+                  : 'bg-white/5 text-gray-400'
               }`}
             >
               {currentStep > step.number ? (
@@ -60,7 +60,7 @@ export const WizardProgress: React.FC<{ currentStep: 1 | 2 | 3 }> = ({ currentSt
           {index < steps.length - 1 && (
             <div
               className={`flex-1 h-1 mx-2 transition-colors duration-300 ${
-                currentStep > step.number ? 'bg-green-500' : 'bg-gray-700'
+                currentStep > step.number ? 'bg-green-500' : 'bg-white/5'
               }`}
             />
           )}
@@ -148,7 +148,7 @@ export const WizardStep1: React.FC<{
       <div className="flex justify-end pt-4">
         <button
           onClick={handleNext}
-          className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 shadow-lg shadow-yellow-500/25"
+          className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold rounded-xl hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 shadow-lg shadow-yellow-500/25"
         >
           Next: Upload Logo →
         </button>
@@ -194,7 +194,7 @@ export const WizardStep2: React.FC<{
       </div>
 
       <div className="space-y-4">
-        <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-yellow-500/50 transition-colors">
+        <div className="border-2 border-dashed border-white/10 rounded-xl p-8 text-center hover:border-yellow-500/50 transition-colors">
           <input
             type="file"
             accept="image/*"
@@ -231,13 +231,13 @@ export const WizardStep2: React.FC<{
       <div className="flex justify-between pt-4">
         <button
           onClick={onBack}
-          className="px-6 py-3 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
+          className="px-6 py-3 bg-white/5 border border-white/10 text-white font-semibold rounded-xl hover:bg-white/10 transition-all duration-200"
         >
           ← Back
         </button>
         <button
           onClick={onNext}
-          className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 shadow-lg shadow-yellow-500/25"
+          className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold rounded-xl hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 shadow-lg shadow-yellow-500/25"
         >
           Next: Review →
         </button>
@@ -285,7 +285,7 @@ export const WizardStep3: React.FC<{
       </div>
 
       {/* Token Preview */}
-      <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700">
+      <div className="bg-white/[0.02] rounded-xl p-6 border border-white/5">
         <div className="flex items-center space-x-4 mb-4">
           {formData.image ? (
             <img
@@ -308,7 +308,7 @@ export const WizardStep3: React.FC<{
           <p className="text-gray-300 mb-4">{formData.description}</p>
         )}
 
-        <div className="grid grid-cols-2 gap-4 text-sm border-t border-gray-700 pt-4">
+        <div className="grid grid-cols-2 gap-4 text-sm border-t border-white/5 pt-4">
           <div>
             <span className="text-gray-400">Supply:</span>{' '}
             <span className="text-white">{finalFormData.totalSupply.toLocaleString()}</span>
@@ -327,7 +327,7 @@ export const WizardStep3: React.FC<{
           </div>
         </div>
 
-        <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+        <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
           <p className="text-xs text-blue-300">
             💡 <strong>Default Settings:</strong> Using recommended values for supply, price, and curve type. 
             Switch to Advanced Mode to customize these.
@@ -338,13 +338,13 @@ export const WizardStep3: React.FC<{
       <div className="flex justify-between pt-4">
         <button
           onClick={onBack}
-          className="px-6 py-3 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
+          className="px-6 py-3 bg-white/5 border border-white/10 text-white font-semibold rounded-xl hover:bg-white/10 transition-all duration-200"
         >
           ← Back
         </button>
         <button
           onClick={onComplete}
-          className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 shadow-lg shadow-yellow-500/25"
+          className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold rounded-xl hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 shadow-lg shadow-yellow-500/25"
         >
           Create Token 🚀
         </button>
