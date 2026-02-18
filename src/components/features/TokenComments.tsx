@@ -319,7 +319,7 @@ export function TokenComments({ tokenAddress, className }: TokenCommentsProps) {
 
     const result = await addComment({
       content: newComment.trim(),
-      parentId: replyingTo ?? undefined,
+      ...(replyingTo && { parentId: replyingTo }),
     });
 
     if (result) {
@@ -421,7 +421,7 @@ export function TokenComments({ tokenAddress, className }: TokenCommentsProps) {
                 onDelete={deleteComment}
                 onEdit={editComment}
                 onReply={handleReply}
-                currentUser={userAddress}
+                {...(userAddress && { currentUser: userAddress })}
               />
             ))}
 

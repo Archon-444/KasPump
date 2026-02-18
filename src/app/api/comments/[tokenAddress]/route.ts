@@ -37,12 +37,8 @@ function getComments(tokenAddress: string): Comment[] {
   return commentsStore.get(tokenAddress.toLowerCase()) || [];
 }
 
-function addComment(comment: Comment): void {
-  const tokenAddress = comment.tokenAddress.toLowerCase();
-  const comments = getComments(tokenAddress);
-  comments.unshift(comment);
-  commentsStore.set(tokenAddress, comments);
-}
+// Note: addComment is defined in the main /api/comments/route.ts
+// This file only handles GET requests for a specific token
 
 // ============ GET Handler ============
 

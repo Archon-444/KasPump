@@ -82,7 +82,7 @@ export function useBadges(
 
   // Combine and deduplicate badges
   const allBadges = useMemo(() => {
-    const combined = [...new Set([...contractBadges, ...automaticBadges])];
+    const combined = Array.from(new Set([...contractBadges, ...automaticBadges]));
     const sorted = sortBadgesByPriority(combined);
 
     return sorted.map(type => ({

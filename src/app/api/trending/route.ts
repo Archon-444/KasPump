@@ -20,13 +20,14 @@ interface TrendingToken {
   previousRank?: number;
 }
 
-interface TrendingScoreFactors {
-  volumeScore: number;
-  holderGrowthScore: number;
-  socialScore: number;
-  priceActionScore: number;
-  recencyScore: number;
-}
+// TrendingScoreFactors - Used for detailed breakdown (future enhancement)
+// interface TrendingScoreFactors {
+//   volumeScore: number;
+//   holderGrowthScore: number;
+//   socialScore: number;
+//   priceActionScore: number;
+//   recencyScore: number;
+// }
 
 // ============ Weights ============
 
@@ -91,8 +92,8 @@ function calculateVolumeScore(volume24h: number, marketCap: number): number {
   return Math.min(50, ratio * 2.5);
 }
 
-function calculateHolderGrowthScore(holders: number): number {
-  // Mock: assume 5% daily growth
+function calculateHolderGrowthScore(_holders: number): number {
+  // Mock: assume 5% daily growth (holders param reserved for future use)
   const growthRate = 5;
   if (growthRate >= 20) return 100;
   if (growthRate >= 10) return 70 + growthRate * 3;

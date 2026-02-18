@@ -10,10 +10,10 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Info, Shield, Star, Rocket, Gem, Flame, Sparkles, CheckCircle } from 'lucide-react';
-import { BadgeType, getBadgeConfig, BadgeConfig } from '../../config/badges';
+import { Shield, Star, Rocket, Gem, Flame, Sparkles, CheckCircle } from 'lucide-react';
+import { BadgeType, getBadgeConfig } from '../../config/badges';
 import { useBadges, BadgeData } from '../../hooks/useBadges';
 import { KasPumpToken } from '../../types';
 import { cn } from '../../utils';
@@ -177,7 +177,7 @@ export function TokenBadges({
   // Use provided badges or fetch from hook
   const { badges: fetchedBadges } = useBadges(
     tokenAddress || token?.address,
-    { includeAutomatic: true, token }
+    { includeAutomatic: true, ...(token && { token }) }
   );
 
   // Prefer provided badges over fetched
@@ -250,7 +250,7 @@ interface TrustScoreProps {
 }
 
 export function TrustScoreSummary({ token, className }: TrustScoreProps) {
-  const { badges, hasBadge } = useBadges(token.address, {
+  const { badges } = useBadges(token.address, {
     includeAutomatic: true,
     token,
   });

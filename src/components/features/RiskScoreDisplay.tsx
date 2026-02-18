@@ -11,7 +11,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
@@ -25,8 +25,9 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  type LucideIcon,
 } from 'lucide-react';
-import { useRiskScore, RiskLevel, RiskFactor, RiskAnalysis } from '../../hooks/useRiskScore';
+import { useRiskScore, RiskLevel, RiskFactor } from '../../hooks/useRiskScore';
 import { KasPumpToken } from '../../types';
 
 // ============ Types ============
@@ -80,7 +81,7 @@ const RISK_COLORS: Record<RiskLevel, { bg: string; text: string; border: string;
   },
 };
 
-const RISK_ICONS: Record<RiskLevel, React.ComponentType<{ className?: string }>> = {
+const RISK_ICONS: Record<RiskLevel, LucideIcon> = {
   low: ShieldCheck,
   moderate: Shield,
   elevated: ShieldAlert,
@@ -94,7 +95,7 @@ const RISK_LABELS: Record<RiskLevel, string> = {
   high: 'High Risk',
 };
 
-const STATUS_ICONS: Record<RiskFactor['status'], React.ComponentType<{ className?: string }>> = {
+const STATUS_ICONS: Record<RiskFactor['status'], LucideIcon> = {
   good: CheckCircle,
   warning: AlertTriangle,
   danger: XCircle,

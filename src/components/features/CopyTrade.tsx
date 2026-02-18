@@ -11,7 +11,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   User,
@@ -30,10 +30,9 @@ import {
   Clock,
   Zap,
   Shield,
-  Award,
   Star,
-  ExternalLink,
   AlertTriangle,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   useCopyTrade,
@@ -77,7 +76,7 @@ interface PendingTradesListProps {
 
 // ============ Config ============
 
-const BADGE_CONFIG: Record<TraderBadge, { icon: React.ComponentType<{ className?: string }>; label: string; color: string }> = {
+const BADGE_CONFIG: Record<TraderBadge, { icon: LucideIcon; label: string; color: string }> = {
   whale: { icon: Zap, label: 'Whale', color: 'text-blue-400 bg-blue-400/10' },
   diamond: { icon: Star, label: 'Diamond Hands', color: 'text-cyan-400 bg-cyan-400/10' },
   sniper: { icon: Target, label: 'Sniper', color: 'text-purple-400 bg-purple-400/10' },
@@ -123,7 +122,7 @@ function PnLDisplay({ value, label }: { value: number; label: string }) {
   );
 }
 
-function StatBox({ icon: Icon, value, label }: { icon: React.ComponentType<{ className?: string }>; value: string | number; label: string }) {
+function StatBox({ icon: Icon, value, label }: { icon: LucideIcon; value: string | number; label: string }) {
   return (
     <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
       <Icon className="w-4 h-4 text-gray-400" />

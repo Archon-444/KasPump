@@ -11,7 +11,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp,
@@ -206,12 +206,12 @@ function TrendingRow({ token, index, onClick, variant }: TrendingRowProps) {
             <span className="text-xs text-gray-500">{token.symbol}</span>
           </div>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className={`text-xs ${token.priceChange24h && token.priceChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {token.priceChange24h !== undefined && token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h?.toFixed(1)}%
+            <span className={`text-xs ${token.change24h && token.change24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {token.change24h !== undefined && token.change24h >= 0 ? '+' : ''}{token.change24h?.toFixed(1)}%
             </span>
             <RankChangeIndicator
               change={trendingScore.rankChange}
-              previousRank={trendingScore.previousRank}
+              {...(trendingScore.previousRank !== undefined && { previousRank: trendingScore.previousRank })}
             />
           </div>
         </div>
@@ -248,7 +248,7 @@ function TrendingRow({ token, index, onClick, variant }: TrendingRowProps) {
             <span className="text-sm text-gray-500">{token.symbol}</span>
             <RankChangeIndicator
               change={trendingScore.rankChange}
-              previousRank={trendingScore.previousRank}
+              {...(trendingScore.previousRank !== undefined && { previousRank: trendingScore.previousRank })}
             />
           </div>
           <div className="flex items-center gap-4 mt-1 text-sm text-gray-400">
@@ -277,8 +277,8 @@ function TrendingRow({ token, index, onClick, variant }: TrendingRowProps) {
 
         {/* Price Change */}
         <div className="text-right w-20">
-          <div className={`text-sm font-medium ${token.priceChange24h && token.priceChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {token.priceChange24h !== undefined && token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h?.toFixed(2)}%
+          <div className={`text-sm font-medium ${token.change24h && token.change24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {token.change24h !== undefined && token.change24h >= 0 ? '+' : ''}{token.change24h?.toFixed(2)}%
           </div>
           <div className="text-xs text-gray-500">24h</div>
         </div>
@@ -430,7 +430,7 @@ export function TrendingMini({
       limit={limit}
       showTimeframeSelector={false}
       variant="mini"
-      onTokenClick={onTokenClick}
+      {...(onTokenClick && { onTokenClick })}
       className={className}
     />
   );

@@ -20,7 +20,7 @@
  * ```
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 
 // ============ Types ============
@@ -202,7 +202,7 @@ const MOCK_TRADERS: TraderProfile[] = [
 export function useCopyTrade(): UseCopyTradeReturn {
   const { address } = useAccount();
   const [following, setFollowing] = useState<FollowRelation[]>([]);
-  const [followers, setFollowers] = useState<TraderProfile[]>([]);
+  const [followers] = useState<TraderProfile[]>([]); // setFollowers reserved for API integration
   const [copySettings, setCopySettings] = useState<CopyTradeSettings>(DEFAULT_COPY_SETTINGS);
   const [pendingTrades, setPendingTrades] = useState<PendingCopyTrade[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -355,12 +355,13 @@ export function useCopyTrade(): UseCopyTradeReturn {
     traderAddress: string,
     limit: number = 20
   ): Promise<TraderTrade[]> => {
+    const symbols = ['PEPE', 'MDOG', 'KPUMP', 'SHIB'];
     // Mock trades
     return Array.from({ length: limit }, (_, i) => ({
       id: `${traderAddress}-${i}`,
       traderAddress,
       tokenAddress: `0xToken${i}`,
-      tokenSymbol: ['PEPE', 'MDOG', 'KPUMP', 'SHIB'][i % 4],
+      tokenSymbol: symbols[i % 4] ?? 'UNKNOWN',
       action: i % 3 === 0 ? 'sell' as const : 'buy' as const,
       amount: Math.random() * 1000000,
       price: Math.random() * 0.0001,

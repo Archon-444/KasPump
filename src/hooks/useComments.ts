@@ -260,9 +260,11 @@ export function useComments(
       createdAt: Date.now(),
       reactions: { rocket: 0, fire: 0, poop: 0, heart: 0, laugh: 0 },
       userReactions: [],
-      parentId: input.parentId,
       replyCount: 0,
     };
+    if (input.parentId) {
+      newComment.parentId = input.parentId;
+    }
 
     // Optimistic update
     setComments(prev => [newComment, ...prev]);

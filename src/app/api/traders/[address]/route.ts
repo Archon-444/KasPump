@@ -80,18 +80,19 @@ function generateMockTrades(address: string, count: number): TraderTrade[] {
     const isBuy = Math.random() > 0.4;
     const pnl = (Math.random() - 0.3) * 0.5;
     const pnlPercent = (Math.random() - 0.3) * 100;
+    const symbol = tokenSymbols[tokenIndex] ?? 'UNKNOWN';
+    const name = tokenNames[tokenIndex] ?? 'Unknown Token';
 
     return {
       id: `${address}-${Date.now()}-${i}`,
       tokenAddress: `0x${Math.random().toString(16).slice(2, 42)}`,
-      tokenSymbol: tokenSymbols[tokenIndex],
-      tokenName: tokenNames[tokenIndex],
+      tokenSymbol: symbol,
+      tokenName: name,
       action: isBuy ? 'buy' : 'sell',
       amount: Math.random() * 1000000,
       price: Math.random() * 0.0001,
       value: Math.random() * 0.5,
-      pnl: isBuy ? undefined : pnl,
-      pnlPercent: isBuy ? undefined : pnlPercent,
+      ...(isBuy ? {} : { pnl, pnlPercent }),
       timestamp: Date.now() - i * 60 * 60 * 1000,
       txHash: `0x${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`,
     };
@@ -138,7 +139,7 @@ export async function GET(
         avgTradeSize: Math.random() * 0.5,
         avgHoldTime: Math.floor(Math.random() * 72) + 1,
         bestTrade: {
-          tokenSymbol: tokenSymbols[Math.floor(Math.random() * tokenSymbols.length)],
+          tokenSymbol: tokenSymbols[Math.floor(Math.random() * tokenSymbols.length)] ?? 'UNKNOWN',
           pnlPercent: Math.floor(Math.random() * 1000) + 100,
         },
         badges: [],
@@ -151,7 +152,7 @@ export async function GET(
     const response: {
       profile: TraderProfile;
       trades?: TraderTrade[];
-    } = { profile };
+    } = { profile: profile as TraderProfile };
 
     // Include trades if requested
     if (includeTrades) {

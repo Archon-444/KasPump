@@ -19,7 +19,7 @@
  * ```
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { KasPumpToken } from '../types';
 
 // ============ Types ============
@@ -234,13 +234,15 @@ function calculateRecencyScore(createdAt: Date): number {
 }
 
 /**
- * Apply time decay to score
+ * Apply time decay to score (reserved for real-time updates)
  */
-function applyTimeDecay(score: number, calculatedAt: number): number {
+function _applyTimeDecay(score: number, calculatedAt: number): number {
   const hoursElapsed = (Date.now() - calculatedAt) / DECAY_INTERVAL_MS;
   const decayFactor = Math.pow(1 - TIME_DECAY_RATE, hoursElapsed);
   return score * decayFactor;
 }
+// Export for future use
+export { _applyTimeDecay as applyTimeDecay };
 
 /**
  * Calculate total trending score for a token
@@ -256,7 +258,7 @@ function calculateTrendingScore(
   const commentCount = Math.floor(Math.random() * 50);
   const reactionCount = Math.floor(Math.random() * 200);
   const shareCount = Math.floor(Math.random() * 20);
-  const priceChange7d = (token.priceChange24h ?? 0) * 2.5; // Mock
+  const priceChange7d = (token.change24h ?? 0) * 2.5; // Mock
 
   // Calculate individual scores
   const volumeScore = calculateVolumeScore(
@@ -278,7 +280,7 @@ function calculateTrendingScore(
   );
 
   const priceActionScore = calculatePriceActionScore(
-    token.priceChange24h ?? 0,
+    token.change24h ?? 0,
     priceChange7d
   );
 
@@ -294,7 +296,7 @@ function calculateTrendingScore(
 
   const previousRank = previousRanks.get(token.address);
 
-  return {
+  const score: TrendingScore = {
     tokenAddress: token.address,
     totalScore,
     volumeScore,
@@ -303,10 +305,15 @@ function calculateTrendingScore(
     priceActionScore,
     recencyScore,
     rank: 0, // Will be set after sorting
-    previousRank,
     rankChange: previousRank === undefined ? 'new' : 'same', // Will be updated
     calculatedAt: Date.now(),
   };
+
+  if (previousRank !== undefined) {
+    score.previousRank = previousRank;
+  }
+
+  return score;
 }
 
 // ============ Hook ============
@@ -360,7 +367,7 @@ export function useTrending(
     try {
       // Save current ranks for comparison
       const currentRanks = new Map<string, number>();
-      trendingTokens.forEach((token) => {
+      trendingTokens.forEach((token: TrendingToken) => {
         currentRanks.set(token.address, token.trendingScore.rank);
       });
       setPreviousRanks(currentRanks);
