@@ -104,7 +104,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
               className="absolute bottom-24 left-1/2 -translate-x-1/2 w-80"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gray-900/95 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/50">
+              <div className="bg-black/80 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">Quick Actions</h3>
                   <button
@@ -150,7 +150,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         className={cn(
           'fixed bottom-0 left-0 right-0 z-50 md:hidden',
-          'bg-gray-900/95 backdrop-blur-xl border-t border-gray-700/50',
+          'bg-black/80 backdrop-blur-xl border-t border-white/10',
           className
         )}
       >
@@ -172,9 +172,9 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
                     'relative flex flex-col items-center py-2 px-3 rounded-xl transition-all duration-200',
                     'min-w-[60px] min-h-[60px] justify-center',
                     isCreateButton
-                      ? 'bg-yellow-600 text-white shadow-lg shadow-yellow-600/25'
+                      ? 'bg-yellow-500/20 text-yellow-400 shadow-lg shadow-yellow-500/25 border border-yellow-500/20'
                       : isActive
-                      ? 'bg-gray-800/60 text-white'
+                      ? 'bg-white/10 text-white'
                       : 'text-gray-500 hover:text-gray-300'
                   )}
                 >
@@ -256,8 +256,8 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        'sticky top-0 z-40 bg-gray-900/95 backdrop-blur-xl',
-        'border-b border-gray-700/50 md:hidden',
+        'sticky top-0 z-40 bg-black/80 backdrop-blur-xl',
+        'border-b border-white/10 md:hidden',
         className
       )}
     >

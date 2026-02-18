@@ -73,8 +73,8 @@ export default function Error({ error, reset }: ErrorProps) {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md w-full glassmorphism rounded-2xl p-8 text-center"
-      >
+        className="max-w-md w-full glow-card-wrapper rounded-2xl"
+      ><div className="glow-card-inner p-8 text-center">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -138,7 +138,7 @@ export default function Error({ error, reset }: ErrorProps) {
             </pre>
           </details>
         )}
-      </motion.div>
+      </div></motion.div>
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, TrendingUp, TrendingDown, AlertTriangle, Info, Coins, Zap } from 'lucide-react';
-import { Button, Card, Alert } from '../ui';
+import { Button, Alert } from '../ui';
 import { KasPumpToken } from '../../types';
 import { cn, formatCurrency, formatPercentage } from '../../utils';
 
@@ -66,9 +66,9 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative bg-gray-900 border border-gray-700 rounded-xl shadow-2xl max-w-lg w-full z-10 max-h-[90vh] overflow-y-auto"
+          className="relative max-w-lg w-full z-10 max-h-[90vh] overflow-y-auto glow-card-wrapper shadow-2xl"
         >
-          <Card className="glassmorphism border-0">
+          <div className="glow-card-inner p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
@@ -91,7 +91,7 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/5 rounded-xl transition-colors"
                 disabled={loading}
               >
                 <X size={20} className="text-gray-400" />
@@ -99,7 +99,7 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
             </div>
 
             {/* Transaction Summary */}
-            <div className="mb-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+            <div className="mb-6 p-4 bg-white/[0.02] rounded-xl border border-white/5">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-400">You {type === 'buy' ? 'pay' : 'receive'}</span>
@@ -107,7 +107,7 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
                     {amount} {type === 'buy' ? 'BNB' : token.symbol}
                   </span>
                 </div>
-                <div className="border-t border-gray-700" />
+                <div className="border-t border-white/5" />
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-400">You {type === 'buy' ? 'receive' : 'get'}</span>
                   <span className="text-lg font-semibold text-white">
@@ -226,7 +226,7 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
                 Transaction disabled due to very high price impact. Consider reducing the trade size.
               </p>
             )}
-          </Card>
+          </div>
         </motion.div>
       </div>
     </AnimatePresence>

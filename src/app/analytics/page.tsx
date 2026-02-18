@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { RefreshCw, Download, BarChart3, TrendingUp, DollarSign, Users, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Button, Card } from '../../components/ui';
+import { Button } from '../../components/ui';
 import { PlatformStatsCard, AnalyticsData } from '../../components/features/PlatformStatsCard';
 import { ChainComparisonChart } from '../../components/features/ChainComparisonChart';
 import { GrowthChart } from '../../components/features/GrowthChart';
@@ -89,7 +89,7 @@ export default function AnalyticsPage() {
 
             <div className="flex items-center space-x-3">
               {/* Timeframe Selector */}
-              <div className="flex items-center space-x-1 bg-gray-800/50 rounded-lg p-1">
+              <div className="flex items-center space-x-1 bg-white/5 rounded-xl p-1">
                 {(['24h', '7d', '30d', 'all'] as const).map((tf) => (
                   <button
                     key={tf}
@@ -143,13 +143,13 @@ export default function AnalyticsPage() {
 
         {/* Error State */}
         {error && (
-          <Card className="glassmorphism border-red-500/30">
+          <div className="glow-card-wrapper border-red-500/30"><div className="glow-card-inner">
             <div className="text-center py-8">
               <div className="text-red-400 mb-2">Error loading analytics</div>
               <div className="text-sm text-gray-400 mb-4">{error}</div>
               <Button onClick={fetchAnalytics}>Try Again</Button>
             </div>
-          </Card>
+          </div></div>
         )}
 
         {/* Analytics Content */}
@@ -174,7 +174,7 @@ export default function AnalyticsPage() {
                 isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'
               )}
             >
-              <Card className={cn('glassmorphism border-2 border-blue-500/30', isMobile && 'p-4')}>
+              <div className="glow-card-wrapper border-2 border-blue-500/30"><div className={cn('glow-card-inner', isMobile ? 'p-4' : 'p-6')}>
                 <div className="flex items-center justify-between mb-2">
                   <DollarSign className="text-blue-400" size={isMobile ? 18 : 20} />
                   <span className={cn('bg-blue-500/20 text-blue-400 px-2 py-1 rounded', isMobile ? 'text-[10px]' : 'text-xs')}>Revenue</span>
@@ -183,9 +183,9 @@ export default function AnalyticsPage() {
                   ${analytics.financial.platformFees.toLocaleString()}
                 </div>
                 <div className={cn('text-gray-400', isMobile ? 'text-xs' : 'text-sm')}>Platform Fees</div>
-              </Card>
+              </div></div>
 
-              <Card className={cn('glassmorphism border-2 border-green-500/30', isMobile && 'p-4')}>
+              <div className="glow-card-wrapper border-2 border-green-500/30"><div className={cn('glow-card-inner', isMobile ? 'p-4' : 'p-6')}>
                 <div className="flex items-center justify-between mb-2">
                   <TrendingUp className="text-green-400" size={isMobile ? 18 : 20} />
                   <span className={cn('bg-green-500/20 text-green-400 px-2 py-1 rounded', isMobile ? 'text-[10px]' : 'text-xs')}>Creator</span>
@@ -194,9 +194,9 @@ export default function AnalyticsPage() {
                   ${analytics.financial.creatorEarnings.toLocaleString()}
                 </div>
                 <div className={cn('text-gray-400', isMobile ? 'text-xs' : 'text-sm')}>Creator Earnings</div>
-              </Card>
+              </div></div>
 
-              <Card className={cn('glassmorphism border-2 border-yellow-500/30', isMobile && 'p-4')}>
+              <div className="glow-card-wrapper border-2 border-yellow-500/30"><div className={cn('glow-card-inner', isMobile ? 'p-4' : 'p-6')}>
                 <div className="flex items-center justify-between mb-2">
                   <Users className="text-yellow-400" size={isMobile ? 18 : 20} />
                   <span className={cn('bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded', isMobile ? 'text-[10px]' : 'text-xs')}>Ecosystem</span>
@@ -205,7 +205,7 @@ export default function AnalyticsPage() {
                   ${(analytics.partnership?.ecosystemValue || 0).toLocaleString()}
                 </div>
                 <div className={cn('text-gray-400', isMobile ? 'text-xs' : 'text-sm')}>Total Value</div>
-              </Card>
+              </div></div>
             </motion.div>
 
             {/* Charts Grid */}
@@ -229,14 +229,14 @@ export default function AnalyticsPage() {
             >
               {/* Leaderboard placeholder - would need token data from API */}
               {analytics.partnership && (
-                <Card className="glassmorphism">
+                <div className="glow-card-wrapper"><div className="glow-card-inner p-6">
                   <div className="text-center py-8">
                     <p className="text-gray-400 mb-2">Leaderboard data coming soon</p>
                     <div className="text-sm text-gray-500">
                       Top {analytics.partnership.topPerformingTokens} performing tokens identified
                     </div>
                   </div>
-                </Card>
+                </div></div>
               )}
             </motion.div>
           </>

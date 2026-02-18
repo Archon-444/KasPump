@@ -381,7 +381,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
                 )}
 
                 {token.isGraduated && (
-                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl">
                     <div className="flex items-center space-x-2">
                       <TrendingUp className="text-green-400" size={16} />
                       <span className="text-green-400 font-medium">Graduated to AMM</span>

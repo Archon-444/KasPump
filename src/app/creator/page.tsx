@@ -11,7 +11,7 @@ import { WalletRequired } from '../../components/features/WalletConnectButton';
 import { CreatorStatsCard } from '../../components/features/CreatorStatsCard';
 import { CreatorTokenCard } from '../../components/features/CreatorTokenCard';
 import { TokenCreationModal } from '../../components/features/TokenCreationModal';
-import { Button, Card, Input } from '../../components/ui';
+import { Button, Input } from '../../components/ui';
 import { cn } from '../../utils';
 import { MobileNavigation } from '../../components/mobile';
 
@@ -144,13 +144,13 @@ export default function CreatorDashboardPage() {
 
           {/* Error State */}
           {error && (
-            <Card className="glassmorphism border-red-500/30">
+            <div className="glow-card-wrapper border-red-500/30"><div className="glow-card-inner">
               <div className="text-center py-8">
                 <div className="text-red-400 mb-2">Error loading tokens</div>
                 <div className="text-sm text-gray-400 mb-4">{error}</div>
                 <Button onClick={refresh}>Try Again</Button>
               </div>
-            </Card>
+            </div></div>
           )}
 
           {/* Content */}
@@ -198,7 +198,7 @@ export default function CreatorDashboardPage() {
                           'px-4 py-2 rounded-lg text-sm font-medium transition-all',
                           filterBy === filter
                             ? 'bg-yellow-500 text-white'
-                            : 'bg-gray-800 text-gray-400 hover:text-white'
+                            : 'bg-white/5 text-gray-400 hover:text-white'
                         )}
                       >
                         {filter.charAt(0).toUpperCase() + filter.slice(1)}
@@ -212,7 +212,7 @@ export default function CreatorDashboardPage() {
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as any)}
-                        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-yellow-500 focus:border-yellow-500"
+                        className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:ring-1 focus:ring-yellow-500/30 focus:border-yellow-500/50"
                       >
                         <option value="volume">Volume</option>
                         <option value="marketCap">Market Cap</option>
@@ -231,15 +231,15 @@ export default function CreatorDashboardPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="text-center py-12"
                 >
-                  <Card className="glassmorphism p-8 max-w-md mx-auto">
+                  <div className="glow-card-wrapper max-w-md mx-auto"><div className="glow-card-inner p-8">
                     <Award size={48} className="mx-auto text-gray-500 mb-4" />
                     <h3 className="text-xl font-semibold text-white mb-2">No Tokens Created Yet</h3>
                     <p className="text-gray-400 mb-6">
                       Start your journey as a token creator! Launch your first token and watch it grow.
                     </p>
-                    <Button 
-                      onClick={handleCreateToken} 
-                      variant="primary" 
+                    <Button
+                      onClick={handleCreateToken}
+                      variant="primary"
                       className="btn-glow-purple"
                       disabled={!wallet.connected}
                       title={wallet.connected ? 'Create your first token' : 'Connect wallet to create token'}
@@ -247,7 +247,7 @@ export default function CreatorDashboardPage() {
                       <Plus size={16} className="mr-2" />
                       Create Your First Token
                     </Button>
-                  </Card>
+                  </div></div>
                 </motion.div>
               )}
 
@@ -274,9 +274,9 @@ export default function CreatorDashboardPage() {
 
               {/* No Results */}
               {filteredTokens.length === 0 && tokens.length > 0 && (
-                <Card className="glassmorphism p-8 text-center">
+                <div className="glow-card-wrapper"><div className="glow-card-inner p-8 text-center">
                   <p className="text-gray-400">No tokens match your filters.</p>
-                </Card>
+                </div></div>
               )}
             </>
           )}

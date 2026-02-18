@@ -48,7 +48,7 @@ const FavoriteButtonComponent: React.FC<FavoriteButtonProps> = ({
       onClick={handleClick}
       className={cn(
         'flex items-center space-x-2 transition-all',
-        'rounded-lg p-1',
+        'rounded-xl p-1',
         favorited
           ? 'text-yellow-400 hover:text-yellow-300'
           : 'text-gray-400 hover:text-yellow-400',

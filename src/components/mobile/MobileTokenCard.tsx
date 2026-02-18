@@ -85,8 +85,8 @@ const MobileTokenCardComponent: React.FC<MobileTokenCardProps> = ({
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       className={cn(
-        'relative bg-gray-800/40 backdrop-blur-sm rounded-2xl overflow-hidden',
-        'border border-gray-700/30 hover:border-yellow-500/30 transition-all duration-300',
+        'relative bg-white/5 backdrop-blur-sm rounded-2xl overflow-hidden',
+        'border border-white/5 hover:border-yellow-500/30 transition-all duration-300',
         className
       )}
       onClick={() => onClick?.(token)}
@@ -103,7 +103,7 @@ const MobileTokenCardComponent: React.FC<MobileTokenCardProps> = ({
       </div>
 
       {/* Main Card Content */}
-      <div className="relative z-10 bg-gray-800/60 backdrop-blur-sm p-4">
+      <div className="relative z-10 bg-white/[0.06] backdrop-blur-sm p-4">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-3">
@@ -198,7 +198,7 @@ const MobileTokenCardComponent: React.FC<MobileTokenCardProps> = ({
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={(e) => handleQuickAction('buy', e)}
-                className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg font-medium transition-colors"
+                className="px-3 py-1.5 bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25 text-xs rounded-lg font-medium transition-colors"
               >
                 Buy
               </motion.button>
@@ -315,8 +315,8 @@ const CompactMobileTokenCardComponent: React.FC<CompactMobileTokenCardProps> = (
       whileTap={{ scale: 0.99 }}
       onClick={() => onClick?.(token)}
       className={cn(
-        'flex items-center space-x-3 p-3 bg-gray-800/30 rounded-xl',
-        'border border-gray-700/30 hover:border-yellow-500/30',
+        'flex items-center space-x-3 p-3 bg-white/[0.02] rounded-xl',
+        'border border-white/5 hover:border-yellow-500/30',
         'transition-all duration-200 cursor-pointer',
         className
       )}
@@ -363,7 +363,7 @@ const CompactMobileTokenCardComponent: React.FC<CompactMobileTokenCardProps> = (
           e.stopPropagation();
           // Handle quick buy
         }}
-        className="p-2 bg-green-600 text-white rounded-lg"
+        className="p-2 bg-green-500/15 text-green-400 border border-green-500/20 rounded-lg"
       >
         <Zap size={16} />
       </motion.button>

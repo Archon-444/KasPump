@@ -175,7 +175,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
   };
 
   return (
-    <div className={cn('bg-gray-900/50 backdrop-blur-sm rounded-2xl p-6 space-y-6', className)}>
+    <div className={cn('glow-card-wrapper rounded-2xl', className)}><div className="glow-card-inner p-6 space-y-6">
       {/* Token Info Header */}
       <div className="text-center">
         <h3 className="text-xl font-bold text-white">{token.symbol}/BNB</h3>
@@ -192,7 +192,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
 
       {/* Trade Type Toggle with Drag Interaction */}
       <div className="relative" ref={constraintsRef}>
-        <div className="bg-gray-800/50 rounded-2xl p-2 flex">
+        <div className="bg-white/5 border border-white/5 rounded-full p-1.5 flex">
           {/* Buy Button */}
           <motion.button
             style={{ y: buyButtonY, scale: buyButtonScale }}
@@ -205,8 +205,8 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
               'flex-1 py-4 rounded-xl font-bold text-lg transition-all duration-200',
               'flex items-center justify-center space-x-2',
               tradeType === 'buy'
-                ? 'bg-green-600 text-white shadow-lg shadow-green-600/30'
-                : 'text-green-400 hover:bg-gray-700/50'
+                ? 'bg-green-500/15 text-green-400 border border-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.15)]'
+                : 'text-green-400 hover:bg-white/5'
             )}
           >
             <TrendingUp size={24} />
@@ -225,8 +225,8 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
               'flex-1 py-4 rounded-xl font-bold text-lg transition-all duration-200',
               'flex items-center justify-center space-x-2',
               tradeType === 'sell'
-                ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
-                : 'text-red-400 hover:bg-gray-700/50'
+                ? 'bg-red-500/15 text-red-400 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.15)]'
+                : 'text-red-400 hover:bg-white/5'
             )}
           >
             <TrendingDown size={24} />
@@ -273,7 +273,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
               className={cn(
                 'py-3 px-4 rounded-xl text-white font-bold transition-all',
                 'flex items-center justify-center',
-                quick.color,
+                'bg-white/5 border border-white/5 hover:bg-white/10',
                 'hover:shadow-lg active:shadow-md'
               )}
             >
@@ -293,7 +293,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-gray-800/30 rounded-xl p-4 space-y-3"
+          className="bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-3"
         >
           <div className="flex justify-between items-center">
             <span className="text-gray-400">You Receive</span>
@@ -340,7 +340,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
           )}
 
           {priceImpact > 5 && (
-            <div className="flex items-center space-x-2 p-2 bg-yellow-500/10 rounded-lg">
+            <div className="flex items-center space-x-2 p-2 bg-yellow-500/10 rounded-xl">
               <AlertTriangle size={16} className="text-yellow-400" />
               <span className="text-yellow-400 text-sm">High price impact</span>
             </div>
@@ -354,7 +354,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
         animate={{ height: showSettings ? 'auto' : 0 }}
         className="overflow-hidden"
       >
-        <div className="space-y-3 pt-4 border-t border-gray-700/30">
+        <div className="space-y-3 pt-4 border-t border-white/5">
           <div className="flex justify-between items-center">
             <span className="text-gray-400">Slippage Tolerance</span>
             <span className="text-white font-mono">{slippage}%</span>
@@ -367,10 +367,10 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setSlippage(preset)}
                 className={cn(
-                  'py-2 px-3 rounded-lg text-sm font-medium transition-colors',
+                  'py-2 px-3 rounded-xl text-sm font-medium transition-colors',
                   slippage === preset
-                    ? 'bg-yellow-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20'
+                    : 'bg-white/5 border border-white/5 text-gray-300 hover:bg-white/10'
                 )}
               >
                 {preset}%
@@ -405,8 +405,8 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
             'w-full h-16 text-xl font-bold transition-all duration-200',
             'flex items-center justify-center space-x-3',
             tradeType === 'buy'
-              ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30'
-              : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/30',
+              ? 'bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25 hover:shadow-[0_0_30px_rgba(34,197,94,0.2)]'
+              : 'bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/25 hover:shadow-[0_0_30px_rgba(239,68,68,0.2)]',
             'disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none'
           )}
         >
@@ -433,6 +433,6 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
           )}
         </Button>
       </motion.div>
-    </div>
+    </div></div>
   );
 };

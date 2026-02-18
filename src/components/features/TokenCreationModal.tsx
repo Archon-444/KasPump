@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, AlertTriangle, CheckCircle, XCircle, Loader, Sparkles, Settings } from 'lucide-react';
-import { Button, Input, Textarea, Select, Card, Alert } from '../ui';
+import { Button, Input, Textarea, Select, Alert } from '../ui';
 import { WalletRequired } from './WalletConnectButton';
 import { useContracts } from '../../hooks/useContracts';
 import { useTokenCreationState } from '../../hooks/useTokenCreationState';
@@ -231,7 +231,8 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
               zIndex: 1,
             }}
           >
-            <Card className="glassmorphism h-full flex flex-col overflow-hidden">
+            <div className="glow-card-wrapper h-full flex flex-col overflow-hidden">
+            <div className="glow-card-inner flex flex-col overflow-hidden">
               {/* Header - Fixed */}
               <div className="flex items-center justify-between mb-6 flex-shrink-0 px-6 pt-6">
                   <h2 className="text-2xl font-bold gradient-text">
@@ -244,14 +245,15 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   <div className="flex items-center space-x-3">
                     {/* Mode Toggle - Only show in form step */}
                     {tokenCreationState.creationStep === 'form' && (
-                      <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-1" role="group" aria-label="Token creation mode">
+                      <div className="flex items-center space-x-1 bg-white/5 border border-white/5 rounded-full p-1" role="group" aria-label="Token creation mode">
                         <button
                           onClick={() => setMode('beginner')}
-                          className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                          className={cn(
+                            'px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200',
                             tokenCreationState.mode === 'beginner'
-                              ? 'bg-yellow-500 text-white'
+                              ? 'bg-white/10 text-white shadow-sm border border-white/5'
                               : 'text-gray-400 hover:text-white'
-                          }`}
+                          )}
                           aria-label="Switch to beginner mode"
                           aria-pressed={tokenCreationState.mode === 'beginner'}
                         >
@@ -260,11 +262,12 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                         </button>
                         <button
                           onClick={() => setMode('advanced')}
-                          className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                          className={cn(
+                            'px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200',
                             tokenCreationState.mode === 'advanced'
-                              ? 'bg-yellow-500 text-white'
+                              ? 'bg-white/10 text-white shadow-sm border border-white/5'
                               : 'text-gray-400 hover:text-white'
-                          }`}
+                          )}
                           aria-label="Switch to advanced mode"
                           aria-pressed={tokenCreationState.mode === 'advanced'}
                         >
@@ -275,7 +278,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                     )}
                     <button
                       onClick={onClose}
-                      className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                      className="p-2 hover:bg-white/5 rounded-xl transition-colors"
                       disabled={tokenCreationState.isCreating}
                       aria-label="Close modal"
                     >
@@ -420,7 +423,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Token Image (Optional)
                     </label>
-                    <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-gray-500 transition-colors">
+                    <div className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center hover:border-white/20 transition-colors">
                       <input
                         type="file"
                         accept="image/*"
@@ -441,7 +444,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   </div>
 
                   {/* Advanced Settings */}
-                  <div className="border-t border-gray-700 pt-6">
+                  <div className="border-t border-white/5 pt-6">
                     <h3 className="text-lg font-semibold text-white mb-4">Bonding Curve Settings</h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -487,7 +490,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   </div>
 
                   {/* Multi-Chain Deployment Toggle */}
-                  <div className="border-t border-gray-700 pt-6">
+                  <div className="border-t border-white/5 pt-6">
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <h3 className="text-lg font-semibold text-white mb-1">Multi-Chain Deployment</h3>
@@ -507,7 +510,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-600"></div>
+                        <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-yellow-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500/20"></div>
                       </label>
                     </div>
 
@@ -619,7 +622,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   </Alert>
 
                   {/* Token Preview */}
-                  <Card className="bg-gray-800/30">
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-6">
                     <div className="flex items-center space-x-4 mb-4">
                       <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
                         {tokenCreationState.formData.symbol.slice(0, 2)}
@@ -629,16 +632,16 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                         <p className="text-gray-400">${tokenCreationState.formData.symbol}</p>
                       </div>
                     </div>
-                    
+
                     <p className="text-gray-300 mb-4">{tokenCreationState.formData.description}</p>
-                    
+
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div><span className="text-gray-400">Supply:</span> <span className="text-white">{tokenCreationState.formData.totalSupply.toLocaleString()}</span></div>
                       <div><span className="text-gray-400">Curve:</span> <span className="text-white">{tokenCreationState.formData.curveType}</span></div>
                       <div><span className="text-gray-400">Base Price:</span> <span className="text-white">{tokenCreationState.formData.basePrice} {nativeCurrencySymbol}</span></div>
                       <div><span className="text-gray-400">Slope:</span> <span className="text-white">{tokenCreationState.formData.slope}</span></div>
                     </div>
-                  </Card>
+                  </div>
 
                   <div className="flex space-x-4">
                     <Button variant="secondary" onClick={() => setCreationStep('form')} fullWidth>
@@ -691,11 +694,11 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                         <div className="space-y-3">
                           {Array.from(creationResult.results.values()).map((result, idx: number) => {
                             return (
-                              <Card
+                              <div
                                 key={result.chainId || idx}
                                 className={cn(
-                                  'bg-gray-800/30 text-left',
-                                  result.success ? 'border-green-500/30' : 'border-red-500/30'
+                                  'bg-white/[0.02] rounded-xl p-6 text-left border',
+                                  result.success ? 'border-green-500/20' : 'border-red-500/20'
                                 )}
                               >
                               <div className="flex items-center justify-between mb-2">
@@ -718,19 +721,19 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                               ) : (
                                 <div className="text-sm text-red-400">{result.error || 'Deployment failed'}</div>
                               )}
-                            </Card>
+                            </div>
                           );
                         })}
                         </div>
                       ) : (
                         // Single-chain result
-                        <Card className="bg-gray-800/30 text-left">
+                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-6 text-left">
                           <div className="space-y-2 text-sm">
                             <div><span className="text-gray-400">Token Address:</span> <span className="text-white font-mono">{creationResult.tokenAddress}</span></div>
                             <div><span className="text-gray-400">AMM Address:</span> <span className="text-white font-mono">{creationResult.ammAddress}</span></div>
                             <div><span className="text-gray-400">Transaction:</span> <span className="text-white font-mono">{creationResult.txHash}</span></div>
                           </div>
-                        </Card>
+                        </div>
                       )}
                     </div>
                   )}
@@ -759,7 +762,8 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
               )}
                 </WalletRequired>
               </div>
-            </Card>
+            </div>
+            </div>
           </motion.div>
         </motion.div>
         )}

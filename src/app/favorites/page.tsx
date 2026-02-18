@@ -8,7 +8,7 @@ import { useFavorites } from '../../hooks/useFavorites';
 import { useContracts } from '../../hooks/useContracts';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { TokenCard } from '../../components/features/TokenCard';
-import { Card, Button, Alert } from '../../components/ui';
+import { Button, Alert } from '../../components/ui';
 import { KasPumpToken } from '../../types';
 import { cn } from '../../utils';
 import { MobileNavigation } from '../../components/mobile';
@@ -113,7 +113,7 @@ export default function FavoritesPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-12"
           >
-            <Card className="glassmorphism p-12 max-w-md mx-auto">
+            <div className="glow-card-wrapper max-w-md mx-auto"><div className="glow-card-inner p-12">
               <Star size={64} className="mx-auto text-gray-500 mb-6" />
               <h3 className="text-2xl font-semibold text-white mb-2">No Favorites Yet</h3>
               <p className="text-gray-400 mb-6">
@@ -127,7 +127,7 @@ export default function FavoritesPage() {
                 <TrendingUp size={16} className="mr-2" />
                 Browse Tokens
               </Button>
-            </Card>
+            </div></div>
           </motion.div>
         )}
 

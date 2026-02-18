@@ -8,7 +8,7 @@ import { WalletConnectButton, WalletRequired } from '../../components/features/W
 import { PortfolioStatsCard } from '../../components/features/PortfolioStatsCard';
 import { ChainBalanceCard } from '../../components/features/ChainBalanceCard';
 import { PortfolioTokenList } from '../../components/features/PortfolioTokenList';
-import { Button, Card } from '../../components/ui';
+import { Button } from '../../components/ui';
 import { usePortfolio, PortfolioToken } from '../../hooks/usePortfolio';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { cn } from '../../utils';
@@ -134,18 +134,18 @@ export default function PortfolioPage() {
 
           {/* Error State */}
           {error && (
-            <Card className="glassmorphism border-red-500/30">
+            <div className="glow-card-wrapper border-red-500/30"><div className="glow-card-inner">
               <div className="text-center py-8">
                 <div className="text-red-400 mb-2">Error loading portfolio</div>
                 <div className="text-sm text-gray-400 mb-4">{error}</div>
                 <Button onClick={refresh}>Try Again</Button>
               </div>
-            </Card>
+            </div></div>
           )}
 
           {/* Empty State */}
           {!loading && !error && tokens.length === 0 && (
-            <Card className="glassmorphism">
+            <div className="glow-card-wrapper"><div className="glow-card-inner">
               <div className="text-center py-12">
                 <Wallet size={48} className="mx-auto text-gray-400 mb-4" />
                 <h3 className="text-xl font-semibold text-white mb-2">No tokens in portfolio</h3>
@@ -156,7 +156,7 @@ export default function PortfolioPage() {
                   Browse Tokens
                 </Button>
               </div>
-            </Card>
+            </div></div>
           )}
 
           {/* Token List */}

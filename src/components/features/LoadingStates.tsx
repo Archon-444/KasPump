@@ -8,7 +8,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, TrendingUp, Zap, Users } from 'lucide-react';
-import { Card } from '../ui';
 import { Skeleton, SkeletonGroup } from '../ui/Skeleton';
 import { cn } from '../../utils';
 
@@ -89,8 +88,8 @@ export const TokenListSkeleton: React.FC<{ count?: number }> = ({ count = 6 }) =
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.1 }}
         >
-          <Card className="glassmorphism animate-pulse">
-            <div className="p-6 space-y-4">
+          <div className="glow-card-wrapper animate-pulse">
+            <div className="glow-card-inner p-6 space-y-4">
               {/* Header */}
               <div className="flex items-start justify-between">
                 <div className="flex items-center space-x-3">
@@ -122,7 +121,7 @@ export const TokenListSkeleton: React.FC<{ count?: number }> = ({ count = 6 }) =
                 <Skeleton variant="text" width={100} height={12} />
               </div>
             </div>
-          </Card>
+          </div>
         </motion.div>
       ))}
     </div>
@@ -136,13 +135,13 @@ export const StatsCardSkeleton: React.FC = () => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {Array.from({ length: 4 }).map((_, i) => (
-        <Card key={i} className="glassmorphism animate-pulse p-6">
-          <div className="space-y-3">
+        <div key={i} className="glow-card-wrapper animate-pulse">
+          <div className="glow-card-inner p-6 space-y-3">
             <Skeleton variant="rounded" width={40} height={40} />
             <Skeleton variant="text" width={100} height={16} />
             <Skeleton variant="text" width={80} height={24} />
           </div>
-        </Card>
+        </div>
       ))}
     </div>
   );
@@ -153,15 +152,15 @@ export const StatsCardSkeleton: React.FC = () => {
  */
 export const ChartSkeleton: React.FC<{ height?: number }> = ({ height = 300 }) => {
   return (
-    <Card className="glassmorphism animate-pulse p-6">
-      <div className="space-y-4">
+    <div className="glow-card-wrapper animate-pulse">
+      <div className="glow-card-inner p-6 space-y-4">
         <div className="flex items-center justify-between">
           <Skeleton variant="text" width={120} height={20} />
           <Skeleton variant="rounded" width={100} height={32} />
         </div>
         <Skeleton variant="rounded" width="100%" height={height} />
       </div>
-    </Card>
+    </div>
   );
 };
 
@@ -173,8 +172,8 @@ export const TableSkeleton: React.FC<{ rows?: number; columns?: number }> = ({
   columns = 4,
 }) => {
   return (
-    <Card className="glassmorphism animate-pulse p-6">
-      <div className="space-y-4">
+    <div className="glow-card-wrapper animate-pulse">
+      <div className="glow-card-inner p-6 space-y-4">
         {/* Header */}
         <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
           {Array.from({ length: columns }).map((_, i) => (
@@ -194,7 +193,7 @@ export const TableSkeleton: React.FC<{ rows?: number; columns?: number }> = ({
           </div>
         ))}
       </div>
-    </Card>
+    </div>
   );
 };
 
@@ -226,7 +225,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       animate={{ opacity: 1, y: 0 }}
       className={cn('text-center py-12', className)}
     >
-      <Card className="glassmorphism inline-block p-8">
+      <div className="glow-card-wrapper inline-block"><div className="glow-card-inner p-8">
         {icon && (
           <motion.div
             initial={{ scale: 0 }}
@@ -248,13 +247,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={action.onClick}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg font-medium hover:from-yellow-600 hover:to-orange-600 transition-all"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-xl font-medium hover:from-yellow-600 hover:to-orange-600 transition-all"
           >
             {action.icon}
             {action.label}
           </motion.button>
         )}
-      </Card>
+      </div></div>
     </motion.div>
   );
 };
