@@ -7,21 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
-
-// In-memory store for demo (replace with database in production)
-const referralRelationships = new Map<string, {
-  referrer: string;
-  timestamp: number;
-  expiresAt: number;
-}>();
-
-const referrerStats = new Map<string, {
-  totalReferrals: number;
-  activeReferrals: number;
-  referredUsers: string[];
-}>();
-
-const ATTRIBUTION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+import { registerReferral, ATTRIBUTION_WINDOW_MS } from '../../../../lib/stores/referralStore';
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,43 +32,15 @@ export async function POST(request: NextRequest) {
     const normalizedUser = user.toLowerCase();
     const normalizedReferrer = referrer.toLowerCase();
 
-    // Check for self-referral
-    if (normalizedUser === normalizedReferrer) {
+    // Register the referral using shared store
+    const result = registerReferral(normalizedUser, normalizedReferrer);
+
+    if (!result.success) {
       return NextResponse.json(
-        { error: 'Self-referral is not allowed' },
+        { error: result.error },
         { status: 400 }
       );
     }
-
-    // Check if user already has a referrer
-    if (referralRelationships.has(normalizedUser)) {
-      return NextResponse.json(
-        { error: 'User already has a referrer' },
-        { status: 400 }
-      );
-    }
-
-    // Register the referral
-    const now = Date.now();
-    referralRelationships.set(normalizedUser, {
-      referrer: normalizedReferrer,
-      timestamp: now,
-      expiresAt: now + ATTRIBUTION_WINDOW_MS,
-    });
-
-    // Update referrer stats
-    let stats = referrerStats.get(normalizedReferrer);
-    if (!stats) {
-      stats = {
-        totalReferrals: 0,
-        activeReferrals: 0,
-        referredUsers: [],
-      };
-    }
-    stats.totalReferrals++;
-    stats.activeReferrals++;
-    stats.referredUsers.push(normalizedUser);
-    referrerStats.set(normalizedReferrer, stats);
 
     // In production, this would call the ReferralRegistry contract
     // const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
@@ -94,7 +52,8 @@ export async function POST(request: NextRequest) {
       success: true,
       user: normalizedUser,
       referrer: normalizedReferrer,
-      expiresAt: now + ATTRIBUTION_WINDOW_MS,
+      expiresAt: result.expiresAt,
+      attributionWindow: ATTRIBUTION_WINDOW_MS,
     });
   } catch (error) {
     console.error('Referral registration error:', error);

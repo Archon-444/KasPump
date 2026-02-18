@@ -10,6 +10,14 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /**
+ * @notice Interface for mintable wrapped tokens
+ */
+interface IMintableBurnable {
+    function mint(address to, uint256 amount) external;
+    function burn(address from, uint256 amount) external;
+}
+
+/**
  * @title CrossChainBridge
  * @notice Bridge contract for cross-chain token transfers
  * @dev Supports bridging KasPump tokens between BSC, Arbitrum, and Base
@@ -126,6 +134,11 @@ contract CrossChainBridge is Ownable, ReentrancyGuard, Pausable {
         bytes32 indexed requestId,
         address indexed sender,
         uint256 amount
+    );
+
+    event BridgeMarkedCompleted(
+        bytes32 indexed requestId,
+        address indexed relayer
     );
 
     event ChainConfigUpdated(uint256 indexed chainId, bool isSupported);
@@ -310,12 +323,10 @@ contract CrossChainBridge is Ownable, ReentrancyGuard, Pausable {
 
         // Release tokens
         if (tokenConfig.isMintable) {
-            // Mint wrapped tokens
-            // Note: Would need IMintable interface
-            // IMintable(_token).mint(_recipient, _amount);
-            IERC20(_token).safeTransfer(_recipient, _amount);
+            // Mint wrapped tokens on destination chain
+            IMintableBurnable(_token).mint(_recipient, _amount);
         } else {
-            // Release locked tokens
+            // Release locked tokens (native token on this chain)
             IERC20(_token).safeTransfer(_recipient, _amount);
         }
 
@@ -329,6 +340,36 @@ contract CrossChainBridge is Ownable, ReentrancyGuard, Pausable {
     }
 
     /**
+     * @notice Mark a bridge request as completed (called by relayer on source chain)
+     * @dev Prevents double-payout by blocking refunds after successful relay
+     * @param _requestId Request ID to mark as completed
+     * @param _signatures Relayer signatures confirming completion
+     */
+    function markCompleted(
+        bytes32 _requestId,
+        bytes[] calldata _signatures
+    ) external nonReentrant {
+        require(_signatures.length >= requiredSignatures, "Insufficient signatures");
+
+        BridgeRequest storage request = bridgeRequests[_requestId];
+        require(request.status == BridgeStatus.PENDING, "Invalid status");
+
+        // Verify signatures
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(
+                _requestId,
+                "COMPLETED",
+                chainId
+            )
+        );
+        _verifySignatures(messageHash, _signatures);
+
+        request.status = BridgeStatus.COMPLETED;
+
+        emit BridgeMarkedCompleted(_requestId, msg.sender);
+    }
+
+    /**
      * @notice Refund an expired bridge request
      * @param _requestId Request ID to refund
      */
@@ -336,7 +377,7 @@ contract CrossChainBridge is Ownable, ReentrancyGuard, Pausable {
         BridgeRequest storage request = bridgeRequests[_requestId];
 
         require(request.sender == msg.sender, "Not request owner");
-        require(request.status == BridgeStatus.PENDING, "Invalid status");
+        require(request.status == BridgeStatus.PENDING, "Invalid status - already completed or refunded");
         require(
             block.timestamp > request.timestamp + REQUEST_EXPIRY,
             "Request not expired"

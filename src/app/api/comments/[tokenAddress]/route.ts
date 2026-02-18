@@ -1,44 +1,11 @@
 /**
  * Comments API Route
  * GET /api/comments/[tokenAddress] - Get comments for a token
- * POST /api/comments - Create a new comment
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
-
-// ============ Types ============
-
-interface Comment {
-  id: string;
-  tokenAddress: string;
-  author: string;
-  content: string;
-  createdAt: number;
-  updatedAt?: number;
-  reactions: {
-    rocket: number;
-    fire: number;
-    poop: number;
-    heart: number;
-    laugh: number;
-  };
-  parentId?: string;
-  replyCount: number;
-  isEdited: boolean;
-  isPinned: boolean;
-}
-
-// ============ In-Memory Store (Replace with DB in production) ============
-
-const commentsStore = new Map<string, Comment[]>();
-
-function getComments(tokenAddress: string): Comment[] {
-  return commentsStore.get(tokenAddress.toLowerCase()) || [];
-}
-
-// Note: addComment is defined in the main /api/comments/route.ts
-// This file only handles GET requests for a specific token
+import { getComments } from '../../../../lib/stores/commentsStore';
 
 // ============ GET Handler ============
 
@@ -59,8 +26,27 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
+    const sortBy = searchParams.get('sortBy') || 'newest'; // newest, oldest, reactions
 
-    const allComments = getComments(tokenAddress);
+    let allComments = getComments(tokenAddress);
+
+    // Sort comments
+    if (sortBy === 'oldest') {
+      allComments = [...allComments].sort((a, b) => a.createdAt - b.createdAt);
+    } else if (sortBy === 'reactions') {
+      allComments = [...allComments].sort((a, b) => {
+        const aTotal = Object.values(a.reactions).reduce((sum, v) => sum + v, 0);
+        const bTotal = Object.values(b.reactions).reduce((sum, v) => sum + v, 0);
+        return bTotal - aTotal;
+      });
+    }
+    // Default 'newest' is already sorted by createdAt desc from addComment
+
+    // Pinned comments first
+    const pinned = allComments.filter(c => c.isPinned);
+    const unpinned = allComments.filter(c => !c.isPinned);
+    allComments = [...pinned, ...unpinned];
+
     const paginatedComments = allComments.slice(offset, offset + limit);
 
     return NextResponse.json({

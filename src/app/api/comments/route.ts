@@ -1,45 +1,24 @@
 /**
  * Comments API Route
  * POST /api/comments - Create a new comment
+ * PATCH /api/comments - Update a comment
+ * DELETE /api/comments - Delete a comment
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
+import {
+  Comment,
+  addComment,
+  updateComment,
+  deleteComment,
+  addReaction,
+  removeReaction,
+  getCommentById,
+  ReactionType,
+} from '../../../lib/stores/commentsStore';
 
-// ============ Types ============
-
-interface Comment {
-  id: string;
-  tokenAddress: string;
-  author: string;
-  content: string;
-  createdAt: number;
-  updatedAt?: number;
-  reactions: {
-    rocket: number;
-    fire: number;
-    poop: number;
-    heart: number;
-    laugh: number;
-  };
-  parentId?: string;
-  replyCount: number;
-  isEdited: boolean;
-  isPinned: boolean;
-}
-
-// ============ In-Memory Store (Replace with DB in production) ============
-
-const commentsStore = new Map<string, Comment[]>();
-
-function addComment(comment: Comment): void {
-  const tokenAddress = comment.tokenAddress.toLowerCase();
-  const comments = commentsStore.get(tokenAddress) || [];
-  comments.unshift(comment);
-  commentsStore.set(tokenAddress, comments);
-}
-
-// ============ POST Handler ============
+// ============ POST Handler - Create Comment ============
 
 export async function POST(request: NextRequest) {
   try {
@@ -75,6 +54,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate parent exists if this is a reply
+    if (parentId) {
+      const parent = getCommentById(parentId);
+      if (!parent) {
+        return NextResponse.json(
+          { error: 'Parent comment not found' },
+          { status: 404 }
+        );
+      }
+    }
+
     // Create comment
     const comment: Comment = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -102,6 +92,161 @@ export async function POST(request: NextRequest) {
     console.error('Failed to create comment:', error);
     return NextResponse.json(
       { error: 'Failed to create comment' },
+      { status: 500 }
+    );
+  }
+}
+
+// ============ PATCH Handler - Update Comment or Add Reaction ============
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { commentId, author, content, reaction, action } = body;
+
+    if (!commentId) {
+      return NextResponse.json(
+        { error: 'Comment ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const existingComment = getCommentById(commentId);
+    if (!existingComment) {
+      return NextResponse.json(
+        { error: 'Comment not found' },
+        { status: 404 }
+      );
+    }
+
+    // Handle reaction
+    if (reaction) {
+      const validReactions: ReactionType[] = ['rocket', 'fire', 'poop', 'heart', 'laugh'];
+      if (!validReactions.includes(reaction)) {
+        return NextResponse.json(
+          { error: 'Invalid reaction type' },
+          { status: 400 }
+        );
+      }
+
+      const updated = action === 'remove'
+        ? removeReaction(commentId, reaction)
+        : addReaction(commentId, reaction);
+
+      if (!updated) {
+        return NextResponse.json(
+          { error: 'Failed to update reaction' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(updated);
+    }
+
+    // Handle content update
+    if (content !== undefined) {
+      if (!author || !ethers.isAddress(author)) {
+        return NextResponse.json(
+          { error: 'Author address required for editing' },
+          { status: 400 }
+        );
+      }
+
+      if (existingComment.author.toLowerCase() !== author.toLowerCase()) {
+        return NextResponse.json(
+          { error: 'Not authorized to edit this comment' },
+          { status: 403 }
+        );
+      }
+
+      if (typeof content !== 'string' || content.trim().length === 0) {
+        return NextResponse.json(
+          { error: 'Comment content is required' },
+          { status: 400 }
+        );
+      }
+
+      if (content.length > 1000) {
+        return NextResponse.json(
+          { error: 'Comment too long (max 1000 characters)' },
+          { status: 400 }
+        );
+      }
+
+      const updated = updateComment(commentId, content.trim());
+      if (!updated) {
+        return NextResponse.json(
+          { error: 'Failed to update comment' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(updated);
+    }
+
+    return NextResponse.json(
+      { error: 'No update action specified' },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error('Failed to update comment:', error);
+    return NextResponse.json(
+      { error: 'Failed to update comment' },
+      { status: 500 }
+    );
+  }
+}
+
+// ============ DELETE Handler - Delete Comment ============
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const commentId = searchParams.get('commentId');
+    const author = searchParams.get('author');
+
+    if (!commentId) {
+      return NextResponse.json(
+        { error: 'Comment ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const existingComment = getCommentById(commentId);
+    if (!existingComment) {
+      return NextResponse.json(
+        { error: 'Comment not found' },
+        { status: 404 }
+      );
+    }
+
+    if (!author || !ethers.isAddress(author)) {
+      return NextResponse.json(
+        { error: 'Author address required for deletion' },
+        { status: 400 }
+      );
+    }
+
+    if (existingComment.author.toLowerCase() !== author.toLowerCase()) {
+      return NextResponse.json(
+        { error: 'Not authorized to delete this comment' },
+        { status: 403 }
+      );
+    }
+
+    const deleted = deleteComment(commentId);
+    if (!deleted) {
+      return NextResponse.json(
+        { error: 'Failed to delete comment' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, message: 'Comment deleted' });
+  } catch (error) {
+    console.error('Failed to delete comment:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete comment' },
       { status: 500 }
     );
   }

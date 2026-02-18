@@ -7,15 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
-
-// In-memory store for demo (replace with database in production)
-const referralStore = new Map<string, {
-  totalReferrals: number;
-  activeReferrals: number;
-  pendingRewards: string;
-  lifetimeEarnings: string;
-  referredUsers: string[];
-}>();
+import { getReferrerStats } from '../../../../lib/stores/referralStore';
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,21 +30,7 @@ export async function GET(request: NextRequest) {
     }
 
     const normalizedAddress = address.toLowerCase();
-
-    // Get or create stats for this address
-    let stats = referralStore.get(normalizedAddress);
-
-    if (!stats) {
-      // Initialize with default values
-      stats = {
-        totalReferrals: 0,
-        activeReferrals: 0,
-        pendingRewards: '0',
-        lifetimeEarnings: '0',
-        referredUsers: [],
-      };
-      referralStore.set(normalizedAddress, stats);
-    }
+    const stats = getReferrerStats(normalizedAddress);
 
     // In production, this would query the ReferralRegistry contract
     // const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
