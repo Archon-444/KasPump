@@ -240,6 +240,28 @@ img[loading="lazy"] {
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
+
+    /* Brand color tokens */
+    --brand-yellow: 45 97% 54%;
+    --brand-orange: 25 95% 53%;
+    --glow-green: rgba(34, 197, 94, 0.15);
+    --glow-red: rgba(239, 68, 68, 0.15);
+    --glow-yellow: rgba(234, 179, 8, 0.15);
+    --glow-blue: rgba(59, 130, 246, 0.15);
+
+    /* Surface tokens */
+    --surface-1: rgba(255, 255, 255, 0.02);
+    --surface-2: rgba(255, 255, 255, 0.05);
+    --surface-3: rgba(255, 255, 255, 0.1);
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    --border-default: rgba(255, 255, 255, 0.1);
+    --border-strong: rgba(255, 255, 255, 0.2);
+
+    /* Transition tokens */
+    --transition-fast: 150ms;
+    --transition-normal: 200ms;
+    --transition-slow: 300ms;
+    --transition-slower: 500ms;
   }
 }
 

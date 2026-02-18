@@ -1,23 +1,23 @@
 'use client';
 
-// Core UI Components for KasPump
+// Core UI Components for KasPump — Dark Glassmorphic Design System
 import React, { forwardRef } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../utils';
 
 // Button variants using class-variance-authority
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background",
+  "inline-flex items-center justify-center rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-yellow-500/30 focus-visible:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none",
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground hover:bg-primary/90",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        success: "bg-green-600 text-white hover:bg-green-700",
-        danger: "bg-red-600 text-white hover:bg-red-700",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        outline: "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground",
-        gradient: "bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600",
+        primary: "bg-white/10 text-white border border-white/10 hover:bg-white/15 hover:border-white/20",
+        secondary: "bg-white/5 text-gray-300 border border-white/5 hover:bg-white/10 hover:text-white",
+        success: "bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25 hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]",
+        danger: "bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/25 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)]",
+        ghost: "text-gray-400 hover:bg-white/5 hover:text-white",
+        outline: "border border-white/10 bg-transparent text-gray-300 hover:bg-white/5 hover:text-white hover:border-white/20",
+        gradient: "bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0 hover:from-yellow-600 hover:to-orange-600 hover:shadow-[0_0_30px_rgba(243,186,47,0.2)]",
         glow: "relative bg-background border border-white/10 text-white hover:bg-background/90 animate-glow-pulse"
       },
       size: {
@@ -83,7 +83,7 @@ export const Button: React.FC<ButtonComponent> = ({
   );
 };
 
-// Card component
+// Card component (legacy — prefer glow-card-wrapper/glow-card-inner CSS classes)
 export const Card: React.FC<{
   children: React.ReactNode;
   className?: string;
@@ -97,7 +97,7 @@ export const Card: React.FC<{
 
   return (
     <div className={cn(
-      "rounded-lg border bg-card text-card-foreground shadow-sm",
+      "rounded-xl border border-white/5 bg-white/[0.02] text-white shadow-sm",
       paddingClasses[padding],
       className
     )}>
@@ -122,7 +122,7 @@ export const Input = forwardRef<HTMLInputElement, {
   return (
     <div className="space-y-2">
       {label && (
-        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+        <label className="text-sm font-medium text-gray-300 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
           {label}
         </label>
       )}
@@ -136,13 +136,18 @@ export const Input = forwardRef<HTMLInputElement, {
         step={step}
         aria-label={ariaLabel}
         className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          error && "border-red-500",
+          "flex h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-white",
+          "placeholder:text-gray-500",
+          "focus-visible:outline-none focus-visible:border-yellow-500/50 focus-visible:ring-1 focus-visible:ring-yellow-500/30",
+          "focus-visible:shadow-[0_0_15px_rgba(234,179,8,0.1)]",
+          "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-white/[0.01]",
+          "transition-all duration-200",
+          error && "border-red-500/50 focus-visible:border-red-500/50 focus-visible:ring-red-500/30",
           className
         )}
       />
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-red-400">{error}</p>
       )}
     </div>
   );
@@ -163,7 +168,7 @@ export const Textarea: React.FC<{
   return (
     <div className="space-y-2">
       {label && (
-        <label className="text-sm font-medium leading-none">
+        <label className="text-sm font-medium text-gray-300 leading-none">
           {label}
         </label>
       )}
@@ -173,13 +178,18 @@ export const Textarea: React.FC<{
         onChange={onChange}
         rows={rows}
         className={cn(
-          "flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          error && "border-red-500",
+          "flex min-h-[80px] w-full rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-white",
+          "placeholder:text-gray-500",
+          "focus-visible:outline-none focus-visible:border-yellow-500/50 focus-visible:ring-1 focus-visible:ring-yellow-500/30",
+          "focus-visible:shadow-[0_0_15px_rgba(234,179,8,0.1)]",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          "transition-all duration-200",
+          error && "border-red-500/50",
           className
         )}
       />
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-red-400">{error}</p>
       )}
     </div>
   );
@@ -197,7 +207,7 @@ export const Select: React.FC<{
   return (
     <div className="space-y-2">
       {label && (
-        <label className="text-sm font-medium leading-none">
+        <label className="text-sm font-medium text-gray-300 leading-none">
           {label}
         </label>
       )}
@@ -205,15 +215,19 @@ export const Select: React.FC<{
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
         className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-white",
+          "focus-visible:outline-none focus-visible:border-yellow-500/50 focus-visible:ring-1 focus-visible:ring-yellow-500/30",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          "transition-all duration-200",
+          "[&>option]:bg-gray-900 [&>option]:text-white",
           className
         )}
       >
         {placeholder && (
-          <option value="">{placeholder}</option>
+          <option value="" className="bg-gray-900 text-gray-400">{placeholder}</option>
         )}
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={option.value} value={option.value} className="bg-gray-900 text-white">
             {option.label}
           </option>
         ))}
@@ -229,11 +243,11 @@ export const Badge: React.FC<{
   className?: string;
 }> = ({ children, variant = 'default', className }) => {
   const variants = {
-    default: 'bg-primary/10 text-primary',
-    success: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    danger: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-    warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-    info: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+    default: 'bg-white/10 text-gray-300 border border-white/5',
+    success: 'bg-green-500/15 text-green-400 border border-green-500/20',
+    danger: 'bg-red-500/15 text-red-400 border border-red-500/20',
+    warning: 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20',
+    info: 'bg-blue-500/15 text-blue-400 border border-blue-500/20'
   };
 
   return (
@@ -247,27 +261,43 @@ export const Badge: React.FC<{
   );
 };
 
-// Progress component
+// Progress component with color prop for bonding curve theming
 export const Progress: React.FC<{
   value: number;
   max?: number;
   className?: string;
   showLabel?: boolean;
-}> = ({ value, max = 100, className, showLabel = false }) => {
+  color?: 'default' | 'green' | 'yellow' | 'red' | 'auto';
+}> = ({ value, max = 100, className, showLabel = false, color = 'default' }) => {
   const percentage = Math.min((value / max) * 100, 100);
+
+  const getBarColor = () => {
+    if (color === 'auto') {
+      if (percentage >= 80) return 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.3)]';
+      if (percentage >= 50) return 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.3)]';
+      return 'bg-gray-400';
+    }
+    const colors = {
+      default: 'bg-yellow-500',
+      green: 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.3)]',
+      yellow: 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.3)]',
+      red: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]',
+    };
+    return colors[color];
+  };
 
   return (
     <div className={cn("w-full", className)}>
       <div className="flex justify-between items-center mb-1">
         {showLabel && (
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <span className="text-sm font-medium text-gray-300">
             {percentage.toFixed(1)}%
           </span>
         )}
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-        <div 
-          className="bg-primary h-2.5 rounded-full transition-all duration-300 ease-out" 
+      <div className="w-full bg-white/5 rounded-full h-2.5">
+        <div
+          className={cn("h-2.5 rounded-full transition-all duration-500 ease-out", getBarColor())}
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -298,15 +328,15 @@ export const Alert: React.FC<{
   className?: string;
 }> = ({ children, variant = 'default', className }) => {
   const variants = {
-    default: 'border-border bg-background text-foreground',
-    success: 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-400',
-    danger: 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-400',
-    warning: 'border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-400'
+    default: 'border-white/10 bg-white/[0.02] text-gray-300',
+    success: 'border-green-500/20 bg-green-500/10 text-green-400',
+    danger: 'border-red-500/20 bg-red-500/10 text-red-400',
+    warning: 'border-yellow-500/20 bg-yellow-500/10 text-yellow-400'
   };
 
   return (
     <div className={cn(
-      "relative w-full rounded-lg border p-4",
+      "relative w-full rounded-xl border p-4",
       variants[variant],
       className
     )}>
@@ -331,13 +361,13 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   height,
   animate = true,
 }) => {
-  const baseStyles = 'bg-gray-700/50';
+  const baseStyles = 'bg-white/5';
 
   const variantStyles = {
     text: 'rounded h-4',
     circular: 'rounded-full',
     rectangular: 'rounded',
-    rounded: 'rounded-lg',
+    rounded: 'rounded-xl',
   };
 
   const style: React.CSSProperties = {};

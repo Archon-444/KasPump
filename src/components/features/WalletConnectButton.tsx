@@ -42,10 +42,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
   };
 
   const handleConnect = async () => {
-    // Show wallet selection modal instead of auto-connecting
-    console.log('Connect button clicked, opening wallet modal...');
     setShowWalletModal(true);
-    console.log('showWalletModal state:', true);
   };
 
   const handleDisconnect = async () => {
@@ -57,19 +54,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
     }
   };
 
-  // Check if any wallet is available
-  // Always show connect button - let the modal handle wallet detection
-  const hasAvailableWallet = wallet.availableConnectors && wallet.availableConnectors.length > 0;
-  
-  // Debug logging
-  React.useEffect(() => {
-    console.log('WalletConnectButton - Available connectors:', wallet.availableConnectors?.map(c => c.id) || []);
-    console.log('WalletConnectButton - Has available wallet:', hasAvailableWallet);
-    console.log('WalletConnectButton - Wallet connected:', wallet.connected);
-    console.log('WalletConnectButton - showWalletModal state:', showWalletModal);
-  }, [wallet.availableConnectors, hasAvailableWallet, wallet.connected, showWalletModal]);
-
-  // Always show connect button - connectors might load asynchronously
+  // Not connected state
   if (!wallet.connected) {
     return (
       <>
@@ -78,9 +63,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log('Button clicked! Current showWalletModal:', showWalletModal);
               handleConnect();
-              console.log('After handleConnect, showWalletModal should be true');
             }}
             loading={wallet.isConnecting}
             disabled={wallet.isConnecting}
@@ -89,21 +72,18 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
           >
             {wallet.isConnecting ? 'Connecting...' : 'Connect Wallet'}
           </Button>
-          
+
           {wallet.error && (
-            <div className="absolute top-full mt-2 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800 max-w-sm">
+            <div className="absolute top-full mt-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 max-w-sm backdrop-blur-sm z-50">
               {wallet.error}
             </div>
           )}
         </div>
-        
-        {/* Wallet Selection Modal - Always render, let modal handle visibility */}
+
+        {/* Wallet Selection Modal */}
         <WalletSelectModal
           isOpen={showWalletModal}
-          onClose={() => {
-            console.log('Closing wallet modal');
-            setShowWalletModal(false);
-          }}
+          onClose={() => setShowWalletModal(false)}
         />
       </>
     );
@@ -131,22 +111,22 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
       </Button>
 
       {showDropdown && (
-        <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+        <div className="absolute top-full right-0 mt-2 w-80 bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-50">
           {/* Account Info */}
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-white/5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-500">Account</span>
+              <span className="text-sm font-medium text-gray-400">Account</span>
               <div className="flex items-center space-x-1">
                 <button
                   onClick={handleCopyAddress}
-                  className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
+                  className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white transition-colors"
                   title="Copy address"
                 >
                   <Copy size={14} />
                 </button>
                 <button
                   onClick={() => {
-                    const explorerUrl = wallet.chainId === 97 
+                    const explorerUrl = wallet.chainId === 97
                       ? `https://testnet.bscscan.com/address/${wallet.address}`
                       : wallet.chainId === 56
                       ? `https://bscscan.com/address/${wallet.address}`
@@ -157,33 +137,33 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
                       : `https://explorer.example.com/address/${wallet.address}`;
                     window.open(explorerUrl, '_blank');
                   }}
-                  className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
+                  className="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white transition-colors"
                   title="View on explorer"
                 >
                   <ExternalLink size={14} />
                 </button>
               </div>
             </div>
-            <div className="font-mono text-sm text-gray-900 break-all">
+            <div className="font-mono text-sm text-white break-all">
               {wallet.address}
             </div>
             {copySuccess && (
-              <div className="text-xs text-green-600 mt-1">Address copied!</div>
+              <div className="text-xs text-green-400 mt-1">Address copied!</div>
             )}
           </div>
 
           {/* Balance */}
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-white/5">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-500">Balance</span>
+              <span className="text-sm font-medium text-gray-400">Balance</span>
               <button
                 onClick={wallet.refreshBalance}
-                className="text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
               >
                 Refresh
               </button>
             </div>
-            <div className="text-lg font-semibold text-gray-900 mt-1">
+            <div className="text-lg font-semibold text-white mt-1">
               {wallet.balanceFormatted || formatBnbBalance(wallet.balance)}
             </div>
           </div>
@@ -192,7 +172,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
           <div className="p-4 space-y-2">
             <a
               href="/settings"
-              className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
+              className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors"
             >
               <Settings size={14} />
               <span>Settings</span>
@@ -221,10 +201,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
       {/* Wallet Selection Modal - for connected state */}
       <WalletSelectModal
         isOpen={showWalletModal}
-        onClose={() => {
-          console.log('Closing wallet modal');
-          setShowWalletModal(false);
-        }}
+        onClose={() => setShowWalletModal(false)}
       />
     </div>
   );
@@ -235,10 +212,10 @@ export const WalletStatus: React.FC<{ className?: string }> = ({ className }) =>
   const wallet = useMultichainWallet();
 
   const hasAvailableWallet = wallet.availableConnectors && wallet.availableConnectors.length > 0;
-  
+
   if (!hasAvailableWallet) {
     return (
-      <div className={cn("flex items-center text-amber-600", className)}>
+      <div className={cn("flex items-center text-amber-400", className)}>
         <div className="w-2 h-2 bg-amber-500 rounded-full mr-2" />
         <span className="text-sm">Wallet not installed</span>
       </div>
@@ -247,7 +224,7 @@ export const WalletStatus: React.FC<{ className?: string }> = ({ className }) =>
 
   if (wallet.isConnecting) {
     return (
-      <div className={cn("flex items-center text-blue-600", className)}>
+      <div className={cn("flex items-center text-blue-400", className)}>
         <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse" />
         <span className="text-sm">Connecting...</span>
       </div>
@@ -256,7 +233,7 @@ export const WalletStatus: React.FC<{ className?: string }> = ({ className }) =>
 
   if (wallet.connected) {
     return (
-      <div className={cn("flex items-center text-green-600", className)}>
+      <div className={cn("flex items-center text-green-400", className)}>
         <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
         <span className="text-sm">Connected</span>
       </div>
@@ -264,7 +241,7 @@ export const WalletStatus: React.FC<{ className?: string }> = ({ className }) =>
   }
 
   return (
-    <div className={cn("flex items-center text-red-600", className)}>
+    <div className={cn("flex items-center text-red-400", className)}>
       <div className="w-2 h-2 bg-red-500 rounded-full mr-2" />
       <span className="text-sm">Not connected</span>
     </div>
@@ -277,11 +254,11 @@ export const useWalletGuard = () => {
 
   const requireConnection = (action: string = 'perform this action') => {
     const hasAvailableWallet = wallet.availableConnectors && wallet.availableConnectors.length > 0;
-    
+
     if (!hasAvailableWallet) {
       throw new Error('Wallet is not installed. Please install a compatible wallet to continue.');
     }
-    
+
     if (!wallet.connected) {
       throw new Error(`Please connect your wallet to ${action}.`);
     }
@@ -306,17 +283,17 @@ export const WalletRequired: React.FC<{
   if (!hasAvailableWallet) {
     return (
       fallback || (
-        <div className="text-center p-8 bg-amber-50 rounded-lg border border-amber-200">
-          <Wallet size={48} className="mx-auto text-amber-600 mb-4" />
-          <h3 className="text-lg font-semibold text-amber-800 mb-2">
+        <div className="text-center p-8 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
+          <Wallet size={48} className="mx-auto text-yellow-400 mb-4" />
+          <h3 className="text-lg font-semibold text-white mb-2">
             Wallet Required
           </h3>
-          <p className="text-amber-700 mb-4">
+          <p className="text-gray-400 mb-4">
             You need to install a compatible wallet (MetaMask, WalletConnect, etc.) to use this feature.
           </p>
           <Button
             onClick={() => window.open('https://metamask.io/download/', '_blank')}
-            variant="primary"
+            variant="gradient"
           >
             Install Wallet
           </Button>
@@ -328,12 +305,12 @@ export const WalletRequired: React.FC<{
   if (!wallet.connected) {
     return (
       fallback || (
-        <div className="text-center p-8 bg-blue-50 rounded-lg border border-blue-200">
-          <Wallet size={48} className="mx-auto text-blue-600 mb-4" />
-          <h3 className="text-lg font-semibold text-blue-800 mb-2">
+        <div className="text-center p-8 bg-white/[0.02] rounded-xl border border-white/10">
+          <Wallet size={48} className="mx-auto text-gray-400 mb-4" />
+          <h3 className="text-lg font-semibold text-white mb-2">
             Connect Your Wallet
           </h3>
-          <p className="text-blue-700 mb-4">
+          <p className="text-gray-400 mb-4">
             Please connect your wallet to continue.
           </p>
           <WalletConnectButton />

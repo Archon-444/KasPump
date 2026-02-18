@@ -10,6 +10,7 @@ import { AnimatePresence } from 'framer-motion';
 import { SuccessToast } from '../components/features/SuccessToast';
 import { ErrorToast } from '../components/features/ErrorToast';
 import { motion } from 'framer-motion';
+import { cn } from '../utils';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -134,7 +135,7 @@ const ToastContainer: React.FC<{
   onDismiss: (id: string) => void;
 }> = ({ toasts, onDismiss }) => {
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-3 max-w-md w-full">
+    <div className="fixed bottom-20 sm:bottom-4 right-4 z-50 flex flex-col gap-3 max-w-md w-full">
       <AnimatePresence mode="popLayout">
         {toasts.map((toast, index) => (
           <motion.div
@@ -200,6 +201,7 @@ const InfoToast: React.FC<{
       const timer = setTimeout(onDismiss, duration);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [duration, onDismiss]);
 
   const colors = {
@@ -213,7 +215,7 @@ const InfoToast: React.FC<{
   };
 
   return (
-    <div className={`glassmorphism rounded-xl p-4 border-2 ${colors[type]} shadow-2xl`}>
+    <div className={cn("bg-black/80 backdrop-blur-xl rounded-xl p-4 border", colors[type], "shadow-2xl")}>
       <div className="flex items-start space-x-3">
         <div className="text-2xl">{icons[type]}</div>
         <div className="flex-1 min-w-0">
@@ -233,7 +235,7 @@ const InfoToast: React.FC<{
         </div>
         <button
           onClick={onDismiss}
-          className="flex-shrink-0 p-1 hover:bg-gray-700 rounded transition-colors"
+          className="flex-shrink-0 p-1.5 hover:bg-white/5 rounded-xl transition-colors"
           aria-label="Dismiss"
         >
           <span className="text-gray-400">×</span>

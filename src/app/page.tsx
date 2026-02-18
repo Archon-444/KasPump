@@ -478,41 +478,35 @@ export default function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <GlowCard padding="lg">
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-3">
-                <div className="p-3 rounded-xl bg-yellow-500/10">
-                  <Zap className="w-7 h-7 text-yellow-400" />
+          {[
+            { icon: Zap, color: 'yellow', value: stats.totalTokens.toString(), label: 'Tokens Launched' },
+            { icon: TrendingUp, color: 'green', value: `$${stats.totalVolume.toLocaleString()}`, label: '24h Volume' },
+            { icon: Users, color: 'blue', value: stats.totalHolders.toLocaleString(), label: 'Total Holders' },
+          ].map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <GlowCard key={stat.label} padding="lg">
+                <div className="text-center">
+                  <div className="flex items-center justify-center mb-3">
+                    <div className={`p-3 rounded-xl bg-${stat.color}-500/10`}>
+                      <Icon className={`w-7 h-7 text-${stat.color}-400`} />
+                    </div>
+                  </div>
+                  {loading ? (
+                    <div className="space-y-2 flex flex-col items-center">
+                      <div className="h-9 w-24 bg-white/5 rounded-lg animate-pulse" />
+                      <div className="h-4 w-28 bg-white/5 rounded animate-pulse" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-3xl font-bold text-white mb-1">{stat.value}</div>
+                      <div className="text-sm text-gray-400 font-medium">{stat.label}</div>
+                    </>
+                  )}
                 </div>
-              </div>
-              <div className="text-3xl font-bold text-white mb-1">{stats.totalTokens}</div>
-              <div className="text-sm text-gray-400 font-medium">Tokens Launched</div>
-            </div>
-          </GlowCard>
-
-          <GlowCard padding="lg">
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-3">
-                <div className="p-3 rounded-xl bg-green-500/10">
-                  <TrendingUp className="w-7 h-7 text-green-400" />
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-white mb-1">${stats.totalVolume.toLocaleString()}</div>
-              <div className="text-sm text-gray-400 font-medium">24h Volume</div>
-            </div>
-          </GlowCard>
-
-          <GlowCard padding="lg">
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-3">
-                <div className="p-3 rounded-xl bg-blue-500/10">
-                  <Users className="w-7 h-7 text-blue-400" />
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-white mb-1">{stats.totalHolders.toLocaleString()}</div>
-              <div className="text-sm text-gray-400 font-medium">Total Holders</div>
-            </div>
-          </GlowCard>
+              </GlowCard>
+            );
+          })}
         </motion.section>
 
         {/* Trending Tokens Carousel */}
