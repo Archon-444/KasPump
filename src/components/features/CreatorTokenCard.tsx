@@ -2,10 +2,10 @@
 
 import React, { memo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ExternalLink, Users, DollarSign, Award, Activity } from 'lucide-react';
+import { ExternalLink, Users, DollarSign, Award, Activity } from 'lucide-react';
 import { Card } from '../ui';
 import { CreatorToken } from '../../hooks/useCreatorTokens';
-import { cn, formatCurrency, formatPercentage, truncateAddress } from '../../utils';
+import { cn, formatCurrency, formatPercentage } from '../../utils';
 import { getChainMetadata, getExplorerUrl } from '../../config/chains';
 import Link from 'next/link';
 
@@ -23,7 +23,6 @@ const CreatorTokenCardComponent: React.FC<CreatorTokenCardProps> = ({
   const chainMetadata = getChainMetadata(token.chainId);
   const chainColor = chainMetadata?.color || '#6B7280';
   const explorerUrl = getExplorerUrl(token.chainId, 'address', token.address);
-  const isPositiveChange = (token.change24h || 0) >= 0;
 
   return (
     <motion.div

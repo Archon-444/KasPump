@@ -96,7 +96,7 @@ export const AmbientBackground: React.FC<AmbientBackgroundProps> = ({
 
 export interface GlowCardProps {
   children: React.ReactNode;
-  className?: string;
+  className?: string | undefined;
   innerClassName?: string;
   /** Padding size */
   padding?: 'sm' | 'md' | 'lg' | 'none';

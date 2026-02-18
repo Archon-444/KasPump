@@ -1,13 +1,11 @@
 // Enhanced Smart Contract Integration with AMM Address Resolution
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { ethers } from 'ethers';
 import {
   KasPumpToken,
   TradeData,
   SwapQuote,
   TokenCreationForm,
-  ContractError,
-  BondingCurveConfig,
   TokenCreatedEventArgs,
 } from '../types';
 import { useMultichainWallet } from './useMultichainWallet';
@@ -162,7 +160,7 @@ export function useContracts() {
       
       // Check if we have a getTokenAMM function (newer factory version)
       try {
-        const ammAddress = await factoryContract.getTokenAMM(tokenAddress);
+        const ammAddress = await factoryContract.getTokenAMM!(tokenAddress);
         if (!ammAddress || ammAddress === ethers.ZeroAddress) {
           throw new Error('AMM address not found');
         }
@@ -170,11 +168,11 @@ export function useContracts() {
         return ammAddress;
       } catch (error) {
         // Fallback: search TokenCreated events
-        const filter = factoryContract.filters.TokenCreated(tokenAddress);
+        const filter = factoryContract.filters.TokenCreated!(tokenAddress);
         const events = await factoryContract.queryFilter(filter);
         
         if (events.length > 0) {
-          const event = events[0];
+          const event = events[0]!;
           if ('args' in event && event.args) {
             // Type assertion for TokenCreated event args
             const args = event.args as unknown as TokenCreatedEventArgs;
@@ -207,7 +205,7 @@ export function useContracts() {
       
       // Estimate gas
       const imageUrlToUse = imageUrl || ''; // Use provided IPFS URL or empty string
-      const gasEstimate = await contract.createToken.estimateGas(
+      const gasEstimate = await contract.createToken!.estimateGas(
         tokenData.name,
         tokenData.symbol,
         tokenData.description,
@@ -222,7 +220,7 @@ export function useContracts() {
       const gasLimit = (gasEstimate * BigInt(120)) / BigInt(100);
 
       // Execute transaction
-      const tx = await contract.createToken(
+      const tx = await contract.createToken!(
         tokenData.name,
         tokenData.symbol,
         tokenData.description,
@@ -291,10 +289,10 @@ export function useContracts() {
         const minTokensOut = ethers.parseEther((trade.expectedOutput * (1 - trade.slippageTolerance / 100)).toString());
 
         // Estimate gas
-        const gasEstimate = await ammContract.buyTokens.estimateGas(minTokensOut, { value: nativeAmount });
+        const gasEstimate = await ammContract.buyTokens!.estimateGas(minTokensOut, { value: nativeAmount });
         const gasLimit = (gasEstimate * BigInt(120)) / BigInt(100);
 
-        const tx = await ammContract.buyTokens(minTokensOut, {
+        const tx = await ammContract.buyTokens!(minTokensOut, {
           value: nativeAmount,
           gasLimit
         });
@@ -307,17 +305,17 @@ export function useContracts() {
         const minNativeOut = ethers.parseEther((trade.expectedOutput * (1 - trade.slippageTolerance / 100)).toString());
         
         // Check and approve tokens if needed
-        const allowance = await tokenContract.allowance(wallet.address, ammAddress);
+        const allowance = await tokenContract.allowance!(wallet.address, ammAddress);
         if (allowance < tokenAmount) {
-          const approveTx = await tokenContract.approve(ammAddress, tokenAmount);
+          const approveTx = await tokenContract.approve!(ammAddress, tokenAmount);
           await approveTx.wait();
         }
         
         // Execute sell
-        const gasEstimate = await ammContract.sellTokens.estimateGas(tokenAmount, minNativeOut);
+        const gasEstimate = await ammContract.sellTokens!.estimateGas(tokenAmount, minNativeOut);
         const gasLimit = (gasEstimate * BigInt(120)) / BigInt(100);
 
-        const tx = await ammContract.sellTokens(tokenAmount, minNativeOut, { gasLimit });
+        const tx = await ammContract.sellTokens!(tokenAmount, minNativeOut, { gasLimit });
         const receipt = await tx.wait();
         return receipt.hash;
       }
@@ -340,11 +338,11 @@ export function useContracts() {
       const amountWei = ethers.parseEther(amount.toString());
       
       // Get current trading info
-      const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo();
-      
+      const [currentSupply, , , , isGraduated] = await ammContract.getTradingInfo!();
+
       if (action === 'buy') {
-        const tokensOut = await ammContract.calculateTokensOut(amountWei, currentSupply);
-        const priceImpact = await ammContract.getPriceImpact(amountWei, true);
+        const tokensOut = await ammContract.calculateTokensOut!(amountWei, currentSupply);
+        const priceImpact = await ammContract.getPriceImpact!(amountWei, true);
         
         return {
           inputAmount: amount,
@@ -356,8 +354,8 @@ export function useContracts() {
           minimumOutput: parseFloat(ethers.formatEther(tokensOut)) * 0.995 // 0.5% slippage
         };
       } else {
-        const nativeOut = await ammContract.calculateNativeOut(amountWei, currentSupply);
-        const priceImpact = await ammContract.getPriceImpact(amountWei, false);
+        const nativeOut = await ammContract.calculateNativeOut!(amountWei, currentSupply);
+        const priceImpact = await ammContract.getPriceImpact!(amountWei, false);
 
         return {
           inputAmount: amount,
@@ -431,22 +429,22 @@ export function useContracts() {
       const tokenContract = getTokenContract(tokenAddress);
       
       // Check if it's a KasPump token
-      const isKasPumpToken = await factoryContract.isKasPumpToken(tokenAddress);
+      const isKasPumpToken = await factoryContract.isKasPumpToken!(tokenAddress);
       if (!isKasPumpToken) return null;
       
       // Get config and basic token info
       const [config, name, symbol, totalSupply] = await Promise.all([
-        factoryContract.getTokenConfig(tokenAddress),
-        tokenContract.name(),
-        tokenContract.symbol(),
-        tokenContract.totalSupply()
+        factoryContract.getTokenConfig!(tokenAddress),
+        tokenContract.name!(),
+        tokenContract.symbol!(),
+        tokenContract.totalSupply!()
       ]);
       
       // Get AMM address and trading info
       const ammAddress = await getTokenAMMAddress(tokenAddress);
       const ammContract = getBondingCurveContract(ammAddress);
       
-      const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo();
+      const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo!();
       
       // Calculate derived metrics
       const currentSupplyNumber = parseFloat(ethers.formatEther(currentSupply));
@@ -491,7 +489,7 @@ export function useContracts() {
       const tokenContract = getTokenContract(tokenAddress);
       const amountWei = ethers.parseEther(amount);
 
-      const tx = await tokenContract.approve(spenderAddress, amountWei);
+      const tx = await tokenContract.approve!(spenderAddress, amountWei);
       const receipt = await tx.wait();
 
       return receipt.hash;
@@ -503,7 +501,7 @@ export function useContracts() {
   const getTokenBalance = useCallback(async (tokenAddress: string, userAddress: string): Promise<number> => {
     try {
       const tokenContract = getTokenContract(tokenAddress);
-      const balance = await tokenContract.balanceOf(userAddress);
+      const balance = await tokenContract.balanceOf!(userAddress);
       return parseFloat(ethers.formatEther(balance));
     } catch (error) {
       console.error('Failed to fetch token balance:', error);
@@ -514,7 +512,7 @@ export function useContracts() {
   const getAllowance = useCallback(async (tokenAddress: string, owner: string, spender: string): Promise<number> => {
     try {
       const tokenContract = getTokenContract(tokenAddress);
-      const allowance = await tokenContract.allowance(owner, spender);
+      const allowance = await tokenContract.allowance!(owner, spender);
       return parseFloat(ethers.formatEther(allowance));
     } catch (error) {
       console.error('Failed to fetch allowance:', error);

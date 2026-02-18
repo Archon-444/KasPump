@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Loader2, AlertCircle, Network } from 'lucide-react';
 import { Card, Button } from '../ui';
 import { DeploymentState } from '../../hooks/useMultiChainDeployment';

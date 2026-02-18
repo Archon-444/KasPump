@@ -2,13 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Wallet, X, ExternalLink, QrCode, Smartphone } from 'lucide-react';
+import { Wallet, X, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useConnect } from 'wagmi';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
-import { useMobileWallet } from '../../hooks/useMobileWallet';
-import { Button } from '../ui';
-import { cn } from '../../utils';
 
 interface WalletSelectModalProps {
   isOpen: boolean;
@@ -39,9 +36,9 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
 
   const handleConnect = async (connectorId: string) => {
     try {
-      const connector = connectors.find(c => c.id === connectorId);
+      const connector = connectors.find((c: { id: string }) => c.id === connectorId);
       if (!connector) {
-        console.error(`Connector ${connectorId} not found. Available connectors:`, connectors.map(c => c.id));
+        console.error(`Connector ${connectorId} not found. Available connectors:`, connectors.map((c: { id: string }) => c.id));
         alert(`Wallet connector "${connectorId}" is not available. Please try another option.`);
         return;
       }
@@ -78,7 +75,7 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
       icon: '🦊',
       description: 'Connect using MetaMask extension',
       onClick: () => handleConnect('metaMask'),
-      isAvailable: connectors.some(c => c.id === 'metaMask') || detectInjectedWallet() === 'metaMask',
+      isAvailable: connectors.some((c: { id: string }) => c.id === 'metaMask') || detectInjectedWallet() === 'metaMask',
       installUrl: 'https://metamask.io/download/',
     },
     {
@@ -87,7 +84,7 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
       icon: '🔗',
       description: 'Scan QR code with any WalletConnect-compatible wallet',
       onClick: () => handleConnect('walletConnect'),
-      isAvailable: connectors.some(c => c.id === 'walletConnect'),
+      isAvailable: connectors.some((c: { id: string }) => c.id === 'walletConnect'),
     },
     {
       id: 'coinbaseWallet',
@@ -95,7 +92,7 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
       icon: '📱',
       description: 'Connect using Coinbase Wallet',
       onClick: () => handleConnect('coinbaseWallet'),
-      isAvailable: connectors.some(c => c.id === 'coinbaseWallet') || false,
+      isAvailable: connectors.some((c: { id: string }) => c.id === 'coinbaseWallet') || false,
       installUrl: 'https://www.coinbase.com/wallet',
     },
     {
@@ -104,7 +101,7 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
       icon: '🛡️',
       description: 'Connect using Trust Wallet extension',
       onClick: () => handleConnect('injected'),
-      isAvailable: detectInjectedWallet() === 'trust' || connectors.some(c => c.id === 'injected'),
+      isAvailable: detectInjectedWallet() === 'trust' || connectors.some((c: { id: string }) => c.id === 'injected'),
       installUrl: 'https://trustwallet.com/download',
     },
     {
@@ -113,7 +110,7 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
       icon: '🐰',
       description: 'Connect using Rabby extension',
       onClick: () => handleConnect('injected'),
-      isAvailable: detectInjectedWallet() === 'rabby' || wallet.availableConnectors?.some(c => c.id === 'injected'),
+      isAvailable: detectInjectedWallet() === 'rabby' || wallet.availableConnectors?.some((c: { id: string }) => c.id === 'injected'),
       installUrl: 'https://rabby.io/',
     },
     {
@@ -122,7 +119,7 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
       icon: '⚡',
       description: 'Connect using OKX Wallet extension',
       onClick: () => handleConnect('injected'),
-      isAvailable: detectInjectedWallet() === 'okx' || wallet.availableConnectors?.some(c => c.id === 'injected'),
+      isAvailable: detectInjectedWallet() === 'okx' || wallet.availableConnectors?.some((c: { id: string }) => c.id === 'injected'),
       installUrl: 'https://www.okx.com/web3',
     },
     {
@@ -131,7 +128,7 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
       icon: '🟡',
       description: 'Connect using Binance Wallet extension',
       onClick: () => handleConnect('injected'),
-      isAvailable: detectInjectedWallet() === 'binance' || wallet.availableConnectors?.some(c => c.id === 'injected'),
+      isAvailable: detectInjectedWallet() === 'binance' || wallet.availableConnectors?.some((c: { id: string }) => c.id === 'injected'),
       installUrl: 'https://www.binance.com/en/web3wallet',
     },
     {
@@ -140,7 +137,7 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
       icon: '🌐',
       description: 'Connect using your browser wallet',
       onClick: () => handleConnect('injected'),
-      isAvailable: wallet.availableConnectors?.some(c => c.id === 'injected') && detectInjectedWallet() !== null,
+      isAvailable: wallet.availableConnectors?.some((c: { id: string }) => c.id === 'injected') && detectInjectedWallet() !== null,
     },
   ];
 
@@ -151,7 +148,7 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
   useEffect(() => {
     if (isOpen) {
       console.log('WalletSelectModal opened');
-      console.log('Available connectors:', connectors.map(c => c.id));
+      console.log('Available connectors:', connectors.map((c: { id: string }) => c.id));
       console.log('Available wallets:', availableWallets.map(w => w.name));
     }
   }, [isOpen, connectors, availableWallets]);

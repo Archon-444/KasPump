@@ -29,7 +29,7 @@
  * @returns Object containing current price, change, and update status
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { usePriceUpdates, PriceUpdate } from './useWebSocket';
 import { KasPumpToken } from '../types';
 

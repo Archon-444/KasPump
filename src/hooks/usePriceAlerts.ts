@@ -51,7 +51,7 @@ export interface PriceAlert {
   /** Token contract address */
   tokenAddress: string;
   /** Optional chain ID */
-  chainId?: number;
+  chainId?: number | undefined;
   /** Token symbol for display */
   tokenSymbol: string;
   /** Target price to trigger alert */

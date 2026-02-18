@@ -118,7 +118,8 @@ describe('usePortfolio', () => {
 
     // Mock ethers constructors
     (ethers.JsonRpcProvider as any).mockImplementation(() => mockProvider);
-    (ethers.Contract as any).mockImplementation((address: string, abi: any) => {
+    (ethers.Contract as any).mockImplementation((...args: any[]) => {
+      const abi = args[1];
       if (abi.includes('getAllTokens')) return mockFactoryContract;
       if (abi.includes('balanceOf')) return mockTokenContract;
       if (abi.includes('getTradingInfo')) return mockAmmContract;
@@ -380,7 +381,7 @@ describe('usePortfolio', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        const token = result.current.tokens[0];
+        const token = result.current.tokens[0]!;
         expect(token.token.name).toBe('My Token');
         expect(token.token.symbol).toBe('MYT');
         expect(token.token.description).toBe('My test token');
@@ -407,7 +408,7 @@ describe('usePortfolio', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        expect(result.current.tokens[0].balance).toBe(250.5);
+        expect(result.current.tokens[0]!.balance).toBe(250.5);
       }
     });
 
@@ -435,7 +436,7 @@ describe('usePortfolio', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        const token = result.current.tokens[0];
+        const token = result.current.tokens[0]!;
         expect(token.balance).toBe(1000);
         expect(token.token.price).toBe(0.01);
         expect(token.value).toBe(10); // 1000 * 0.01
@@ -458,7 +459,7 @@ describe('usePortfolio', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        const token = result.current.tokens[0];
+        const token = result.current.tokens[0]!;
         expect(token.chainId).toBeDefined();
         expect(token.chainName).toBeDefined();
         expect(typeof token.chainId).toBe('number');
@@ -482,7 +483,7 @@ describe('usePortfolio', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        expect(result.current.tokens[0].token.curveType).toBe('exponential');
+        expect(result.current.tokens[0]!.token.curveType).toBe('exponential');
       }
     });
 
@@ -502,7 +503,7 @@ describe('usePortfolio', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        expect(result.current.tokens[0].token.ammAddress).toBe(mockAmmAddress);
+        expect(result.current.tokens[0]!.token.ammAddress).toBe(mockAmmAddress);
       }
     });
 
@@ -529,8 +530,8 @@ describe('usePortfolio', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        expect(result.current.tokens[0].token.isGraduated).toBe(true);
-        expect(result.current.tokens[0].token.bondingCurveProgress).toBe(100);
+        expect(result.current.tokens[0]!.token.isGraduated).toBe(true);
+        expect(result.current.tokens[0]!.token.bondingCurveProgress).toBe(100);
       }
     });
   });
@@ -838,7 +839,7 @@ describe('usePortfolio', () => {
       });
 
       if (result.current.stats.chains.length > 0) {
-        const chain = result.current.stats.chains[0];
+        const chain = result.current.stats.chains[0]!;
         expect(chain).toHaveProperty('chainId');
         expect(chain).toHaveProperty('chainName');
         expect(chain).toHaveProperty('value');

@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Share2,
   Heart,
-  MessageCircle,
   Users,
   TrendingUp,
   Clock,
@@ -112,7 +111,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
           'Your transaction has been sent to the network.',
           {
             txHash,
-            explorerUrl,
+            ...(explorerUrl ? { explorerUrl } : {}),
           }
         );
 

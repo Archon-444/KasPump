@@ -36,7 +36,7 @@ export const usePullToRefresh = ({
         return;
       }
 
-      touchStartY = e.touches[0].clientY;
+      touchStartY = e.touches[0]!.clientY;
       startY.current = touchStartY;
     };
 
@@ -44,7 +44,7 @@ export const usePullToRefresh = ({
       if (startY.current === null) return;
       if (isRefreshing.current) return;
 
-      const currentY = e.touches[0].clientY;
+      const currentY = e.touches[0]!.clientY;
       const distance = currentY - startY.current;
 
       // Only allow downward pull

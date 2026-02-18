@@ -34,7 +34,7 @@
  * @returns Object containing created tokens, stats, and management functions
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import { KasPumpToken } from '../types';
 import { useMultichainWallet } from './useMultichainWallet';
@@ -95,10 +95,6 @@ const BONDING_CURVE_ABI = [
   "function token() external view returns (address)",
 ];
 
-const ERC20_ABI = [
-  "function balanceOf(address account) external view returns (uint256)",
-  "function totalSupply() external view returns (uint256)",
-];
 
 export function useCreatorTokens() {
   const wallet = useMultichainWallet();
@@ -160,12 +156,12 @@ export function useCreatorTokens() {
           const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, provider);
           
           // Get all tokens
-          const allTokens = await factoryContract.getAllTokens();
+          const allTokens = await factoryContract.getAllTokens!();
 
           // Filter tokens created by this user
           for (const tokenAddress of allTokens) {
             try {
-              const config = await factoryContract.getTokenConfig(tokenAddress);
+              const config = await factoryContract.getTokenConfig!(tokenAddress);
               
               // Check if this user is the creator
               if (config.creator.toLowerCase() !== wallet.address.toLowerCase()) {
@@ -173,13 +169,13 @@ export function useCreatorTokens() {
               }
 
               // Get AMM address
-              const ammAddress = await factoryContract.getTokenAMM(tokenAddress);
+              const ammAddress = await factoryContract.getTokenAMM!(tokenAddress);
               if (!ammAddress || ammAddress === ethers.ZeroAddress) continue;
 
               // Get trading data
               const ammContract = new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider);
-              const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = 
-                await ammContract.getTradingInfo();
+              const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] =
+                await ammContract.getTradingInfo!();
 
               const currentSupplyNumber = parseFloat(ethers.formatEther(currentSupply));
               const priceNumber = parseFloat(ethers.formatEther(currentPrice));
@@ -188,14 +184,8 @@ export function useCreatorTokens() {
 
               // Get holder count (simplified - count addresses with balance > 0)
               // In production, this would use a more efficient method
-              let holderCount = 0;
-              try {
-                const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-                // This is a placeholder - real implementation would track holders
-                holderCount = 0;
-              } catch {
-                // Ignore errors for holder count
-              }
+              // Placeholder — real implementation would track holders via indexer
+              const holderCount = 0;
 
               const creatorToken: CreatorToken = {
                 address: tokenAddress,

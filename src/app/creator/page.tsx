@@ -259,7 +259,7 @@ export default function CreatorDashboardPage() {
                   transition={{ delay: 0.2 }}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredTokens.map((token, index) => (
+                    {filteredTokens.map((token, _index) => (
                       <CreatorTokenCard
                         key={`${token.chainId}-${token.address}`}
                         token={token}

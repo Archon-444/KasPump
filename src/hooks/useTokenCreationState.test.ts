@@ -9,7 +9,7 @@ describe('useTokenCreationState', () => {
   };
 
   const defaultProps = {
-    contracts: mockContracts,
+    contracts: mockContracts as any,
     chainId: 97,
     onSuccess: vi.fn(),
     nativeCurrencySymbol: 'BNB',

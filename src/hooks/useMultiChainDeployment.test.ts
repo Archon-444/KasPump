@@ -80,6 +80,7 @@ describe('useMultiChainDeployment', () => {
     name: 'Multi Chain Token',
     symbol: 'MCT',
     description: 'A token deployed on multiple chains',
+    image: null,
     totalSupply: 1000000,
     basePrice: 0.001,
     slope: 0.00001,
@@ -319,7 +320,7 @@ describe('useMultiChainDeployment', () => {
       });
 
       const result999 = result.current.deployments.find(d => d.chainId === 999);
-      expect(result999?.success).toBe(false);
+      expect((result999 as any)?.success).toBe(false);
       expect(result999?.error).toContain('Chain configuration not found');
     });
   });

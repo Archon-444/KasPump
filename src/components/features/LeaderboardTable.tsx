@@ -2,10 +2,10 @@
 
 import React, { memo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { Card } from '../ui';
-import { cn, formatCurrency, truncateAddress } from '../../utils';
-import { getExplorerUrl } from '../../config/chains';
+import { cn, formatCurrency } from '../../utils';
+
 
 export interface LeaderboardToken {
   address: string;
@@ -69,7 +69,7 @@ const LeaderboardTableComponent: React.FC<LeaderboardTableProps> = ({
           <h3 className="text-base font-semibold text-white">Top Tokens</h3>
           <select
             value={sortBy}
-            onChange={(e) => {}}
+            onChange={(_e) => {}}
             className="bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-white text-xs min-h-[36px] touch-manipulation"
           >
             <option value="volume">Volume</option>
@@ -119,7 +119,7 @@ const LeaderboardTableComponent: React.FC<LeaderboardTableProps> = ({
           <span>Sort by:</span>
           <select
             value={sortBy}
-            onChange={(e) => {}}
+            onChange={(_e) => {}}
             className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-xs"
           >
             <option value="volume">Volume</option>
@@ -153,7 +153,6 @@ const LeaderboardTableComponent: React.FC<LeaderboardTableProps> = ({
           <tbody>
             {sortedTokens.slice(0, 10).map((token, index) => {
               const isPositive = token.change24h >= 0;
-              const explorerUrl = getExplorerUrl(token.chainId, 'address', token.address);
 
               return (
                 <motion.tr

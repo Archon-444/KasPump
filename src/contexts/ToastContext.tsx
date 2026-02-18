@@ -18,16 +18,16 @@ export interface Toast {
   id: string;
   type: ToastType;
   title: string;
-  message?: string;
-  duration?: number;
+  message?: string | undefined;
+  duration?: number | undefined;
   action?: {
     label: string;
     onClick: () => void;
-    icon?: React.ReactNode;
-  };
-  txHash?: string;
-  explorerUrl?: string;
-  onRetry?: () => void;
+    icon?: React.ReactNode | undefined;
+  } | undefined;
+  txHash?: string | undefined;
+  explorerUrl?: string | undefined;
+  onRetry?: (() => void) | undefined;
 }
 
 interface ToastContextType {
@@ -191,10 +191,10 @@ const ToastContainer: React.FC<{
 const InfoToast: React.FC<{
   type: 'info' | 'warning';
   title: string;
-  message?: string;
+  message?: string | undefined;
   onDismiss: () => void;
-  duration?: number;
-  action?: { label: string; onClick: () => void; icon?: React.ReactNode };
+  duration?: number | undefined;
+  action?: { label: string; onClick: () => void; icon?: React.ReactNode | undefined } | undefined;
 }> = ({ type, title, message, onDismiss, duration = 5000, action }) => {
   useEffect(() => {
     if (duration > 0) {

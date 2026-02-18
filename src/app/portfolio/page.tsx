@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { RefreshCw, Download, Wallet, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -18,7 +18,7 @@ export default function PortfolioPage() {
   const router = useRouter();
   const { tokens, stats, loading, error, refresh } = usePortfolio();
   const isMobile = useIsMobile();
-  const [selectedChain, setSelectedChain] = useState<number | 'all'>('all');
+  const [_selectedChain, setSelectedChain] = useState<number | 'all'>('all');
 
   const handleTokenClick = (portfolioToken: PortfolioToken) => {
     // Navigate to token trading page

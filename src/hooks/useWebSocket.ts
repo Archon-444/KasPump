@@ -84,7 +84,7 @@ export function useWebSocket<T = unknown>(
     unsubscribeRef.current = unsubscribe;
 
     // Subscribe to connection status changes (using wildcard)
-    const statusUnsubscribe = client.subscribe('*', (message: WebSocketMessage) => {
+    const statusUnsubscribe = client.subscribe('*', (_message: WebSocketMessage) => {
       checkConnection();
     });
 

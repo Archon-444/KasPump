@@ -8,7 +8,7 @@ import { cn } from '../../utils';
 
 export interface FavoriteButtonProps {
   tokenAddress: string;
-  chainId?: number;
+  chainId?: number | undefined;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   showLabel?: boolean;

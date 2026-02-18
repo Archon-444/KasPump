@@ -4,13 +4,12 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Twitter, Copy, Share2, ExternalLink, Check } from 'lucide-react';
 import { KasPumpToken } from '../../types';
-import { Button } from '../ui';
 import { cn, truncateAddress, copyToClipboard } from '../../utils';
 import { getExplorerUrl } from '../../config/chains';
 
 export interface TokenSocialShareProps {
   token: KasPumpToken;
-  chainId?: number;
+  chainId?: number | undefined;
   className?: string;
 }
 

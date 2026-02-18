@@ -1,11 +1,23 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
+import { Card, Badge, Button } from '../ui';
 import { CheckCircle2, XCircle, Copy, ExternalLink, RefreshCw, AlertCircle, Globe, Zap } from 'lucide-react';
-import { cn, copyToClipboard, truncateAddress } from '../../utils';
+import { copyToClipboard, truncateAddress } from '../../utils';
+
+// Local card sub-components (shadcn-style wrappers not available in ui/index)
+const CardHeader: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+  <div className={`p-6 pb-2 ${className || ''}`}>{children}</div>
+);
+const CardTitle: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+  <h3 className={`text-2xl font-semibold leading-none tracking-tight ${className || ''}`}>{children}</h3>
+);
+const CardDescription: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+  <p className={`text-sm text-slate-400 ${className || ''}`}>{children}</p>
+);
+const CardContent: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+  <div className={`p-6 pt-0 ${className || ''}`}>{children}</div>
+);
 
 // Import deployment data
 import deployments from '../../../deployments.json';
@@ -62,21 +74,21 @@ export const AdminDeploymentDashboard: React.FC = () => {
     switch (status) {
       case 'deployed':
         return (
-          <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
+          <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30">
             <CheckCircle2 size={12} className="mr-1" />
             Deployed
           </Badge>
         );
       case 'partial':
         return (
-          <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+          <Badge variant="default" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
             <AlertCircle size={12} className="mr-1" />
             Partial
           </Badge>
         );
       case 'not-deployed':
         return (
-          <Badge variant="secondary" className="bg-gray-500/20 text-gray-400 border-gray-500/30">
+          <Badge variant="default" className="bg-gray-500/20 text-gray-400 border-gray-500/30">
             <XCircle size={12} className="mr-1" />
             Not Deployed
           </Badge>
@@ -98,7 +110,7 @@ export const AdminDeploymentDashboard: React.FC = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">{meta.icon}</span>
+              <span className="text-2xl">{meta?.icon}</span>
               <div>
                 <CardTitle className="text-white text-lg">{deployment.name}</CardTitle>
                 <CardDescription className="text-slate-400 text-sm">
@@ -133,7 +145,7 @@ export const AdminDeploymentDashboard: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       className="h-6 w-6 p-0"
-                      onClick={() => window.open(`${meta.explorerUrl}/address/${address}`, '_blank')}
+                      onClick={() => window.open(`${meta?.explorerUrl}/address/${address}`, '_blank')}
                     >
                       <ExternalLink size={12} className="text-slate-400" />
                     </Button>
@@ -184,7 +196,7 @@ export const AdminDeploymentDashboard: React.FC = () => {
                 )}
                 {deployment.isDeterministic && (
                   <div className="col-span-2">
-                    <Badge variant="secondary" className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+                    <Badge variant="default" className="bg-blue-500/20 text-blue-400 border-blue-500/30">
                       <Zap size={10} className="mr-1" />
                       Deterministic Deployment
                     </Badge>
@@ -200,7 +212,7 @@ export const AdminDeploymentDashboard: React.FC = () => {
               variant="outline"
               size="sm"
               className="flex-1 text-xs"
-              onClick={() => window.open(meta.explorerUrl, '_blank')}
+              onClick={() => window.open(meta?.explorerUrl, '_blank')}
             >
               <Globe size={12} className="mr-1" />
               Explorer

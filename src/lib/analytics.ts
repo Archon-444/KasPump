@@ -6,7 +6,7 @@ interface AnalyticsEvent {
   event: string;
   properties: Record<string, any>;
   timestamp: number;
-  userId?: string;
+  userId?: string | undefined;
   sessionId: string;
 }
 
@@ -20,16 +20,6 @@ interface TokenAnalytics {
   transactions: number;
   graduationProgress: number;
   isGraduated: boolean;
-}
-
-interface UserAnalytics {
-  userAddress: string;
-  tokensCreated: number;
-  tokensTraded: number;
-  totalVolume: number;
-  firstSeen: number;
-  lastActive: number;
-  successfulGraduations: number;
 }
 
 class KasPumpAnalytics {

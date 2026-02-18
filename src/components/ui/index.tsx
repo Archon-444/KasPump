@@ -113,7 +113,7 @@ export const Input = forwardRef<HTMLInputElement, {
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   className?: string;
-  error?: string;
+  error?: string | undefined;
   label?: string;
   disabled?: boolean;
   step?: string;
@@ -347,11 +347,11 @@ export const Alert: React.FC<{
 
 // Skeleton Component
 export interface SkeletonProps {
-  className?: string;
-  variant?: 'text' | 'circular' | 'rectangular' | 'rounded';
-  width?: string | number;
-  height?: string | number;
-  animate?: boolean;
+  className?: string | undefined;
+  variant?: 'text' | 'circular' | 'rectangular' | 'rounded' | undefined;
+  width?: string | number | undefined;
+  height?: string | number | undefined;
+  animate?: boolean | undefined;
 }
 
 export const Skeleton: React.FC<SkeletonProps> = ({

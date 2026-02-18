@@ -102,7 +102,8 @@ describe('useCreatorTokens', () => {
 
     // Mock ethers constructors
     (ethers.JsonRpcProvider as any).mockImplementation(() => mockProvider);
-    (ethers.Contract as any).mockImplementation((address: string, abi: any) => {
+    (ethers.Contract as any).mockImplementation((...args: any[]) => {
+      const abi = args[1];
       if (abi.includes('getAllTokens')) return mockFactoryContract;
       if (abi.includes('getTradingInfo')) return mockAmmContract;
       return {};
@@ -249,7 +250,7 @@ describe('useCreatorTokens', () => {
       // Only token2 has the creator address matching mockCreatorAddress
       expect(result.current.tokens.length).toBe(1);
       if (result.current.tokens.length > 0) {
-        expect(result.current.tokens[0].creator.toLowerCase()).toBe(mockCreatorAddress.toLowerCase());
+        expect(result.current.tokens[0]!.creator.toLowerCase()).toBe(mockCreatorAddress.toLowerCase());
       }
     });
 
@@ -319,7 +320,7 @@ describe('useCreatorTokens', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        const token = result.current.tokens[0];
+        const token = result.current.tokens[0]!;
         expect(token.name).toBe('Awesome Token');
         expect(token.symbol).toBe('AWSM');
         expect(token.description).toBe('This is an awesome token');
@@ -348,9 +349,9 @@ describe('useCreatorTokens', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        expect(result.current.tokens[0].chainId).toBeDefined();
-        expect(result.current.tokens[0].chainName).toBeDefined();
-        expect(typeof result.current.tokens[0].chainId).toBe('number');
+        expect(result.current.tokens[0]!.chainId).toBeDefined();
+        expect(result.current.tokens[0]!.chainName).toBeDefined();
+        expect(typeof result.current.tokens[0]!.chainId).toBe('number');
       }
     });
 
@@ -381,7 +382,7 @@ describe('useCreatorTokens', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        const token = result.current.tokens[0];
+        const token = result.current.tokens[0]!;
         expect(token.currentSupply).toBe(750000);
         expect(token.price).toBe(0.05);
         expect(token.totalVolume).toBe(50000);
@@ -417,7 +418,7 @@ describe('useCreatorTokens', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        const token = result.current.tokens[0];
+        const token = result.current.tokens[0]!;
         // Market cap = currentSupply * price = 100000 * 2 = 200000
         expect(token.marketCap).toBe(200000);
       }
@@ -450,7 +451,7 @@ describe('useCreatorTokens', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        const token = result.current.tokens[0];
+        const token = result.current.tokens[0]!;
         // Earnings = volume * 0.005 (0.5% creator fee)
         expect(token.totalEarnings).toBe(500); // 100000 * 0.005
       }
@@ -483,8 +484,8 @@ describe('useCreatorTokens', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        expect(result.current.tokens[0].isGraduated).toBe(true);
-        expect(result.current.tokens[0].bondingCurveProgress).toBe(100);
+        expect(result.current.tokens[0]!.isGraduated).toBe(true);
+        expect(result.current.tokens[0]!.bondingCurveProgress).toBe(100);
       }
     });
   });
@@ -705,7 +706,7 @@ describe('useCreatorTokens', () => {
 
       expect(result.current.stats.chains).toBeInstanceOf(Array);
       if (result.current.stats.chains.length > 0) {
-        const chainStat = result.current.stats.chains[0];
+        const chainStat = result.current.stats.chains[0]!;
         expect(chainStat).toHaveProperty('chainId');
         expect(chainStat).toHaveProperty('chainName');
         expect(chainStat).toHaveProperty('tokenCount');
@@ -973,8 +974,8 @@ describe('useCreatorTokens', () => {
 
       // Should handle large numbers without overflow
       if (result.current.tokens.length > 0) {
-        expect(result.current.tokens[0].totalSupply).toBe(1000000000);
-        expect(result.current.tokens[0].currentSupply).toBe(999999999);
+        expect(result.current.tokens[0]!.totalSupply).toBe(1000000000);
+        expect(result.current.tokens[0]!.currentSupply).toBe(999999999);
       }
     });
   });

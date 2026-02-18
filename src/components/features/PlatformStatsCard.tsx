@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react';
 import { motion } from 'framer-motion';
-import { Coins, TrendingUp, Users, Award, Zap } from 'lucide-react';
+import { Coins, TrendingUp, Users, Award } from 'lucide-react';
 import { Card } from '../ui';
 import { cn, formatCurrency, formatPercentage } from '../../utils';
 

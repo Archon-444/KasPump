@@ -158,7 +158,7 @@ class WebSocketClient {
       console.error('Subscription error:', data);
     });
 
-    this.socket.on('pong', (data) => {
+    this.socket.on('pong', (_data) => {
       // Handle pong response if needed
     });
   }

@@ -9,7 +9,7 @@ import React from 'react';
 import { cn } from '../../utils';
 
 export interface SkeletonProps {
-  className?: string;
+  className?: string | undefined;
   variant?: 'text' | 'circular' | 'rectangular' | 'rounded';
   width?: string | number;
   height?: string | number;

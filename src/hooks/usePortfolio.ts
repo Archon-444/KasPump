@@ -38,7 +38,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ethers } from 'ethers';
 import { KasPumpToken } from '../types';
 import { useMultichainWallet } from './useMultichainWallet';
-import { useContracts } from './useContracts';
+
 import { getChainById, getChainMetadata } from '../config/chains';
 import { formatCurrency } from '../utils';
 
@@ -97,7 +97,7 @@ export interface PortfolioStats {
 
 export function usePortfolio() {
   const wallet = useMultichainWallet();
-  const contracts = useContracts();
+
   const [tokens, setTokens] = useState<PortfolioToken[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -150,7 +150,7 @@ export function usePortfolio() {
           ];
 
           const factoryContract = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, provider);
-          const allTokens = await factoryContract.getAllTokens();
+          const allTokens = await factoryContract.getAllTokens!();
 
           // Check balance for each token
           for (const tokenAddress of allTokens) {
@@ -164,13 +164,13 @@ export function usePortfolio() {
               ];
 
               const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-              const balance = await tokenContract.balanceOf(wallet.address);
+              const balance = await tokenContract.balanceOf!(wallet.address);
               const balanceNumber = parseFloat(ethers.formatEther(balance));
 
               // Only include tokens with balance > 0
               if (balanceNumber > 0) {
                 // Get AMM address and fetch complete token data
-                const ammAddress = await factoryContract.getTokenAMM(tokenAddress);
+                const ammAddress = await factoryContract.getTokenAMM!(tokenAddress);
 
                 // Fetch complete token configuration and trading info
                 const BONDING_CURVE_ABI = [
@@ -179,14 +179,14 @@ export function usePortfolio() {
 
                 try {
                   const [config, name, symbol, totalSupply, ammContract] = await Promise.all([
-                    factoryContract.getTokenConfig(tokenAddress),
-                    tokenContract.name(),
-                    tokenContract.symbol(),
-                    tokenContract.totalSupply(),
+                    factoryContract.getTokenConfig!(tokenAddress),
+                    tokenContract.name!(),
+                    tokenContract.symbol!(),
+                    tokenContract.totalSupply!(),
                     new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider),
                   ]);
 
-                  const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo();
+                  const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo!();
 
                   const currentSupplyNumber = parseFloat(ethers.formatEther(currentSupply));
                   const price = parseFloat(ethers.formatEther(currentPrice));

@@ -3,18 +3,18 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, X, ExternalLink, Copy } from 'lucide-react';
-import { cn, copyToClipboard, truncateAddress } from '../../utils';
+import { copyToClipboard, truncateAddress } from '../../utils';
 
 export interface SuccessToastProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  message?: string;
-  txHash?: string;
-  explorerUrl?: string;
-  duration?: number;
-  onAction?: () => void;
-  actionLabel?: string;
+  message?: string | undefined;
+  txHash?: string | undefined;
+  explorerUrl?: string | undefined;
+  duration?: number | undefined;
+  onAction?: (() => void) | undefined;
+  actionLabel?: string | undefined;
 }
 
 export const SuccessToast: React.FC<SuccessToastProps> = ({
@@ -31,13 +31,9 @@ export const SuccessToast: React.FC<SuccessToastProps> = ({
   const [copied, setCopied] = React.useState(false);
 
   useEffect(() => {
-    if (isOpen && duration > 0) {
-      const timer = setTimeout(() => {
-        onClose();
-      }, duration);
-
-      return () => clearTimeout(timer);
-    }
+    if (!isOpen || duration <= 0) return;
+    const timer = setTimeout(onClose, duration);
+    return () => clearTimeout(timer);
   }, [isOpen, duration, onClose]);
 
   const handleCopyTxHash = async () => {

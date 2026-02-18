@@ -5,8 +5,8 @@
 
 'use client';
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home, X } from 'lucide-react';
+import { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle, RefreshCw, X } from 'lucide-react';
 import { Button } from '../ui';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Sentry from '@sentry/nextjs';

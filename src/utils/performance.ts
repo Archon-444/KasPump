@@ -39,15 +39,13 @@ export function getBundleSize(): {
   let styles = 0;
 
   // Calculate script size
-  Array.from(document.querySelectorAll('script[src]')).forEach((script) => {
-    const src = (script as HTMLScriptElement).src;
+  Array.from(document.querySelectorAll('script[src]')).forEach(() => {
     // In production, this would fetch and measure actual sizes
     // For now, return estimated sizes
   });
 
   // Calculate style size
-  Array.from(document.querySelectorAll('link[rel="stylesheet"]')).forEach((link) => {
-    const href = (link as HTMLLinkElement).href;
+  Array.from(document.querySelectorAll('link[rel="stylesheet"]')).forEach(() => {
     // In production, this would fetch and measure actual sizes
   });
 

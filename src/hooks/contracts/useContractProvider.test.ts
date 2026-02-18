@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useContractProvider } from './useContractProvider';
-import { ethers } from 'ethers';
 
 // Mock ethers
 vi.mock('ethers', async () => {
@@ -121,7 +120,7 @@ describe('useContractProvider', () => {
         expect(result.current.signer).toBeTruthy();
       });
 
-      const runner = result.current.getContractRunner(true);
+      const runner = (result.current.getContractRunner as any)(true);
       expect(runner).toBe(result.current.signer);
     });
 
@@ -130,7 +129,7 @@ describe('useContractProvider', () => {
         useContractProvider(mockWallet, chainId)
       );
 
-      const runner = result.current.getContractRunner(false);
+      const runner = (result.current.getContractRunner as any)(false);
       expect(runner).toBe(result.current.provider);
     });
 
@@ -139,7 +138,7 @@ describe('useContractProvider', () => {
         useContractProvider(mockWallet, chainId)
       );
 
-      expect(() => result.current.getContractRunner(true)).toThrow(
+      expect(() => (result.current.getContractRunner as any)(true)).toThrow(
         'Wallet not connected. Signer required for this operation.'
       );
     });
@@ -153,7 +152,7 @@ describe('useContractProvider', () => {
         useContractProvider(mockWallet, chainId)
       );
 
-      expect(() => result.current.getContractRunner(false)).toThrow();
+      expect(() => (result.current.getContractRunner as any)(false)).toThrow();
 
       // Restore
       process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL = originalEnv;
@@ -227,7 +226,7 @@ describe('useContractProvider', () => {
         address: null,
       };
 
-      rerender({ wallet: disconnectedWallet });
+      rerender({ wallet: disconnectedWallet as any });
 
       await waitFor(() => {
         expect(result.current.signer).toBeNull();

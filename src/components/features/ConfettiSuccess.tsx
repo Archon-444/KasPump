@@ -34,6 +34,7 @@ export const ConfettiSuccess: React.FC<ConfettiSuccessProps> = ({
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
     }
+    return undefined;
   }, []);
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export const ConfettiSuccess: React.FC<ConfettiSuccessProps> = ({
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [trigger, duration]);
 
   if (!showConfetti || windowSize.width === 0 || windowSize.height === 0) {

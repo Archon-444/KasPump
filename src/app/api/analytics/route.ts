@@ -283,20 +283,6 @@ async function getNewTokensCount(factoryContract: ethers.Contract, timeframe: st
   }
 }
 
-async function getVolumeGrowth(_provider: ethers.JsonRpcProvider, _tokens: string[], _timeframe: string): Promise<number> {
-  // Volume growth requires historical volume tracking
-  // Would need to store snapshots or parse Trade events with timestamps
-  // Removed random placeholder for production accuracy
-  return 0; // Would require historical data tracking
-}
-
-async function getUserGrowth(_provider: ethers.JsonRpcProvider, _tokens: string[], _timeframe: string): Promise<number> {
-  // User growth requires tracking unique addresses over time
-  // Would need event indexing to track new vs returning traders
-  // Removed random placeholder for production accuracy
-  return 0; // Would require event indexing and historical tracking
-}
-
 async function getGraduationReadyTokens(
   provider: ethers.JsonRpcProvider,
   factoryContract: ethers.Contract,

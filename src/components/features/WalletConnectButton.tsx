@@ -60,9 +60,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
       <>
         <div className={cn("relative", className)}>
           <Button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
+            onClick={() => {
               handleConnect();
             }}
             loading={wallet.isConnecting}

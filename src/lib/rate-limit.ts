@@ -65,7 +65,7 @@ class InMemoryRateLimitStore {
   // Periodic cleanup to prevent memory leaks
   cleanup(): void {
     const now = Date.now();
-    for (const [key, value] of this.cache.entries()) {
+    for (const [key, value] of Array.from(this.cache.entries())) {
       if (now > value.resetAt) {
         this.cache.delete(key);
       }
@@ -88,7 +88,7 @@ function getClientIdentifier(request: NextRequest): string {
   // Try to get IP from headers (for proxied requests)
   const forwardedFor = request.headers.get('x-forwarded-for');
   if (forwardedFor) {
-    return forwardedFor.split(',')[0].trim();
+    return forwardedFor.split(',')[0]!.trim();
   }
 
   const realIp = request.headers.get('x-real-ip');
@@ -97,7 +97,7 @@ function getClientIdentifier(request: NextRequest): string {
   }
 
   // Fallback to request IP
-  return request.ip || 'unknown';
+  return (request as any).ip || 'unknown';
 }
 
 /**
@@ -177,7 +177,7 @@ export async function rateLimit(
   const remaining = Math.max(0, limit - current.count);
   const success = current.count <= limit;
 
-  const headers = {
+  const headers: Record<string, string> = {
     'X-RateLimit-Limit': limit.toString(),
     'X-RateLimit-Remaining': remaining.toString(),
     'X-RateLimit-Reset': current.resetAt.toString(),

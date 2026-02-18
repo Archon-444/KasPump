@@ -311,7 +311,7 @@ describe('useMultichainWallet', () => {
       const { result } = renderHook(() => useMultichainWallet());
 
       await act(async () => {
-        result.current.connect(mockConnector);
+        (result.current as any).connect(mockConnector);
       });
 
       expect(connectFn).toHaveBeenCalledWith({ connector: mockConnector });
@@ -332,8 +332,8 @@ describe('useMultichainWallet', () => {
 
       const { result } = renderHook(() => useMultichainWallet());
 
-      expect(result.current.connectors).toHaveLength(2);
-      expect(result.current.connectors).toEqual(mockConnectors);
+      expect((result.current as any).connectors).toHaveLength(2);
+      expect((result.current as any).connectors).toEqual(mockConnectors);
     });
   });
 
@@ -348,7 +348,7 @@ describe('useMultichainWallet', () => {
       const { result } = renderHook(() => useMultichainWallet());
 
       await act(async () => {
-        result.current.disconnect();
+        (result.current as any).disconnect();
       });
 
       expect(disconnectFn).toHaveBeenCalled();
@@ -532,7 +532,7 @@ describe('useMultichainWallet', () => {
       const { result } = renderHook(() => useMultichainWallet());
 
       act(() => {
-        result.current.refetchBalance();
+        (result.current as any).refetchBalance();
       });
 
       expect(refetchFn).toHaveBeenCalled();

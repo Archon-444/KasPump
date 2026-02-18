@@ -333,7 +333,7 @@ describe('useTradeEvents', () => {
     vi.clearAllMocks();
     mockWebSocketClient.isConnected.mockReturnValue(false);
     mockWebSocketClient.connect.mockResolvedValue(undefined);
-    mockWebSocketClient.subscribe.mockImplementation((eventType: string, callback: Function) => {
+    mockWebSocketClient.subscribe.mockImplementation(() => {
       return () => {};
     });
   });
@@ -384,7 +384,7 @@ describe('usePriceUpdates', () => {
     vi.clearAllMocks();
     mockWebSocketClient.isConnected.mockReturnValue(false);
     mockWebSocketClient.connect.mockResolvedValue(undefined);
-    mockWebSocketClient.subscribe.mockImplementation((eventType: string, callback: Function) => {
+    mockWebSocketClient.subscribe.mockImplementation(() => {
       return () => {};
     });
   });

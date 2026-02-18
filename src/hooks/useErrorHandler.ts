@@ -58,12 +58,12 @@ export interface ErrorInfo {
   /** Maximum retry attempts allowed */
   maxRetries?: number;
   /** Function to call on retry */
-  onRetry?: () => Promise<void>;
+  onRetry?: (() => Promise<void>) | undefined;
   /** Custom action button */
   action?: {
     label: string;
     onClick: () => void;
-  };
+  } | undefined;
 }
 
 /**

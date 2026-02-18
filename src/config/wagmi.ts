@@ -77,8 +77,7 @@ async function createConnectors(): Promise<any[]> {
       coinbaseWallet({
         appName: 'KasPump',
         preference: 'all',
-        appLogoUrl: logoUrl || undefined,
-        enableMobileLinks: true,
+        ...(logoUrl ? { appLogoUrl: logoUrl } : {}),
         chainId: chains[0]?.id,
       }),
     ];

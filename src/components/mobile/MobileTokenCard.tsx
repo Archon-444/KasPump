@@ -38,7 +38,7 @@ const MobileTokenCardComponent: React.FC<MobileTokenCardProps> = ({
   const isPositive = token.change24h >= 0;
   const haptic = useHapticFeedback();
 
-  const handlePanEnd = (event: any, info: PanInfo) => {
+  const handlePanEnd = (_event: any, info: PanInfo) => {
     const threshold = 100;
     
     if (info.offset.x > threshold) {

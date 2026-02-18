@@ -2,16 +2,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, PanInfo, useMotionValue, useTransform } from 'framer-motion';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Zap, 
-  ArrowUp, 
-  ArrowDown,
+import {
+  TrendingUp,
+  TrendingDown,
+  Zap,
   Settings,
   Shield,
-  AlertTriangle,
-  Vibrate
+  AlertTriangle
 } from 'lucide-react';
 import { cn } from '../../utils';
 import { KasPumpToken, TradeData } from '../../types';
@@ -156,7 +153,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
     }
   };
 
-  const handleDragEnd = (event: any, info: PanInfo, type: 'buy' | 'sell') => {
+  const handleDragEnd = (_event: any, info: PanInfo, type: 'buy' | 'sell') => {
     const threshold = 30;
     
     if (Math.abs(info.offset.y) > threshold) {

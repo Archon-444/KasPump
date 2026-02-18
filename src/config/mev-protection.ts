@@ -13,7 +13,6 @@
  * 4. Time-bandit attacks
  */
 
-import { type Chain } from 'viem';
 
 // ========== MEV-PROTECTED RPC ENDPOINTS ==========
 

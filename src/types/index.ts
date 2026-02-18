@@ -194,7 +194,7 @@ export interface TradeEvent {
 export interface ContractError {
   code: string;
   message: string;
-  txHash?: string;
+  txHash?: string | undefined;
 }
 
 export interface WalletError {

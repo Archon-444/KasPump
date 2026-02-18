@@ -132,7 +132,7 @@ export const useMobileWallet = () => {
     return false;
   }, [userAgent]);
 
-  const generateWalletConnectURI = useCallback(async (projectId: string): Promise<string | null> => {
+  const generateWalletConnectURI = useCallback(async (_projectId: string): Promise<string | null> => {
     // This would normally come from WalletConnect SDK
     // For now, return a placeholder
     // In production, this would generate an actual WC URI

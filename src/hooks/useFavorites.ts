@@ -37,8 +37,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { KasPumpToken } from '../types';
-import { FavoritesArraySchema, FavoriteTokenData } from '../schemas';
+import { FavoritesArraySchema } from '../schemas';
 
 /**
  * Favorite token data structure
@@ -47,7 +46,7 @@ export interface FavoriteToken {
   /** Token contract address */
   address: string;
   /** Optional chain ID (omit for cross-chain favorites) */
-  chainId?: number;
+  chainId?: number | undefined;
   /** Timestamp when added to favorites */
   addedAt: number;
 }

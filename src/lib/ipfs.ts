@@ -30,6 +30,7 @@ export interface IPFSUploadResult {
 export class IPFSClient {
   private provider: 'pinata' | 'web3storage' | 'nftstorage' | 'local';
   private gatewayUrl: string;
+  apiKey?: string;
 
   constructor(provider: 'pinata' | 'web3storage' | 'nftstorage' | 'local' = 'pinata') {
     this.provider = provider;
@@ -56,7 +57,7 @@ export class IPFSClient {
     file: File,
     options: IPFSUploadOptions = {}
   ): Promise<IPFSUploadResult> {
-    const { fileName, maxSize = 5 * 1024 * 1024, onProgress } = options; // Default 5MB max
+    const { fileName, maxSize = 5 * 1024 * 1024, onProgress: _onProgress } = options; // Default 5MB max
 
     // Validate file size
     if (file.size > maxSize) {
@@ -107,132 +108,6 @@ export class IPFSClient {
   }
 
   /**
-   * Upload to Pinata
-   */
-  private async uploadToPinata(
-    file: File,
-    fileName?: string,
-    onProgress?: (progress: number) => void
-  ): Promise<{ hash: string; uploadSize: number }> {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    // Pinata metadata
-    const metadata = JSON.stringify({
-      name: fileName || file.name,
-      keyvalues: {
-        app: 'kaspump',
-        type: 'token-image',
-      },
-    });
-    formData.append('pinataMetadata', metadata);
-
-    // Pinata options
-    const pinataOptions = JSON.stringify({
-      cidVersion: 1,
-    });
-    formData.append('pinataOptions', pinataOptions);
-
-    // Upload with progress tracking
-    const xhr = new XMLHttpRequest();
-
-    return new Promise((resolve, reject) => {
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable && onProgress) {
-          const progress = (e.loaded / e.total) * 100;
-          onProgress(progress);
-        }
-      });
-
-      xhr.addEventListener('load', () => {
-        if (xhr.status === 200) {
-          try {
-            const response = JSON.parse(xhr.responseText);
-            resolve({
-              hash: response.IpfsHash,
-              uploadSize: file.size,
-            });
-          } catch (error) {
-            reject(new Error('Invalid response from Pinata'));
-          }
-        } else {
-          reject(new Error(`Pinata upload failed: ${xhr.statusText}`));
-        }
-      });
-
-      xhr.addEventListener('error', () => {
-        reject(new Error('Network error during Pinata upload'));
-      });
-
-      xhr.open('POST', 'https://api.pinata.cloud/pinning/pinFileToIPFS');
-      xhr.setRequestHeader('Authorization', `Bearer ${this.apiKey}`);
-      xhr.send(formData);
-    });
-  }
-
-  /**
-   * Upload to Web3.Storage
-   */
-  private async uploadToWeb3Storage(
-    file: File,
-    fileName?: string,
-    onProgress?: (progress: number) => void
-  ): Promise<{ hash: string; uploadSize: number }> {
-    // Web3.Storage uses fetch API
-    const formData = new FormData();
-    formData.append('file', file, fileName || file.name);
-
-    const response = await fetch('https://api.web3.storage/upload', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Web3.Storage upload failed: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return {
-      hash: data.cid,
-      uploadSize: file.size,
-    };
-  }
-
-  /**
-   * Upload to NFT.Storage
-   */
-  private async uploadToNFTStorage(
-    file: File,
-    fileName?: string,
-    onProgress?: (progress: number) => void
-  ): Promise<{ hash: string; uploadSize: number }> {
-    // NFT.Storage uses similar API to Web3.Storage
-    const formData = new FormData();
-    formData.append('file', file, fileName || file.name);
-
-    const response = await fetch('https://api.nft.storage/upload', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`NFT.Storage upload failed: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return {
-      hash: data.value.cid,
-      uploadSize: file.size,
-    };
-  }
-
-  /**
    * Get IPFS gateway URL for a hash
    */
   getGatewayUrl(hash: string): string {
@@ -250,21 +125,6 @@ export class IPFSClient {
     return cidRegex.test(hash.replace(/^ipfs:\/\//, ''));
   }
 
-  /**
-   * Get environment variable key name for current provider
-   */
-  private getEnvKeyName(): string {
-    switch (this.provider) {
-      case 'pinata':
-        return 'NEXT_PUBLIC_PINATA_API_KEY';
-      case 'web3storage':
-        return 'NEXT_PUBLIC_WEB3STORAGE_API_KEY';
-      case 'nftstorage':
-        return 'NEXT_PUBLIC_NFTSTORAGE_API_KEY';
-      default:
-        return 'IPFS_API_KEY';
-    }
-  }
 }
 
 /**

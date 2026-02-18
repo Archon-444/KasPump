@@ -99,9 +99,9 @@ describe('useFavorites', () => {
       });
 
       expect(result.current.favorites).toHaveLength(1);
-      expect(result.current.favorites[0].address).toBe('0xABC123');
-      expect(result.current.favorites[0].chainId).toBe(97);
-      expect(result.current.favorites[0].addedAt).toBeLessThanOrEqual(Date.now());
+      expect(result.current.favorites[0]!.address).toBe('0xABC123');
+      expect(result.current.favorites[0]!.chainId).toBe(97);
+      expect(result.current.favorites[0]!.addedAt).toBeLessThanOrEqual(Date.now());
       expect(result.current.favoriteCount).toBe(1);
     });
 
@@ -113,7 +113,7 @@ describe('useFavorites', () => {
       });
 
       expect(result.current.favorites).toHaveLength(1);
-      expect(result.current.favorites[0].chainId).toBeUndefined();
+      expect(result.current.favorites[0]!.chainId).toBeUndefined();
     });
 
     it('should persist favorites to localStorage when adding', () => {
@@ -183,7 +183,7 @@ describe('useFavorites', () => {
       });
 
       expect(result.current.favorites).toHaveLength(1);
-      expect(result.current.favorites[0].address).toBe('0x456');
+      expect(result.current.favorites[0]!.address).toBe('0x456');
     });
 
     it('should update localStorage when removing', () => {
@@ -232,7 +232,7 @@ describe('useFavorites', () => {
       });
 
       expect(result.current.favorites).toHaveLength(1);
-      expect(result.current.favorites[0].chainId).toBe(56);
+      expect(result.current.favorites[0]!.chainId).toBe(56);
     });
 
     it('should handle removing non-existent favorite gracefully', () => {

@@ -45,7 +45,7 @@ describe('usePriceAlerts', () => {
       });
 
       expect(result.current.alerts).toHaveLength(1);
-      expect(result.current.alerts[0].tokenSymbol).toBe('TOKEN');
+      expect(result.current.alerts[0]!.tokenSymbol).toBe('TOKEN');
     });
 
     it('should handle invalid localStorage data gracefully', async () => {
@@ -134,8 +134,8 @@ describe('usePriceAlerts', () => {
     it('should generate unique alert IDs', () => {
       const { result } = renderHook(() => usePriceAlerts());
 
-      let alert1: PriceAlert;
-      let alert2: PriceAlert;
+      let alert1!: PriceAlert;
+      let alert2!: PriceAlert;
 
       act(() => {
         alert1 = result.current.createAlert('0x123', 'TOKEN', 100, 'above', 90);
@@ -166,7 +166,7 @@ describe('usePriceAlerts', () => {
     it('should create alerts without chainId (cross-chain)', () => {
       const { result } = renderHook(() => usePriceAlerts());
 
-      let alert: PriceAlert;
+      let alert!: PriceAlert;
 
       act(() => {
         alert = result.current.createAlert('0x123', 'TOKEN', 100, 'above', 90);
@@ -426,10 +426,10 @@ describe('usePriceAlerts', () => {
       const alertsChain97 = result.current.getAlertsForToken('0x123', 97);
 
       expect(alertsChain56).toHaveLength(1);
-      expect(alertsChain56[0].chainId).toBe(56);
+      expect(alertsChain56[0]!.chainId).toBe(56);
 
       expect(alertsChain97).toHaveLength(1);
-      expect(alertsChain97[0].chainId).toBe(97);
+      expect(alertsChain97[0]!.chainId).toBe(97);
     });
 
     it('should only return active alerts', () => {
@@ -451,7 +451,7 @@ describe('usePriceAlerts', () => {
       const activeAlerts = result.current.getAlertsForToken('0x123');
 
       expect(activeAlerts).toHaveLength(1);
-      expect(activeAlerts[0].targetPrice).toBe(200);
+      expect(activeAlerts[0]!.targetPrice).toBe(200);
     });
 
     it('should return empty array for token with no alerts', () => {
@@ -478,13 +478,13 @@ describe('usePriceAlerts', () => {
         alertId = alert.id;
       });
 
-      expect(result.current.alerts[0].isActive).toBe(true);
+      expect(result.current.alerts[0]!.isActive).toBe(true);
 
       act(() => {
         result.current.toggleAlert(alertId);
       });
 
-      expect(result.current.alerts[0].isActive).toBe(false);
+      expect(result.current.alerts[0]!.isActive).toBe(false);
     });
   });
 
@@ -581,7 +581,7 @@ describe('usePriceAlerts', () => {
       });
 
       // Should not throw, original alert unchanged
-      expect(result.current.alerts[0].targetPrice).toBe(100);
+      expect(result.current.alerts[0]!.targetPrice).toBe(100);
     });
 
     it('should preserve alert data across multiple operations', () => {
@@ -606,8 +606,8 @@ describe('usePriceAlerts', () => {
       });
 
       expect(result.current.alerts).toHaveLength(1);
-      expect(result.current.alerts[0].currentPrice).toBe(95);
-      expect(result.current.alerts[0].tokenSymbol).toBe('TOKEN1');
+      expect(result.current.alerts[0]!.currentPrice).toBe(95);
+      expect(result.current.alerts[0]!.tokenSymbol).toBe('TOKEN1');
     });
   });
 });

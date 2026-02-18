@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, UTCTimestamp } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import { motion } from 'framer-motion';
 import { BarChart3, TrendingUp, Clock, Volume2, Maximize2 } from 'lucide-react';
 import { Card } from '../ui';
@@ -41,7 +41,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [priceData, setPriceData] = useState<PriceData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, _setIsMobile] = useState(false);
 
   const timeframes = [
     { value: '1m', label: '1m' },
@@ -149,8 +149,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     // Handle resize
     const resizeObserver = new ResizeObserver(entries => {
-      if (entries.length === 0 || entries[0].target !== chartContainerRef.current) return;
-      const newRect = entries[0].contentRect;
+      const entry = entries[0];
+      if (!entry || entry.target !== chartContainerRef.current) return;
+      const newRect = entry.contentRect;
       chart.applyOptions({ width: newRect.width, height: height });
     });
 
@@ -216,9 +217,11 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     setIsFullscreen(!isFullscreen);
   };
 
-  const currentPrice = priceData.length > 0 ? priceData[priceData.length - 1].close : token.price;
-  const priceChange = priceData.length > 1 
-    ? ((currentPrice - priceData[priceData.length - 2].close) / priceData[priceData.length - 2].close) * 100
+  const lastEntry = priceData[priceData.length - 1];
+  const prevEntry = priceData[priceData.length - 2];
+  const currentPrice = priceData.length > 0 ? (lastEntry?.close ?? token.price) : token.price;
+  const priceChange = priceData.length > 1
+    ? ((currentPrice - (prevEntry?.close ?? currentPrice)) / (prevEntry?.close ?? currentPrice)) * 100
     : token.change24h;
 
   if (loading) {

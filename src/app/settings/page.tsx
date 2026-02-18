@@ -1,14 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Settings as SettingsIcon, Wallet, Bell, Shield, Palette, Globe, Save } from 'lucide-react';
+import { Settings as SettingsIcon, Wallet, Bell, Shield, Palette, Save } from 'lucide-react';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
 import { Card, Button, Input, Select } from '../../components/ui';
 import { PushNotificationSettings } from '../../components/features/PushNotificationSettings';
 import { cn } from '../../utils';
-import { supportedChains, getChainById, getDefaultChain, isTestnet } from '../../config/chains';
+import { supportedChains, getDefaultChain, isTestnet } from '../../config/chains';
 import { MobileNavigation } from '../../components/mobile';
 import { z } from 'zod';
 

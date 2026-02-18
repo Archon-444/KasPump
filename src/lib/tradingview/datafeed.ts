@@ -14,7 +14,7 @@ import {
   SearchSymbolsCallback,
   ResolveCallback,
   ErrorCallback,
-} from '../../charting_library';
+} from '../../types/charting_library';
 
 interface KasPumpSymbol {
   symbol: string;
@@ -60,8 +60,8 @@ export class KasPumpDatafeed implements IBasicDataFeed {
    */
   searchSymbols(
     userInput: string,
-    exchange: string,
-    symbolType: string,
+    _exchange: string,
+    _symbolType: string,
     onResult: SearchSymbolsCallback
   ): void {
     fetch(`${this.apiUrl}/api/trading/market/bscTestnet/tokens?search=${encodeURIComponent(userInput)}`)
@@ -91,7 +91,7 @@ export class KasPumpDatafeed implements IBasicDataFeed {
     onError: ErrorCallback
   ): void {
     // Parse symbol (format: TOKEN/BNB)
-    const [token, quote] = symbolName.split('/');
+    const [token, _quote] = symbolName.split('/');
 
     fetch(`${this.apiUrl}/api/trading/token/bscTestnet/${token}/info`)
       .then((response) => response.json())
@@ -176,7 +176,7 @@ export class KasPumpDatafeed implements IBasicDataFeed {
 
         // Save last bar for subscription updates
         if (bars.length > 0) {
-          this.lastBars.set(symbolInfo.name, bars[bars.length - 1]);
+          this.lastBars.set(symbolInfo.name, bars[bars.length - 1]!);
         }
 
         onResult(bars, { noData: false });
@@ -195,7 +195,7 @@ export class KasPumpDatafeed implements IBasicDataFeed {
     resolution: ResolutionString,
     onTick: SubscribeBarsCallback,
     listenerGuid: string,
-    onResetCacheNeededCallback: () => void
+    _onResetCacheNeededCallback: () => void
   ): void {
     this.subscribers.set(listenerGuid, onTick);
 

@@ -16,7 +16,7 @@ export const useServiceWorkerCache = () => {
   useEffect(() => {
     // Ensure service worker is ready
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then((registration) => {
+      navigator.serviceWorker.ready.then((_registration) => {
         console.log('[Cache] Service Worker ready for cache management');
       });
     }

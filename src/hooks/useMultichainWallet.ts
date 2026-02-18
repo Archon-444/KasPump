@@ -47,7 +47,7 @@
 import { useAccount, useConnect, useDisconnect, useBalance, useSwitchChain } from 'wagmi';
 import { useCallback, useEffect, useState } from 'react';
 import { formatEther } from 'viem';
-import { getChainById, getChainMetadata, supportedChains } from '../config/chains';
+import { getChainById, getChainMetadata } from '../config/chains';
 
 /**
  * Multichain wallet state
@@ -116,7 +116,7 @@ export function useMultichainWallet() {
 
   // Connect to MetaMask/Injected wallet
   const connectInjected = useCallback(async () => {
-    const injectedConnector = connectors.find(c => c.id === 'injected' || c.id === 'metaMask');
+    const injectedConnector = connectors.find((c: { id: string }) => c.id === 'injected' || c.id === 'metaMask');
     if (injectedConnector) {
       try {
         await connect({ connector: injectedConnector });
@@ -131,7 +131,7 @@ export function useMultichainWallet() {
 
   // Connect to WalletConnect
   const connectWalletConnect = useCallback(async () => {
-    const wcConnector = connectors.find(c => c.id === 'walletConnect');
+    const wcConnector = connectors.find((c: { id: string }) => c.id === 'walletConnect');
     if (wcConnector) {
       try {
         await connect({ connector: wcConnector });
@@ -146,7 +146,7 @@ export function useMultichainWallet() {
 
   // Connect to Coinbase Wallet
   const connectCoinbase = useCallback(async () => {
-    const cbConnector = connectors.find(c => c.id === 'coinbaseWallet');
+    const cbConnector = connectors.find((c: { id: string }) => c.id === 'coinbaseWallet');
     if (cbConnector) {
       try {
         await connect({ connector: cbConnector });

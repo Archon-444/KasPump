@@ -31,7 +31,8 @@ describe('useIPFSUpload', () => {
       const mockUrl = 'ipfs://QmTest123';
 
       (ipfsLib.uploadImageToIPFS as any).mockImplementation(
-        (file: File, options: any) => {
+        (...args: any[]) => {
+          const options = args[1];
           // Simulate progress
           if (options.onProgress) {
             options.onProgress(50);
@@ -64,7 +65,8 @@ describe('useIPFSUpload', () => {
       let progressCallback: ((progress: number) => void) | null = null;
 
       (ipfsLib.uploadImageToIPFS as any).mockImplementation(
-        (file: File, options: any) => {
+        (...args: any[]) => {
+          const options = args[1];
           progressCallback = options.onProgress;
           return new Promise((resolve) => {
             setTimeout(() => {

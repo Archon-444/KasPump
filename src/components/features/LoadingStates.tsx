@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Loader2, TrendingUp, Zap, Users } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Skeleton, SkeletonGroup } from '../ui/Skeleton';
 import { cn } from '../../utils';
 

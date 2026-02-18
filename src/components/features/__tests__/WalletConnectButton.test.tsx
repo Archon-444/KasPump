@@ -662,7 +662,6 @@ describe('WalletRequired', () => {
       availableConnectors: [],
     } as any);
 
-    const user = userEvent.setup();
     render(
       <WalletRequired>
         <div>Protected Content</div>
@@ -671,7 +670,7 @@ describe('WalletRequired', () => {
 
     const installButton = screen.getByRole('button', { name: /install wallet/i });
 
-    // Use fireEvent instead of user.click to avoid timing issues
+    // Use fireEvent instead of userEvent to avoid timing issues
     fireEvent.click(installButton);
 
     expect(global.open).toHaveBeenCalledWith('https://metamask.io/download/', '_blank');

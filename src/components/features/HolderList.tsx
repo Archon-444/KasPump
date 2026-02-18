@@ -3,8 +3,8 @@
 import React, { useState, useEffect, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Copy, ExternalLink, TrendingUp, Wallet } from 'lucide-react';
-import { Card, Button } from '../ui';
-import { useContracts } from '../../hooks/useContracts';
+import { Card } from '../ui';
+
 import { getExplorerUrl } from '../../config/chains';
 import { cn, formatCurrency, truncateAddress, copyToClipboard } from '../../utils';
 
@@ -17,7 +17,7 @@ export interface Holder {
 
 export interface HolderListProps {
   tokenAddress: string;
-  chainId?: number;
+  chainId?: number | undefined;
   maxHolders?: number;
   showPercentage?: boolean;
   className?: string;
@@ -30,7 +30,6 @@ const HolderListComponent: React.FC<HolderListProps> = ({
   showPercentage = true,
   className,
 }) => {
-  const contracts = useContracts();
   const [holders, setHolders] = useState<Holder[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);

@@ -178,7 +178,7 @@ const LaunchPad: React.FC<LaunchPadProps> = ({
           <div className="relative p-8">
             {/* Launch Status Badge */}
             <div className="flex items-center justify-between mb-6">
-              <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+              <Badge variant="default" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
                 <Rocket className="w-3 h-3 mr-1" />
                 Pre-Launch
               </Badge>
@@ -323,7 +323,7 @@ const LaunchPad: React.FC<LaunchPadProps> = ({
 
             <div className="flex justify-between items-center pb-3 border-b border-gray-700/50">
               <span className="text-gray-400">Curve Type</span>
-              <Badge variant="secondary" className="capitalize">
+              <Badge variant="default" className="capitalize">
                 {token.curveType}
               </Badge>
             </div>
@@ -428,7 +428,6 @@ const LaunchPad: React.FC<LaunchPadProps> = ({
                   placeholder="your@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required
                   className="bg-slate-800/50 border-slate-700"
                 />
                 <Button

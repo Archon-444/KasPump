@@ -6,12 +6,12 @@ import { TrendingUp, TrendingDown, ExternalLink, Clock } from 'lucide-react';
 import { Card } from '../ui';
 import { useTradeEvents, TradeEvent } from '../../hooks/useWebSocket';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
-import { cn, formatCurrency, truncateAddress, formatTimeAgo } from '../../utils';
+import { cn, formatCurrency, formatTimeAgo } from '../../utils';
 import { getExplorerUrl } from '../../config/chains';
 
 export interface RecentTradesFeedProps {
   tokenAddress: string;
-  chainId?: number;
+  chainId?: number | undefined;
   maxTrades?: number;
   className?: string;
 }

@@ -4,13 +4,11 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useAccount } from 'wagmi'
 import { querySubgraph } from '../lib/graphql/client'
 import {
   GET_TOKENS,
   GET_TOKEN_BY_ADDRESS,
   GET_TOKEN_WITH_TRADES,
-  GET_TRENDING_TOKENS,
   GET_NEWLY_CREATED,
   GET_RECENTLY_GRADUATED,
 } from '../lib/graphql/queries'

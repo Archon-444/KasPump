@@ -8,8 +8,8 @@ import { ethers } from 'ethers';
 export interface PartnerIntegration {
   name: string;
   type: 'dex' | 'analytics' | 'infrastructure' | 'marketing';
-  contractAddress?: string;
-  apiEndpoint?: string;
+  contractAddress?: string | undefined;
+  apiEndpoint?: string | undefined;
   features: string[];
   revenueShare: number; // Basis points
   isActive: boolean;
@@ -44,15 +44,9 @@ export interface CrossPlatformUser {
 export class PartnershipIntegrationManager {
   private partners: Map<string, PartnerIntegration> = new Map();
   private provider: ethers.JsonRpcProvider;
-  private factoryContract: ethers.Contract;
 
-  constructor(provider: ethers.JsonRpcProvider, factoryAddress: string) {
+  constructor(provider: ethers.JsonRpcProvider, _factoryAddress: string) {
     this.provider = provider;
-    this.factoryContract = new ethers.Contract(
-      factoryAddress,
-      [], // Will be populated with ABI
-      provider
-    );
 
     this.initializePartners();
   }
@@ -202,11 +196,11 @@ export class ZealousSwapIntegration implements PartnerIntegrationInterface {
     try {
       // 1. Create pair on Zealous Swap
       const nativeTokenAddress = '0x0000000000000000000000000000000000000001'; // Native token (BNB/ETH)
-      const createPairTx = await this.zealousContract.createPair(request.tokenAddress, nativeTokenAddress);
+      const createPairTx = await this.zealousContract!.createPair!(request.tokenAddress, nativeTokenAddress);
       await createPairTx.wait();
 
       // 2. Add initial liquidity
-      const addLiquidityTx = await this.zealousContract.addLiquidity(
+      const addLiquidityTx = await this.zealousContract!.addLiquidity!(
         request.tokenAddress,
         nativeTokenAddress,
         ethers.parseEther(request.currentSupply.toString()),
@@ -323,7 +317,7 @@ export class MoonboundIntegration implements PartnerIntegrationInterface {
     }
   }
 
-  async shareRevenue(amount: number): Promise<void> {
+  async shareRevenue(_amount: number): Promise<void> {
     // No revenue sharing with Moonbound (collaborative partner)
     console.log('🤝 Collaborative partnership with Moonbound - no revenue sharing needed');
   }
@@ -366,7 +360,7 @@ export class GenericPartnerIntegration implements PartnerIntegrationInterface {
     console.log(`🔌 Generic integration initialized for ${this.partner.name}`);
   }
 
-  async graduateToken(request: GraduationRequest): Promise<string> {
+  async graduateToken(_request: GraduationRequest): Promise<string> {
     console.log(`Token graduation request sent to ${this.partner.name}`);
     return 'generic-graduation';
   }

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, TrendingUp, TrendingDown, AlertTriangle, Info, Coins, Zap } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, AlertTriangle, Info, Zap } from 'lucide-react';
 import { Button, Alert } from '../ui';
 import { KasPumpToken } from '../../types';
 import { cn, formatCurrency, formatPercentage } from '../../utils';
@@ -37,7 +37,6 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
   minimumReceived,
   fees,
   gasFee,
-  chainId,
   loading = false,
 }) => {
   if (!isOpen) return null;

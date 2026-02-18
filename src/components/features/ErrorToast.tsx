@@ -7,21 +7,21 @@
 
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, X, RefreshCw, ExternalLink } from 'lucide-react';
+import { X, RefreshCw, ExternalLink } from 'lucide-react';
 import { Button } from '../ui';
 import { cn } from '../../utils';
 
 export interface ErrorToastProps {
   error: Error | string;
-  onDismiss?: () => void;
-  onRetry?: () => void;
-  showDetails?: boolean;
-  duration?: number;
+  onDismiss?: (() => void) | undefined;
+  onRetry?: (() => void) | undefined;
+  showDetails?: boolean | undefined;
+  duration?: number | undefined;
   action?: {
     label: string;
     onClick: () => void;
-    icon?: React.ReactNode;
-  };
+    icon?: React.ReactNode | undefined;
+  } | undefined;
 }
 
 export const ErrorToast: React.FC<ErrorToastProps> = ({
@@ -42,6 +42,7 @@ export const ErrorToast: React.FC<ErrorToastProps> = ({
       }, duration);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [duration, onDismiss]);
 
   const getErrorType = () => {

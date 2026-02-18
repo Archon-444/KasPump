@@ -3,8 +3,8 @@
  * Tests contract interactions, token creation, trading, and error handling
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useContracts } from './useContracts';
 import { ethers } from 'ethers';
 import type { TokenCreationForm, TradeData } from '../types';
@@ -130,7 +130,8 @@ describe('useContracts', () => {
     };
 
     // Mock ethers Contract constructor
-    (ethers.Contract as any).mockImplementation((address: string, abi: any, runner: any) => {
+    (ethers.Contract as any).mockImplementation((...args: any[]) => {
+      const abi = args[1];
       if (abi.includes('createToken')) return mockFactoryContract;
       if (abi.includes('buyTokens')) return mockAmmContract;
       if (abi.includes('balanceOf')) return mockTokenContract;
@@ -182,6 +183,7 @@ describe('useContracts', () => {
       name: 'Test Token',
       symbol: 'TEST',
       description: 'A test token',
+      image: null,
       totalSupply: 1000000,
       basePrice: 0.001,
       slope: 0.00001,
@@ -336,6 +338,8 @@ describe('useContracts', () => {
       baseAmount: 1.0, // 1 BNB
       expectedOutput: 1000, // 1000 tokens
       slippageTolerance: 0.5,
+      priceImpact: 0,
+      gasFee: 0,
     };
 
     beforeEach(() => {
@@ -409,6 +413,8 @@ describe('useContracts', () => {
       baseAmount: 1000, // 1000 tokens
       expectedOutput: 0.95, // 0.95 BNB
       slippageTolerance: 0.5,
+      priceImpact: 0,
+      gasFee: 0,
     };
 
     beforeEach(() => {
@@ -474,7 +480,7 @@ describe('useContracts', () => {
     });
 
     it('should throw error when wallet address not available', async () => {
-      mockWallet.address = null;
+      (mockWallet as any).address = null;
       const { result } = renderHook(() => useContracts());
 
       await expect(
@@ -816,7 +822,7 @@ describe('useContracts', () => {
     });
 
     it('should throw error getting factory without signer', () => {
-      mockContractProvider.signer = null;
+      (mockContractProvider as any).signer = null;
 
       const { result } = renderHook(() => useContracts());
 
@@ -879,6 +885,7 @@ describe('useContracts', () => {
         name: 'Test',
         symbol: 'TST',
         description: '',
+        image: null,
         totalSupply: 1000000,
         basePrice: 0.001,
         slope: 0.00001,
@@ -904,6 +911,8 @@ describe('useContracts', () => {
         baseAmount: 1.0,
         expectedOutput: 1000,
         slippageTolerance: 0.5,
+        priceImpact: 0,
+        gasFee: 0,
       };
 
       await expect(

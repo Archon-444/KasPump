@@ -33,7 +33,7 @@ export interface PushNotificationOptions {
   tag?: string;
   requireInteraction?: boolean;
   data?: NotificationData;
-  actions?: NotificationActionOption[];
+  actions?: NotificationActionOption[] | undefined;
 }
 
 export interface PushPermissionState {
@@ -183,9 +183,9 @@ export const usePushNotifications = () => {
         body: options.body,
         icon: options.icon || '/icon-192x192.png',
         badge: options.badge || '/icon-192x192.png',
-        tag: options.tag,
         requireInteraction: options.requireInteraction || false,
-        data: options.data,
+        ...(options.tag !== undefined ? { tag: options.tag } : {}),
+        ...(options.data !== undefined ? { data: options.data } : {}),
       };
 
       // Notification API in some environments doesn't support actions, so guard with cast.
@@ -231,10 +231,12 @@ export const usePushNotifications = () => {
       tag: `trade-${type}-${tokenSymbol}`,
       requireInteraction: status === 'failed',
       data: { type: 'trade-update', tradeType: type, tokenSymbol, amount, status },
-      actions: status === 'failed' ? [
-        { action: 'retry', title: 'Retry' },
-        { action: 'view', title: 'View Details' },
-      ] : undefined,
+      ...(status === 'failed' ? {
+        actions: [
+          { action: 'retry', title: 'Retry' },
+          { action: 'view', title: 'View Details' },
+        ],
+      } : {}),
     });
   }, [showNotification]);
 

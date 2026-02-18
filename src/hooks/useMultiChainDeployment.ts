@@ -15,14 +15,6 @@ interface EthereumProvider {
   [key: string]: unknown;
 }
 
-/**
- * Extend Window interface to include ethereum provider
- */
-declare global {
-  interface Window {
-    ethereum?: EthereumProvider;
-  }
-}
 
 export interface DeploymentResult {
   chainId: number;
@@ -139,7 +131,7 @@ export function useMultiChainDeployment() {
       }
 
       if (!externalProvider && typeof window !== 'undefined') {
-        externalProvider = window.ethereum ?? null;
+        externalProvider = (window.ethereum as EthereumProvider | undefined) ?? null;
       }
 
       if (!externalProvider) {
@@ -175,7 +167,7 @@ export function useMultiChainDeployment() {
       });
 
       // Estimate gas
-      const gasEstimate = await factoryContract.createToken.estimateGas(
+      const gasEstimate = await factoryContract.createToken!.estimateGas(
         tokenData.name,
         tokenData.symbol,
         tokenData.description,
@@ -198,7 +190,7 @@ export function useMultiChainDeployment() {
       });
 
       // Execute transaction
-      const tx = await factoryContract.createToken(
+      const tx = await factoryContract.createToken!(
         tokenData.name,
         tokenData.symbol,
         tokenData.description,

@@ -4,10 +4,9 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react';
 import { PortfolioToken } from '../../hooks/usePortfolio';
-import { Card, Button } from '../ui';
+import { Card } from '../ui';
 import { formatCurrency, formatPercentage, cn } from '../../utils';
-import { getChainById, getChainMetadata } from '../../config/chains';
-import Link from 'next/link';
+import { getChainMetadata } from '../../config/chains';
 
 export interface PortfolioTokenListProps {
   tokens: PortfolioToken[];
@@ -145,7 +144,6 @@ export const PortfolioTokenList: React.FC<PortfolioTokenListProps> = ({
       <div className="space-y-2">
         {sortedTokens.map((portfolioToken, index) => {
           const chainMetadata = getChainMetadata(portfolioToken.chainId);
-          const chainConfig = getChainById(portfolioToken.chainId);
           const isProfit = (portfolioToken.profitLoss || 0) >= 0;
           const hasPnL = portfolioToken.profitLoss !== undefined;
 

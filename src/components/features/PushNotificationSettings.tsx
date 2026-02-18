@@ -20,7 +20,6 @@ export const PushNotificationSettings: React.FC<PushNotificationSettingsProps> =
 }) => {
   const {
     permission,
-    subscription,
     requestPermission,
     subscribe,
     unsubscribe,

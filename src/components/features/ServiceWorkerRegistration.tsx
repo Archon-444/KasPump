@@ -48,6 +48,7 @@ export const ServiceWorkerRegistration: React.FC = () => {
     // Register immediately if DOM is ready, otherwise wait for load
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
       registerServiceWorker();
+      return undefined;
     } else {
       window.addEventListener('load', registerServiceWorker);
       return () => window.removeEventListener('load', registerServiceWorker);

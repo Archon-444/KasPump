@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TokenCard, TokenCardSkeleton, TokenList } from '../TokenCard';
 import { KasPumpToken } from '../../../types';
@@ -58,6 +58,11 @@ const createMockToken = (overrides: Partial<KasPumpToken> = {}): KasPumpToken =>
   name: 'Test Token',
   symbol: 'TEST',
   description: 'A test token for unit testing',
+  image: '',
+  creator: '0xCreator',
+  totalSupply: 1000000,
+  currentSupply: 500000,
+  ammAddress: '',
   price: 0.001,
   marketCap: 100000,
   volume24h: 50000,
@@ -67,7 +72,6 @@ const createMockToken = (overrides: Partial<KasPumpToken> = {}): KasPumpToken =>
   isGraduated: false,
   curveType: 'linear',
   createdAt: new Date(Date.now() - 30 * 60 * 60 * 1000), // 30 hours ago (not "new")
-  chainId: 56,
   ...overrides,
 });
 
@@ -432,7 +436,6 @@ describe('TokenCard Component', () => {
     it('should render FavoriteButton with correct props', () => {
       const token = createMockToken({
         address: '0xABCDEF',
-        chainId: 97,
       });
       render(<TokenCard token={token} />);
 

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bell, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { X, Bell, TrendingUp, TrendingDown } from 'lucide-react';
 import { Button, Input, Card, Alert } from '../ui';
 import { usePriceAlerts } from '../../hooks/usePriceAlerts';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
@@ -13,7 +13,7 @@ export interface PriceAlertModalProps {
   isOpen: boolean;
   onClose: () => void;
   token: KasPumpToken;
-  chainId?: number;
+  chainId?: number | undefined;
 }
 
 export const PriceAlertModal: React.FC<PriceAlertModalProps> = ({
