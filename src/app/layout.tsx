@@ -3,7 +3,13 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AppProviders } from '../components/providers/AppProviders';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  fallback: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+  preload: true,
+  adjustFontFallback: true,
+});
 
 export const metadata: Metadata = {
   title: 'KasPump - BSC Meme Coin Launchpad',
