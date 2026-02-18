@@ -11,14 +11,13 @@ import {
   AlertTriangle,
   DollarSign,
   Percent,
-  Clock,
-  Calculator
+  Clock
 } from 'lucide-react';
-import { Card, Button, Badge, Progress } from '../ui';
+import { Button } from '../ui';
 import { TransactionPreviewModal } from './TransactionPreviewModal';
 import { KasPumpToken, TradeData } from '../../types';
 import { useContracts } from '../../hooks/useContracts';
-import { formatCurrency, formatPercentage, cn } from '../../utils';
+import { formatCurrency, cn } from '../../utils';
 
 export interface TradingInterfaceProps {
   token: KasPumpToken;
@@ -150,18 +149,19 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   };
 
   return (
-    <Card className={cn('p-6 space-y-6', className)}>
+    <div className={cn('glow-card-wrapper', className)}>
+      <div className="glow-card-inner p-6 space-y-6">
       {/* Trade Type Selector - Mobile optimized */}
-      <div className="flex items-center space-x-2 bg-gray-800/50 p-1 rounded-lg">
+      <div className="flex items-center space-x-2 p-1 rounded-xl bg-white/5 border border-white/5">
         <button
           onClick={() => setTradeType('buy')}
           className={cn(
-            'flex-1 px-4 py-4 rounded-md font-semibold transition-all duration-200',
-            'min-h-[56px]', // Larger touch target for mobile
-            'touch-manipulation', // Optimize touch response
+            'flex-1 px-4 py-4 rounded-lg font-semibold transition-all duration-200',
+            'min-h-[56px]',
+            'touch-manipulation',
             tradeType === 'buy'
-              ? 'bg-green-600 text-white shadow-lg shadow-green-600/20 active:bg-green-700'
-              : 'text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600'
+              ? 'bg-green-500/15 text-green-400 border border-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.15)] active:bg-green-500/25'
+              : 'text-gray-400 hover:text-white hover:bg-white/5 active:bg-white/10'
           )}
         >
           <div className="flex items-center justify-center space-x-2">
@@ -172,12 +172,12 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
         <button
           onClick={() => setTradeType('sell')}
           className={cn(
-            'flex-1 px-4 py-4 rounded-md font-semibold transition-all duration-200',
-            'min-h-[56px]', // Larger touch target for mobile
-            'touch-manipulation', // Optimize touch response
+            'flex-1 px-4 py-4 rounded-lg font-semibold transition-all duration-200',
+            'min-h-[56px]',
+            'touch-manipulation',
             tradeType === 'sell'
-              ? 'bg-red-600 text-white shadow-lg shadow-red-600/20 active:bg-red-700'
-              : 'text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600'
+              ? 'bg-red-500/15 text-red-400 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.15)] active:bg-red-500/25'
+              : 'text-gray-400 hover:text-white hover:bg-white/5 active:bg-white/10'
           )}
         >
           <div className="flex items-center justify-center space-x-2">
@@ -198,25 +198,28 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
           </div>
         </div>
 
-        <div className="relative">
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-            inputMode="decimal" // Better mobile keyboard
-            className={cn(
-              'w-full px-4 py-5 sm:py-4 bg-gray-800/50 border border-gray-600 rounded-lg',
-              'text-2xl sm:text-xl font-mono text-white placeholder-gray-500',
-              'focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/50',
-              'transition-all duration-200',
-              'min-h-[56px]', // Mobile touch target
-              'touch-manipulation', // Optimize touch response
-              isInsufficientBalance() && 'border-red-500 focus:border-red-500 focus:ring-red-500/50'
-            )}
-          />
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm sm:text-base">
-            {tradeType === 'buy' ? 'BNB' : token.symbol}
+        <div className="input-glow-wrapper">
+          <div className="relative">
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              inputMode="decimal"
+              className={cn(
+                'w-full px-4 py-5 sm:py-4 bg-[#111]/80 border border-white/10 rounded-xl',
+                'text-2xl sm:text-xl font-mono text-white placeholder-gray-500',
+                'focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30',
+                'focus:shadow-[0_0_20px_rgba(234,179,8,0.15)]',
+                'transition-all duration-300',
+                'min-h-[56px]',
+                'touch-manipulation',
+                isInsufficientBalance() && 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/30 focus:shadow-[0_0_20px_rgba(239,68,68,0.15)]'
+              )}
+            />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm sm:text-base">
+              {tradeType === 'buy' ? 'BNB' : token.symbol}
+            </div>
           </div>
         </div>
 
@@ -227,11 +230,11 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
               key={preset}
               onClick={() => handleQuickAmount(preset)}
               className={cn(
-                'px-4 py-3 bg-gray-700/50 hover:bg-gray-600 active:bg-gray-500',
-                'text-gray-300 font-medium rounded-lg transition-all',
+                'px-4 py-3 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 active:bg-white/15',
+                'text-gray-300 font-medium rounded-lg transition-all duration-200',
                 'text-sm sm:text-xs',
-                'min-h-[48px]', // Mobile touch target
-                'touch-manipulation' // Optimize touch response
+                'min-h-[48px]',
+                'touch-manipulation'
               )}
             >
               {preset === 100 ? 'Max' : `${preset}%`}
@@ -245,7 +248,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="space-y-3 p-4 bg-gray-800/20 rounded-lg border border-gray-700/30"
+          className="space-y-3 p-4 bg-white/[0.02] rounded-xl border border-white/5"
         >
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-400">
@@ -332,22 +335,22 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
                     key={preset}
                     onClick={() => setSlippage(preset)}
                     className={cn(
-                      'px-3 py-2 rounded-md text-sm font-medium transition-all',
+                      'px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
                       slippage === preset
-                        ? 'bg-yellow-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20'
+                        : 'bg-white/5 border border-white/5 text-gray-300 hover:bg-white/10 hover:text-white'
                     )}
                   >
                     {preset}%
                   </button>
                 ))}
-                
+
                 <div className="relative">
                   <input
                     type="number"
                     value={slippage}
                     onChange={(e) => setSlippage(parseFloat(e.target.value) || 0)}
-                    className="w-20 px-2 py-2 bg-gray-700 border border-gray-600 rounded-md text-sm text-white text-center focus:outline-none focus:border-yellow-500"
+                    className="w-20 px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white text-center focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30 transition-all duration-200"
                     step="0.1"
                     min="0.1"
                     max="50"
@@ -369,38 +372,48 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
         </AnimatePresence>
       </div>
 
-      {/* Trade Button - Mobile optimized */}
-      <Button
-        onClick={handleTradeClick}
-        disabled={!amount || parseFloat(amount) <= 0 || isInsufficientBalance() || loading || quoteLoading}
-        className={cn(
-          'w-full min-h-[56px] text-base sm:text-lg font-bold transition-all duration-200',
-          'touch-manipulation', // Optimize touch response
+      {/* Trade Button - Mobile optimized with glow */}
+      <div className="relative group/trade">
+        {/* Glow layer behind button */}
+        <div className={cn(
+          'absolute -inset-0.5 rounded-xl blur-md opacity-0 group-hover/trade:opacity-60 transition-opacity duration-300',
+          (!amount || parseFloat(amount) <= 0 || isInsufficientBalance() || loading || quoteLoading) && '!opacity-0',
           tradeType === 'buy'
-            ? 'bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-lg shadow-green-600/20'
-            : 'bg-red-600 hover:bg-red-700 active:bg-red-800 shadow-lg shadow-red-600/20',
-          'disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none',
-          'transform active:scale-[0.98]' // Touch feedback
-        )}
-      >
-        <div className="flex items-center justify-center space-x-2">
-          {loading ? (
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
-          ) : (
-            <Zap size={22} />
+            ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+            : 'bg-gradient-to-r from-red-500 to-orange-500'
+        )} />
+        <Button
+          onClick={handleTradeClick}
+          disabled={!amount || parseFloat(amount) <= 0 || isInsufficientBalance() || loading || quoteLoading}
+          className={cn(
+            'relative w-full min-h-[56px] text-base sm:text-lg font-bold transition-all duration-200',
+            'touch-manipulation rounded-xl',
+            tradeType === 'buy'
+              ? 'bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25 hover:shadow-[0_0_30px_rgba(34,197,94,0.2)] active:bg-green-500/30'
+              : 'bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/25 hover:shadow-[0_0_30px_rgba(239,68,68,0.2)] active:bg-red-500/30',
+            'disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:shadow-none',
+            'transform active:scale-[0.98]'
           )}
-          <span>{getTradeButtonText()}</span>
-        </div>
-      </Button>
+        >
+          <div className="flex items-center justify-center space-x-2">
+            {loading ? (
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-current" />
+            ) : (
+              <Zap size={22} />
+            )}
+            <span>{getTradeButtonText()}</span>
+          </div>
+        </Button>
+      </div>
 
       {/* Warning Messages */}
       {priceImpact > 10 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center space-x-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg"
+          className="flex items-center space-x-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl"
         >
-          <AlertTriangle size={16} className="text-red-400" />
+          <AlertTriangle size={16} className="text-red-400 shrink-0" />
           <span className="text-red-400 text-sm">
             High price impact ({priceImpact.toFixed(1)}%). Consider reducing trade size.
           </span>
@@ -424,6 +437,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
         chainId={(token as any).chainId}
         loading={loading}
       />
-    </Card>
+      </div>
+    </div>
   );
 };

@@ -1,16 +1,16 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, TrendingUp, Zap, Users, Search, Star } from 'lucide-react';
+import { Plus, TrendingUp, Zap, Users, Star } from 'lucide-react';
 import { WalletConnectButton } from '../components/features/WalletConnectButton';
-import { TokenCard, TokenCardSkeleton } from '../components/features/TokenCard';
+import { TokenCard } from '../components/features/TokenCard';
 import { TokenListSkeleton, EmptyState } from '../components/features/LoadingStates';
 import { TokenCreationModal } from '../components/features/TokenCreationModal';
 import dynamic from 'next/dynamic';
 import { TokenSearchFilters, TokenFilters } from '../components/features/TokenSearchFilters';
 import { PWAInstallBanner } from '../components/features/PWAInstallBanner';
-import { MobileNavigation, MobileHeader, useMobileNavigation, MobileTokenCard } from '../components/mobile';
+import { MobileNavigation, useMobileNavigation, MobileTokenCard } from '../components/mobile';
 
 // Lazy load heavy components for better mobile performance
 const TokenTradingPage = dynamic(
@@ -50,24 +50,22 @@ const TokenCarousel = dynamic(
     ssr: false,
   }
 );
-import { Button, Input, Card } from '../components/ui';
+import { Button } from '../components/ui';
 import {
   AmbientBackground,
   GlowCard,
   GlowButton,
   AnimatedBadge,
   GradientText,
-  StatCard
 } from '../components/ui/enhanced';
 import { useRouter } from 'next/navigation';
 import { useContracts } from '../hooks/useContracts';
 import { useFavorites } from '../hooks/useFavorites';
-import { useKeyboardShortcuts, COMMON_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useServiceWorkerCache } from '../hooks/useServiceWorkerCache';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { KasPumpToken } from '../types';
-import { debounce, cn } from '../utils';
+import { cn } from '../utils';
 
 export default function HomePage() {
   const [tokens, setTokens] = useState<KasPumpToken[]>([]);
@@ -328,46 +326,73 @@ export default function HomePage() {
       )}
 
       {/* Header */}
-      <header className="border-b border-gray-800/50 bg-gray-900/30 backdrop-blur-sm sticky top-0 z-40">
+      <header className="border-b border-white/5 bg-gray-900/50 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               <motion.a
                 href="/"
-                className="text-2xl font-bold gradient-text flex items-center space-x-2"
+                className="flex items-center space-x-2 group"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 whileHover={{ scale: 1.05 }}
                 transition={{ type: 'spring', stiffness: 300 }}
               >
-                <span className="text-3xl">🚀</span>
-                <span>KasPump</span>
+                <div className="relative flex items-center justify-center w-9 h-9 rounded-lg bg-yellow-500/10 border border-yellow-500/20 group-hover:bg-yellow-500/20 transition-colors">
+                  <Zap className="w-5 h-5 text-yellow-400" />
+                </div>
+                <span className="text-xl font-semibold tracking-tight gradient-text">KasPump</span>
               </motion.a>
-              <div className="hidden sm:block text-sm text-gray-400">
+              <div className="hidden sm:block text-xs text-gray-500 font-medium">
                 Meme coins on BSC
               </div>
             </div>
 
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center space-x-6">
-              <Button variant="ghost" size="sm" onClick={() => router.push('/')}>Trade</Button>
-              <Button variant="ghost" size="sm" onClick={() => setShowCreateModal(true)}>Create</Button>
-              <Button variant="ghost" size="sm" onClick={() => router.push('/portfolio')}>Portfolio</Button>
-              <Button variant="ghost" size="sm" onClick={() => router.push('/analytics')}>Analytics</Button>
-              <Button variant="ghost" size="sm" onClick={() => router.push('/creator')}>Creator</Button>
+            {/* Center Pill Navigation */}
+            <nav className="hidden md:flex items-center gap-1 p-1 rounded-full bg-white/5 border border-white/5 backdrop-blur-md">
+              <button
+                onClick={() => router.push('/')}
+                className="px-4 py-1.5 text-xs font-medium rounded-full bg-white/10 text-white shadow-sm border border-white/5"
+              >
+                Trade
+              </button>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-4 py-1.5 text-xs font-medium rounded-full text-gray-400 hover:text-white transition-colors"
+              >
+                Create
+              </button>
+              <button
+                onClick={() => router.push('/portfolio')}
+                className="px-4 py-1.5 text-xs font-medium rounded-full text-gray-400 hover:text-white transition-colors"
+              >
+                Portfolio
+              </button>
+              <button
+                onClick={() => router.push('/analytics')}
+                className="px-4 py-1.5 text-xs font-medium rounded-full text-gray-400 hover:text-white transition-colors"
+              >
+                Analytics
+              </button>
+              <button
+                onClick={() => router.push('/creator')}
+                className="px-4 py-1.5 text-xs font-medium rounded-full text-gray-400 hover:text-white transition-colors"
+              >
+                Creator
+              </button>
             </nav>
 
             {/* Wallet Connection */}
             <div className="flex items-center space-x-3">
               <a
                 href="/favorites"
-                className="p-2 rounded-lg text-gray-400 hover:text-yellow-400 hover:bg-gray-800 transition-colors relative"
+                className="relative p-2 rounded-lg text-gray-400 hover:text-yellow-400 hover:bg-white/5 transition-colors"
                 title="Favorites"
               >
                 <Star size={20} />
                 {favorites.favoriteCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 text-gray-900 rounded-full text-xs font-bold flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 text-gray-900 rounded-full text-xs font-bold flex items-center justify-center animate-fade-in-up">
                     {favorites.favoriteCount > 99 ? '99+' : favorites.favoriteCount}
                   </span>
                 )}

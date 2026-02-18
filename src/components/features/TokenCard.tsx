@@ -98,38 +98,44 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
       whileTap={{ scale: 0.98 }}
       className="cursor-pointer gpu-accelerated"
     >
-      <div onClick={onClick}>
-        <Card
-          className={cn(
-            "glassmorphism token-card-glow overflow-hidden transition-all duration-300",
-            "hover:border-yellow-500/30 hover:shadow-lg hover:shadow-yellow-500/10"
-          )}
-        >
+      <div onClick={onClick} className="glow-card-wrapper group/token">
+        <div className={cn(
+          "glow-card-inner p-6 overflow-hidden transition-all duration-300",
+        )}>
         {/* Status Badges Row */}
         <div className="flex flex-wrap gap-2 mb-3">
           {isNewLaunch && (
-            <Badge variant="secondary" className="bg-purple-500/20 text-purple-400 border-purple-500/30">
-              <Zap size={10} className="mr-1" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/15 text-purple-400 border border-purple-500/20">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-purple-400" />
+              </span>
               New Launch
-            </Badge>
+            </span>
           )}
           {isTrending && (
-            <Badge variant="secondary" className="bg-orange-500/20 text-orange-400 border-orange-500/30">
-              <Flame size={10} className="mr-1" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500/15 text-orange-400 border border-orange-500/20">
+              <Flame size={10} />
               Trending
-            </Badge>
+            </span>
           )}
-          <Badge variant="secondary" className={healthConfig.color}>
-            <HealthIcon size={10} className="mr-1" />
+          <span className={cn(
+            "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border",
+            healthConfig.color
+          )}>
+            <HealthIcon size={10} />
             {healthConfig.label}
-          </Badge>
+          </span>
         </div>
 
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg gpu-accelerated">
-              {token.symbol.slice(0, 2)}
+            <div className="relative">
+              <div className="absolute -inset-0.5 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full opacity-40 blur-sm group-hover/token:opacity-70 transition-opacity" />
+              <div className="relative w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg gpu-accelerated">
+                {token.symbol.slice(0, 2)}
+              </div>
             </div>
             <div>
               <h3 className="font-semibold text-white text-lg">{token.name}</h3>
@@ -254,20 +260,20 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-700/50">
-          <div className="flex items-center text-xs text-gray-400">
+        <div className="flex items-center justify-between pt-4 border-t border-white/5">
+          <div className="flex items-center text-xs text-gray-500">
             <Clock size={12} className="mr-1" />
             {formatTimeAgo(token.createdAt)}
           </div>
-          
+
           <div className="flex items-center space-x-2">
-            <Badge variant="default" className="text-xs">
+            <span className="text-[10px] font-medium text-gray-500 px-2 py-0.5 rounded bg-white/5 border border-white/5">
               {token.curveType}
-            </Badge>
+            </span>
             {showActions && (
               <div className="flex space-x-1">
                 <button
-                  className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition-colors btn-glow-green"
+                  className="px-3 py-1 text-xs font-medium rounded-md text-green-400 bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 hover:shadow-[0_0_12px_rgba(34,197,94,0.3)] transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     // Handle buy
@@ -277,7 +283,7 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
                   Buy
                 </button>
                 <button
-                  className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded-md transition-colors btn-glow-red"
+                  className="px-3 py-1 text-xs font-medium rounded-md text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_12px_rgba(239,68,68,0.3)] transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     // Handle sell
@@ -290,7 +296,7 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
             )}
           </div>
         </div>
-      </Card>
+        </div>
       </div>
     </motion.div>
   );
