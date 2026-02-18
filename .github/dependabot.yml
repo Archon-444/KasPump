@@ -1,0 +1,46 @@
+version: 2
+updates:
+  # Frontend dependencies (npm)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "npm"
+    groups:
+      production-dependencies:
+        patterns:
+          - "react*"
+          - "next*"
+          - "@rainbow-me/*"
+          - "wagmi*"
+          - "viem*"
+          - "ethers*"
+      dev-dependencies:
+        patterns:
+          - "@types/*"
+          - "@testing-library/*"
+          - "vitest*"
+          - "eslint*"
+          - "typescript"
+    ignore:
+      # Ignore major version updates for stability
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "github-actions"

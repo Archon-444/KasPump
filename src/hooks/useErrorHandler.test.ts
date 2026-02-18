@@ -158,7 +158,7 @@ describe('useErrorHandler', () => {
       expect(result.current.error).toBeNull();
     });
 
-    it('should reset retry count when clearing', () => {
+    it('should reset retry count when clearing', async () => {
       const { result } = renderHook(() => useErrorHandler());
       const onRetry = vi.fn().mockResolvedValue(undefined);
 
@@ -167,7 +167,7 @@ describe('useErrorHandler', () => {
         result.current.handleError('Error', { onRetry });
       });
 
-      act(async () => {
+      await act(async () => {
         await result.current.retry();
       });
 

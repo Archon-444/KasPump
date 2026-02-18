@@ -25,8 +25,8 @@ describe('useFavorites', () => {
 
     it('should load favorites from localStorage on mount', async () => {
       const storedFavorites = [
-        { address: '0x123', chainId: 97, addedAt: Date.now() },
-        { address: '0x456', chainId: 56, addedAt: Date.now() },
+        { address: '0x1234567890123456789012345678901234567890', chainId: 97, addedAt: Date.now() },
+        { address: '0xABCDEF0123456789ABCDEF0123456789ABCDEF01', chainId: 56, addedAt: Date.now() },
       ];
       localStorage.setItem('kaspump_favorites', JSON.stringify(storedFavorites));
 

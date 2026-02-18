@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useTokenCreationState } from './useTokenCreationState';
 
+// Mock the contracts config module to return true for areContractsDeployed
+vi.mock('../config/contracts', () => ({
+  areContractsDeployed: vi.fn().mockReturnValue(true),
+  getChainName: vi.fn().mockReturnValue('BSC Testnet'),
+}));
+
 describe('useTokenCreationState', () => {
   const mockContracts = {
     createToken: vi.fn(),
@@ -115,6 +121,9 @@ describe('useTokenCreationState', () => {
           symbol: 'VALID',
           totalSupply: 100,
         });
+      });
+
+      act(() => {
         result.current.validateForm();
       });
 
@@ -130,6 +139,9 @@ describe('useTokenCreationState', () => {
           symbol: 'VALID',
           totalSupply: 2000000000000,
         });
+      });
+
+      act(() => {
         result.current.validateForm();
       });
 
@@ -145,6 +157,9 @@ describe('useTokenCreationState', () => {
           symbol: 'VALID',
           basePrice: 2,
         });
+      });
+
+      act(() => {
         result.current.validateForm();
       });
 
@@ -160,6 +175,9 @@ describe('useTokenCreationState', () => {
           symbol: 'VALID',
           slope: 0.002,
         });
+      });
+
+      act(() => {
         result.current.validateForm();
       });
 
@@ -179,7 +197,10 @@ describe('useTokenCreationState', () => {
         });
       });
 
-      const isValid = act(() => result.current.validateForm());
+      let isValid: boolean = false;
+      act(() => {
+        isValid = result.current.validateForm();
+      });
 
       expect(isValid).toBe(true);
       expect(result.current.errors).toEqual({});

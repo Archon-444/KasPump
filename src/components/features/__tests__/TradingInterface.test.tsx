@@ -96,7 +96,7 @@ describe('TradingInterface', () => {
       render(<TradingInterface token={mockToken} />);
 
       const buyButton = screen.getByRole('button', { name: /buy/i });
-      expect(buyButton).toHaveClass('bg-green-600');
+      expect(buyButton).toHaveClass('text-green-400');
     });
 
     it('should render all main elements', () => {
@@ -134,7 +134,7 @@ describe('TradingInterface', () => {
       const sellButton = screen.getByRole('button', { name: /sell/i });
       await user.click(sellButton);
 
-      expect(sellButton).toHaveClass('bg-red-600');
+      expect(sellButton).toHaveClass('text-red-400');
       expect(screen.getByText(/you sell/i)).toBeInTheDocument();
     });
 
@@ -150,7 +150,7 @@ describe('TradingInterface', () => {
       const buyButton = screen.getByRole('button', { name: /buy/i });
       await user.click(buyButton);
 
-      expect(buyButton).toHaveClass('bg-green-600');
+      expect(buyButton).toHaveClass('text-green-400');
       expect(screen.getByText(/you pay/i)).toBeInTheDocument();
     });
 
@@ -438,7 +438,7 @@ describe('TradingInterface', () => {
       const preset05Button = screen.getByRole('button', { name: '0.5%' });
       await user.click(preset05Button);
 
-      expect(preset05Button).toHaveClass('bg-yellow-600');
+      expect(preset05Button).toHaveClass('text-yellow-400');
     });
 
     it('should allow custom slippage input', async () => {

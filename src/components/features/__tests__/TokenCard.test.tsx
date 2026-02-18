@@ -383,8 +383,9 @@ describe('TokenCard Component', () => {
 
       render(<TokenCard token={token} onClick={onClick} />);
 
-      const card = screen.getByTestId('card');
-      await user.click(card);
+      // Click on the token name which is inside the clickable div
+      const tokenName = screen.getByText('Test Token');
+      await user.click(tokenName);
 
       expect(onClick).toHaveBeenCalledTimes(1);
     });
@@ -556,8 +557,9 @@ describe('TokenList Component', () => {
 
     render(<TokenList tokens={tokens} onTokenClick={onTokenClick} />);
 
-    const card = screen.getByTestId('card');
-    await user.click(card);
+    // Click on the token name which is inside the clickable div
+    const tokenName = screen.getByText('Clickable Token');
+    await user.click(tokenName);
 
     expect(onTokenClick).toHaveBeenCalledWith(tokens[0]);
   });
