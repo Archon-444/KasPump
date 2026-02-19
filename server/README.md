@@ -288,6 +288,13 @@ server/
 │   │   └── RateLimiterService.ts  # Rate limiting
 │   ├── handlers/
 │   │   └── SocketEventHandlers.ts # Socket.IO event handlers
+│   ├── api/
+│   │   └── tradingAPI.ts          # Trading REST API
+│   ├── abis/                      # Contract ABIs
+│   │   ├── TokenFactory.json
+│   │   ├── BondingCurveAMM.json
+│   │   ├── LimitOrderBook.json
+│   │   └── StopLossOrderBook.json
 │   └── utils/
 │       └── logger.ts              # Winston logger
 ├── package.json
