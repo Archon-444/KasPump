@@ -84,7 +84,7 @@
     "critters": "^0.0.23",
     "dotenv": "^17.2.3",
     "eslint": "^8.53.0",
-    "eslint-config-next": "14.0.4",
+    "eslint-config-next": "^16.0.0",
     "hardhat": "^2.19.1",
     "hardhat-gas-reporter": "^1.0.10",
     "jsdom": "^23.0.1",
