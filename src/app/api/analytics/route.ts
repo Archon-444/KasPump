@@ -120,8 +120,8 @@ async function getPlatformAnalytics(
       // Note: Historical metrics require event indexing or database
       growth: {
         newTokens,
-        // Growth percentages would require historical data tracking
-        // Removed placeholder random values for production accuracy
+        volumeGrowth,
+        userGrowth,
       },
 
       // Partnership Data
