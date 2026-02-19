@@ -69,7 +69,7 @@ async function getPlatformAnalytics(
   
   try {
     // Get all tokens
-    const allTokens = await factoryContract.getAllTokens();
+    const allTokens = await factoryContract.getFunction('getAllTokens')();
     
     // Calculate platform metrics
     const totalTokens = allTokens.length;
@@ -157,7 +157,7 @@ async function calculateTotalVolume(
       if (!ammAddress) continue;
 
       const ammContract = new ethers.Contract(ammAddress, BondingCurveAMMABI.abi, provider);
-      const [, , totalVolumeWei] = await ammContract.getTradingInfo();
+      const [, , totalVolumeWei] = await ammContract.getFunction('getTradingInfo')();
       totalVolume += parseFloat(ethers.formatEther(totalVolumeWei));
     } catch (error) {
       // Skip tokens with errors
@@ -233,7 +233,7 @@ async function countActiveTokens(
       continue;
     }
     const ammContract = new ethers.Contract(ammAddress, BondingCurveAMMABI.abi, provider);
-      const [, , totalVolume, , isGraduated] = await ammContract.getTradingInfo();
+      const [, , totalVolume, , isGraduated] = await ammContract.getFunction('getTradingInfo')();
 
       // Consider active if has volume and not graduated
       if (parseFloat(ethers.formatEther(totalVolume)) > 0 && !isGraduated) {
@@ -385,7 +385,7 @@ async function getTopPerformingTokens(
 // Simplified helper functions (would be more robust in production)
 async function getAMMAddressForToken(factoryContract: ethers.Contract, tokenAddress: string): Promise<string | null> {
   try {
-    const ammAddress = await factoryContract.getTokenAMM(tokenAddress);
+    const ammAddress = await factoryContract.getFunction('getTokenAMM')(tokenAddress);
     if (ammAddress && ammAddress !== ethers.ZeroAddress) {
       return ammAddress;
     }
@@ -406,7 +406,7 @@ async function getAMMAddressForToken(factoryContract: ethers.Contract, tokenAddr
 async function getTradingDataForAnalytics(provider: ethers.JsonRpcProvider, ammAddress: string) {
   try {
     const ammContract = new ethers.Contract(ammAddress, BondingCurveAMMABI.abi, provider);
-    const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo();
+    const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getFunction('getTradingInfo')();
 
     return {
       currentSupply: parseFloat(ethers.formatEther(currentSupply)),

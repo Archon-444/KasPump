@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all tokens with pagination
-    const allTokens = await factoryContract.getAllTokens();
+    const allTokens = await factoryContract.getFunction('getAllTokens')();
     const paginatedTokens = allTokens.slice(offset, offset + limit);
 
     const tokensWithData = await Promise.all(
@@ -123,7 +123,7 @@ async function getTokenDetails(
 ) {
   try {
     // Get token config from factory
-    const config = await factoryContract.getTokenConfig(tokenAddress);
+    const config = await factoryContract.getFunction('getTokenConfig')(tokenAddress);
     
     // Get AMM address and trading data
     const ammAddress = await getAMMAddress(tokenAddress, factoryContract);
@@ -177,7 +177,7 @@ async function getAMMAddress(tokenAddress: string, factoryContract: ethers.Contr
   try {
     // Try to get AMM address from factory (if function exists)
     try {
-      const ammAddress = await factoryContract.getTokenAMM(tokenAddress);
+      const ammAddress = await factoryContract.getFunction('getTokenAMM')(tokenAddress);
       if (ammAddress && ammAddress !== ethers.ZeroAddress) {
         return ammAddress;
       }
@@ -203,7 +203,7 @@ async function getAMMAddress(tokenAddress: string, factoryContract: ethers.Contr
 async function getTradingData(provider: ethers.JsonRpcProvider, ammAddress: string) {
   try {
     const ammContract = new ethers.Contract(ammAddress, BondingCurveAMMABI.abi, provider);
-    const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getTradingInfo();
+    const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = await ammContract.getFunction('getTradingInfo')();
 
     return {
       currentSupply: parseFloat(ethers.formatEther(currentSupply)),
