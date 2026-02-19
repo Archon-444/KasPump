@@ -26,9 +26,12 @@ KasPump is a next-generation decentralized token launchpad that brings the viral
 - **TokenFactory.sol** - ERC-20 token deployment with metadata
 - **BondingCurveAMM.sol** - Automated market maker with advanced pricing
 - **DeterministicDeployer.sol** - Deterministic contract deployment
+- **DexRouterRegistry.sol** - DEX router management
+- **LimitOrderBook.sol** - On-chain limit orders
+- **StopLossOrderBook.sol** - On-chain stop-loss orders
 
 ### Frontend
-- **Next.js 14** with App Router and TypeScript
+- **Next.js 16** with App Router and TypeScript
 - **Multi-Chain Wallet Integration** - WalletConnect, MetaMask, and more
 - **Modern UI** - Tailwind CSS with Radix UI components
 - **Real-time Features** - WebSocket price feeds and live updates
@@ -73,38 +76,51 @@ Visit `http://localhost:3000` to see your local KasPump instance!
 
 ```
 KasPump/
-├── contracts/              # Smart contracts
+├── contracts/              # Smart contracts (Solidity)
 │   ├── TokenFactory.sol    # Main token factory
 │   ├── BondingCurveAMM.sol # Bonding curve AMM
-│   └── EnhancedTokenFactory.sol # Extended features
-├── scripts/
-│   ├── deploy.ts          # Mainnet deployment
-│   └── deploy-testnet.ts  # Testnet deployment
+│   ├── DeterministicDeployer.sol # Deterministic deployment
+│   ├── DexRouterRegistry.sol # DEX router management
+│   ├── LimitOrderBook.sol  # Limit order system
+│   └── StopLossOrderBook.sol # Stop-loss order system
+├── scripts/                # Deployment & utility scripts
+│   ├── deploy.ts           # Multi-chain deployment
+│   └── deploy-deterministic.ts # Deterministic deployment
+├── server/                 # WebSocket server (Socket.IO)
+├── subgraph/               # The Graph protocol indexer
 ├── src/
-│   ├── app/               # Next.js 14 app directory
-│   ├── components/        # React components
-│   │   ├── ui/           # Base UI components
-│   │   ├── features/     # Feature components
-│   │   └── mobile/       # Mobile optimized components
-│   ├── hooks/            # Custom React hooks
-│   ├── types/            # TypeScript definitions
-│   └── utils/            # Utility functions
-└── public/               # Static assets
+│   ├── app/                # Next.js 16 App Router pages
+│   ├── components/         # React components
+│   │   ├── ui/             # Base UI components (Radix)
+│   │   ├── features/       # Feature components
+│   │   ├── trading/        # Trading UI (limit/stop-loss)
+│   │   ├── mobile/         # Mobile optimized components
+│   │   ├── admin/          # Admin dashboard
+│   │   └── providers/      # App-level providers
+│   ├── hooks/              # Custom React hooks
+│   ├── lib/                # Library code & utilities
+│   ├── config/             # Chain & app configuration
+│   ├── types/              # TypeScript definitions
+│   └── utils/              # Utility functions
+└── public/                 # Static assets
 ```
 
 ## 🔧 Available Scripts
 
 ```bash
-npm run dev           # Start development server
-npm run build         # Build for production
-npm run start         # Start production server
-npm run check-env     # Validate environment setup
-npm run compile       # Compile smart contracts
-npm run deploy        # Deploy contracts to mainnet
-npm run deploy:testnet # Deploy to testnet
-npm run test          # Run contract tests
-npm run lint          # Run ESLint
-npm run type-check    # TypeScript type checking
+npm run dev              # Start development server
+npm run build            # Build for production
+npm run start            # Start production server
+npm run check-env        # Validate environment setup
+npm run compile          # Compile smart contracts (Hardhat)
+npm run deploy:bsc       # Deploy contracts to BSC mainnet
+npm run deploy:bsc-testnet # Deploy to BSC testnet
+npm run deploy:arbitrum  # Deploy to Arbitrum
+npm run deploy:base      # Deploy to Base
+npm run test             # Run contract tests (Hardhat)
+npm run test:unit        # Run frontend unit tests (Vitest)
+npm run lint             # Run ESLint
+npm run type-check       # TypeScript type checking
 ```
 
 ## 🤖 Claude Code Skills Integration
@@ -174,9 +190,9 @@ Use the smart-contract-deployment skill to deploy to BSC testnet
 ## 🛡️ Security
 
 - **Smart Contract Audits** - Planned with multiple firms
-- **MEV Protection** - Built into Kaspa protocol
-- **Access Controls** - Multi-signature and role-based permissions
-- **Bug Bounty** - $100K+ program planned
+- **Reentrancy Guards** - OpenZeppelin ReentrancyGuard on all state-changing functions
+- **Access Controls** - Role-based permissions with Ownable pattern
+- **Bug Bounty** - Program planned
 
 ## 📈 Roadmap
 
