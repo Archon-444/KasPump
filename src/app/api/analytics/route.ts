@@ -396,8 +396,12 @@ async function getAMMAddressForToken(factoryContract: ethers.Contract, tokenAddr
   const filter = (factoryContract.filters as any).TokenCreated(tokenAddress);
   const events = await factoryContract.queryFilter(filter);
 
-  if (events.length > 0 && 'args' in events[0]) {
-    return events[0].args.ammAddress as string;
+  // Fix: Check if events[0] exists before accessing it
+  if (events && events.length > 0) {
+    const event = events[0] as any;
+    if (event.args && event.args.ammAddress) {
+      return event.args.ammAddress as string;
+    }
   }
 
   return null;
