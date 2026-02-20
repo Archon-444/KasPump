@@ -14,7 +14,7 @@ import { useContractProvider } from './contracts/useContractProvider';
 import { parseContractError } from '../utils/contractErrors';
 import { getTokenFactoryAddress, getChainName, getSupportedChains } from '../config/contracts';
 
-// Import TypeChain Factories for strict typing
+// Import TypeChain Factories for strict typing - using absolute import based on tsconfig paths
 import { 
   TokenFactory__factory, 
   BondingCurveAMM__factory 
