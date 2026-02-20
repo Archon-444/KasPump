@@ -2,24 +2,25 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['ipfs.io', 'gateway.pinata.cloud'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'ipfs.io',
+      },
+      {
+        protocol: 'https',
+        hostname: 'gateway.pinata.cloud',
+      },
+    ],
   },
   webpack: (config) => {
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
     return config;
   },
   typescript: {
-    // !! WARN !!
-    // Dangerously allow production builds to successfully complete even if
-    // your project has type errors.
-    // !! WARN !!
     ignoreBuildErrors: true,
   },
-  eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
-    ignoreDuringBuilds: true,
-  },
+  // eslint: config removed as it's deprecated in next.config.js
 };
 
 module.exports = nextConfig;
