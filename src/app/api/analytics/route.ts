@@ -414,4 +414,8 @@ async function getTradingDataForAnalytics(provider: ethers.JsonRpcProvider, ammA
       totalVolume: parseFloat(ethers.formatEther(totalVolume)),
       graduation: parseFloat(ethers.formatUnits(graduation, 2)),
       isGraduated
-    };\n  } catch (error) {\n    return null;\n  }\n}\n
+    };
+  } catch (error) {
+    return null;
+  }
+}
