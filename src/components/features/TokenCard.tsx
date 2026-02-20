@@ -98,7 +98,12 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
       whileTap={{ scale: 0.98 }}
       className="cursor-pointer gpu-accelerated"
     >
-      <div onClick={onClick}>
+      <button
+        onClick={onClick}
+        type="button"
+        className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded-lg"
+        aria-label={`View ${token.name} (${token.symbol}) - Price: ${formatCurrency(token.price, 'BNB', 8)}, ${isPositive ? 'up' : 'down'} ${formatPercentage(token.change24h)}`}
+      >
         <Card
           className={cn(
             "glassmorphism token-card-glow overflow-hidden transition-all duration-300",
@@ -210,11 +215,11 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
                 value={token.bondingCurveProgress}
                 className="h-3"
               />
-              {/* Milestone markers */}
-              <div className="absolute top-0 left-0 w-full h-3 flex justify-between px-px pointer-events-none">
-                <div className="w-px h-full bg-gray-600" style={{ marginLeft: '24%' }} />
-                <div className="w-px h-full bg-gray-600" style={{ marginLeft: '24%' }} />
-                <div className="w-px h-full bg-gray-600" style={{ marginLeft: '24%' }} />
+              {/* Milestone markers at 25%, 50%, 75% */}
+              <div className="absolute top-0 left-0 w-full h-3 pointer-events-none" aria-hidden="true">
+                <div className="absolute w-px h-full bg-gray-600" style={{ left: '25%' }} />
+                <div className="absolute w-px h-full bg-gray-600" style={{ left: '50%' }} />
+                <div className="absolute w-px h-full bg-gray-600" style={{ left: '75%' }} />
               </div>
             </div>
 
@@ -291,7 +296,7 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
           </div>
         </div>
       </Card>
-      </div>
+      </button>
     </motion.div>
   );
 };
