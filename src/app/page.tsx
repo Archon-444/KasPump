@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, TrendingUp, Zap, Users, Rocket } from 'lucide-react';
 import { TokenCard } from '../components/features/TokenCard';
@@ -17,26 +17,15 @@ import {
   GradientText,
 } from '../components/ui/enhanced';
 import { useRouter } from 'next/navigation';
-import { useContracts } from '../hooks/useContracts';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
-import { useServiceWorkerCache } from '../hooks/useServiceWorkerCache';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { KasPumpToken } from '../types';
 import { cn } from '../utils';
+import { useTokenQuery } from '../hooks/useTokenQuery';
 
-// Lazy load heavy components for better mobile performance
+// Lazy load heavy components
 const TokenTradingPage = dynamic(
-  () => import('../components/features/TokenTradingPage').then((mod) => {
-    if (!mod || !mod.TokenTradingPage) {
-      throw new Error('TokenTradingPage component not found');
-    }
-    return { default: mod.TokenTradingPage };
-  }).catch((error) => {
-    console.error('Failed to load TokenTradingPage:', error);
-    return {
-      default: () => <div className="flex items-center justify-center min-h-screen text-red-400">Failed to load trading page</div>
-    };
-  }),
+  () => import('../components/features/TokenTradingPage').then((mod) => mod.TokenTradingPage),
   {
     loading: () => <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div></div>,
     ssr: false,
@@ -44,17 +33,7 @@ const TokenTradingPage = dynamic(
 );
 
 const TokenCarousel = dynamic(
-  () => import('../components/features/TokenCarousel').then((mod) => {
-    if (!mod || !mod.TokenCarousel) {
-      throw new Error('TokenCarousel component not found');
-    }
-    return { default: mod.TokenCarousel };
-  }).catch((error) => {
-    console.error('Failed to load TokenCarousel:', error);
-    return {
-      default: () => <div className="h-64 flex items-center justify-center text-gray-400">Failed to load carousel</div>
-    };
-  }),
+  () => import('../components/features/TokenCarousel').then((mod) => mod.TokenCarousel),
   {
     loading: () => <div className="h-64 flex items-center justify-center"><div className="animate-pulse text-gray-400">Loading trending tokens...</div></div>,
     ssr: false,
@@ -62,8 +41,6 @@ const TokenCarousel = dynamic(
 );
 
 export default function DiscoverPage() {
-  const [tokens, setTokens] = useState<KasPumpToken[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedToken, setSelectedToken] = useState<KasPumpToken | null>(null);
   const [filters, setFilters] = useState<TokenFilters>({
     searchQuery: '',
@@ -75,83 +52,29 @@ export default function DiscoverPage() {
   });
 
   const router = useRouter();
-  const contracts = useContracts();
-  const { cacheTokenList } = useServiceWorkerCache();
   const isMobile = useIsMobile();
 
-  // Load tokens function
-  const loadTokens = useCallback(async () => {
-    try {
-      setLoading(true);
+  // Optimized Data Fetching using React Query
+  // Fetches 100 tokens to allow for client-side sorting/filtering on this batch
+  // Future optimization: Move all filtering/sorting to the API
+  const { data, isLoading, refetch, isRefetching } = useTokenQuery({
+    limit: 100, 
+    search: filters.searchQuery // Server-side search optimization
+  });
 
-      if (!contracts.isInitialized || !contracts.getAllTokens || !contracts.getTokenInfo) {
-        setTokens([]);
-        return;
-      }
+  const tokens = data?.tokens || [];
 
-      try {
-        const tokenAddresses = await contracts.getAllTokens();
-
-        if (!tokenAddresses || tokenAddresses.length === 0) {
-          setTokens([]);
-          cacheTokenList({ tokens: [] });
-          return;
-        }
-
-        const tokenPromises = tokenAddresses.map(async (address) => {
-          try {
-            return await contracts.getTokenInfo(address);
-          } catch (error) {
-            console.error(`Failed to fetch token info for ${address}:`, error);
-            return null;
-          }
-        });
-
-        const tokenResults = await Promise.all(tokenPromises);
-        const validTokens = tokenResults.filter(
-          (token): token is KasPumpToken => token !== null
-        );
-
-        setTokens(validTokens);
-        cacheTokenList({ tokens: validTokens });
-      } catch (error) {
-        console.error('Failed to fetch tokens from blockchain:', error);
-        setTokens([]);
-      }
-    } catch (error) {
-      console.error('Failed to load tokens:', error);
-      setTokens([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [contracts.isInitialized, contracts.getAllTokens, contracts.getTokenInfo, cacheTokenList]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadTokens();
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [loadTokens]);
-
-  // Pull-to-refresh support (mobile)
+  // Pull-to-refresh support
   const { elementRef: pullRefreshRef, isPulling, pullProgress } = usePullToRefresh({
-    onRefresh: loadTokens,
+    onRefresh: refetch,
     enabled: isMobile,
   });
 
-  // Filter and sort tokens
+  // Client-side filtering/sorting (applied to the fetched batch)
   const filteredTokens = useMemo(() => {
     let filtered = [...tokens];
 
-    if (filters.searchQuery) {
-      const query = filters.searchQuery.toLowerCase();
-      filtered = filtered.filter(token =>
-        token.name.toLowerCase().includes(query) ||
-        token.symbol.toLowerCase().includes(query) ||
-        token.address.toLowerCase().includes(query)
-      );
-    }
-
+    // Status Filter
     if (filters.status === 'active') {
       filtered = filtered.filter(token => !token.isGraduated && (token.volume24h || 0) > 0);
     } else if (filters.status === 'graduated') {
@@ -161,6 +84,7 @@ export default function DiscoverPage() {
       filtered = filtered.filter(token => token.createdAt.getTime() > oneDayAgo);
     }
 
+    // Volume Filter
     if (filters.volumeRange === 'high') {
       filtered = filtered.filter(token => (token.volume24h || 0) >= 10000);
     } else if (filters.volumeRange === 'medium') {
@@ -172,6 +96,7 @@ export default function DiscoverPage() {
       filtered = filtered.filter(token => (token.volume24h || 0) < 1000);
     }
 
+    // Sorting
     filtered.sort((a, b) => {
       let compareA: number;
       let compareB: number;
@@ -213,13 +138,13 @@ export default function DiscoverPage() {
     return filtered;
   }, [tokens, filters]);
 
-  const stats = {
+  const stats = useMemo(() => ({
     totalTokens: tokens.length,
     totalVolume: tokens.reduce((acc, token) => acc + token.volume24h, 0),
     totalHolders: tokens.reduce((acc, token) => acc + token.holders, 0),
-  };
+  }), [tokens]);
 
-  const handleQuickTrade = (token: KasPumpToken, type: 'buy' | 'sell') => {
+  const handleQuickTrade = (token: KasPumpToken) => {
     setSelectedToken(token);
   };
 
@@ -240,7 +165,6 @@ export default function DiscoverPage() {
       ref={pullRefreshRef as any}
       className="min-h-screen relative"
     >
-      {/* Ambient Background Effects */}
       <AmbientBackground
         showRoofLight={true}
         showLightBeam={true}
@@ -250,7 +174,6 @@ export default function DiscoverPage() {
         colorScheme="yellow"
       />
 
-      {/* Pull-to-refresh indicator */}
       {isMobile && isPulling && (
         <motion.div
           className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center bg-yellow-600/20 backdrop-blur-sm"
@@ -270,12 +193,6 @@ export default function DiscoverPage() {
         </motion.div>
       )}
 
-      {/* Skip to main content link */}
-      <a href="#main-content" className="skip-link">
-        Skip to main content
-      </a>
-
-      {/* Main Content */}
       <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
         <motion.section
@@ -351,7 +268,9 @@ export default function DiscoverPage() {
                   <Zap className="w-7 h-7 text-yellow-400" />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">{stats.totalTokens}</div>
+              <div className="text-3xl font-bold text-white mb-1">
+                {isLoading ? '...' : stats.totalTokens}
+              </div>
               <div className="text-sm text-gray-400 font-medium">Tokens Launched</div>
             </div>
           </GlowCard>
@@ -363,7 +282,9 @@ export default function DiscoverPage() {
                   <TrendingUp className="w-7 h-7 text-green-400" />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">${stats.totalVolume.toLocaleString()}</div>
+              <div className="text-3xl font-bold text-white mb-1">
+                {isLoading ? '...' : `$${stats.totalVolume.toLocaleString()}`}
+              </div>
               <div className="text-sm text-gray-400 font-medium">24h Volume</div>
             </div>
           </GlowCard>
@@ -375,7 +296,9 @@ export default function DiscoverPage() {
                   <Users className="w-7 h-7 text-blue-400" />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">{stats.totalHolders.toLocaleString()}</div>
+              <div className="text-3xl font-bold text-white mb-1">
+                {isLoading ? '...' : stats.totalHolders.toLocaleString()}
+              </div>
               <div className="text-sm text-gray-400 font-medium">Total Holders</div>
             </div>
           </GlowCard>
@@ -411,6 +334,9 @@ export default function DiscoverPage() {
               <AnimatedBadge variant="success" animated={tokens.length > 0}>
                 {tokens.length} Active
               </AnimatedBadge>
+              {isRefetching && (
+                <span className="text-xs text-yellow-500 animate-pulse ml-2">Updating...</span>
+              )}
             </div>
 
             <TokenSearchFilters
@@ -421,7 +347,7 @@ export default function DiscoverPage() {
           </div>
 
           {/* Token Grid */}
-          {loading ? (
+          {isLoading ? (
             <TokenListSkeleton count={6} />
           ) : filteredTokens.length === 0 ? (
             <EmptyState
