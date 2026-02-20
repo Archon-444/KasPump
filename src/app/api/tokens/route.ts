@@ -186,11 +186,14 @@ async function getAMMAddress(tokenAddress: string, factoryContract: ethers.Contr
     }
     
     // Fallback: search for TokenCreated events
-    const filter = factoryContract.filters.TokenCreated(tokenAddress);
+    const filter = (factoryContract.filters as any).TokenCreated(tokenAddress);
     const events = await factoryContract.queryFilter(filter);
 
-    if (events.length > 0 && 'args' in events[0]) {
-      return events[0].args.ammAddress as string;
+    if (events && events.length > 0) {
+      const event = events[0] as any;
+      if (event.args && event.args.ammAddress) {
+        return event.args.ammAddress as string;
+      }
     }
     
     return null;
@@ -228,11 +231,14 @@ async function getTokenCreator(
 ): Promise<string> {
   try {
     // Query TokenCreated events to find the creator
-    const filter = factoryContract.filters.TokenCreated(tokenAddress);
+    const filter = (factoryContract.filters as any).TokenCreated(tokenAddress);
     const events = await factoryContract.queryFilter(filter);
 
-    if (events.length > 0 && 'args' in events[0]) {
-      return events[0].args.creator as string;
+    if (events && events.length > 0) {
+      const event = events[0] as any;
+      if (event.args && event.args.creator) {
+        return event.args.creator as string;
+      }
     }
 
     // If no event found, return zero address
@@ -250,10 +256,10 @@ async function getTokenCreationTime(
 ): Promise<string> {
   try {
     // Query TokenCreated events to find creation block
-    const filter = factoryContract.filters.TokenCreated(tokenAddress);
+    const filter = (factoryContract.filters as any).TokenCreated(tokenAddress);
     const events = await factoryContract.queryFilter(filter);
 
-    if (events.length > 0) {
+    if (events && events.length > 0) {
       const event = events[0];
       const block = await provider.getBlock(event.blockNumber);
       if (block) {
