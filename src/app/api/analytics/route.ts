@@ -247,7 +247,7 @@ async function countActiveTokens(
   return activeCount;
 }
 
-async function calculateTotalUsers(_provider: ethers.JsonRpcProvider, tokens: string[]): Promise<number> {
+async function calculateTotalUsers(_provider: ethers.JsonRpcProvider, _tokens: string[]): Promise<number> {
   // Accurate user count would require:
   // 1. Parsing all Trade events across all tokens
   // 2. Tracking unique trader addresses
