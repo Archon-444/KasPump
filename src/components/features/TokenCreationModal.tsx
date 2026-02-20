@@ -101,7 +101,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
 
     setShowConfetti(true);
     setShowSuccessToast(true);
-    await tokenCreationState.handleConfirmCreation(ipfsUpload.ipfsUpload.ipfsImageUrl);
+    await tokenCreationState.handleConfirmCreation(ipfsUpload.ipfsImageUrl);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -246,7 +246,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                     {tokenCreationState.creationStep === 'form' && (
                       <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-1" role="group" aria-label="Token creation mode">
                         <button
-                          onClick={() => setMode('beginner')}
+                          onClick={() => tokenCreationState.setMode('beginner')}
                           className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
                             tokenCreationState.mode === 'beginner'
                               ? 'bg-yellow-500 text-white'
@@ -259,7 +259,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                           Beginner
                         </button>
                         <button
-                          onClick={() => setMode('advanced')}
+                          onClick={() => tokenCreationState.setMode('advanced')}
                           className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
                             tokenCreationState.mode === 'advanced'
                               ? 'bg-yellow-500 text-white'
@@ -325,7 +325,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                         key="step1"
                         formData={tokenCreationState.formData}
                         errors={tokenCreationState.errors}
-                        onFormDataChange={(data) => tokenCreationState.updateFormData({data })}
+                        onFormDataChange={(data) => tokenCreationState.updateFormData(data)}
                         onErrorsChange={(errs) => tokenCreationState.setErrors(errs)}
                         onNext={() => tokenCreationState.setWizardStep(2)}
                       />
@@ -529,12 +529,12 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                           if (!tokenCreationState.validateForm()) return;
 
                           try {
-                            setIsCreating(true);
-                            setCreationStep('creating');
-                            
+                            tokenCreationState.setIsCreating(true);
+                            tokenCreationState.setCreationStep('creating');
+
                             // Get image URL (IPFS if configured, otherwise empty)
                             const imageUrl = ipfsUpload.ipfsImageUrl || (tokenCreationState.formData.image ? '' : ''); // IPFS URL or empty
-                            
+
                             // Deploy to multiple chains
                             const results = await multiChainDeployment.deployToMultipleChains(
                               selectedChains,
@@ -544,22 +544,22 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
 
                             // Check if at least one succeeded
                             const successCount = Array.from(results.values()).filter(r => r.success).length;
-                            
+
                             if (successCount > 0) {
-                              setCreationResult({ multiChain: true, results });
-                              setCreationStep('success');
+                              tokenCreationState.setCreationResult({ multiChain: true, results });
+                              tokenCreationState.setCreationStep('success');
                               setShowConfetti(true);
                               setShowSuccessToast(true);
                             } else {
-                              setCreationError('All deployments failed');
-                              setCreationStep('error');
+                              tokenCreationState.setCreationError('All deployments failed');
+                              tokenCreationState.setCreationStep('error');
                             }
                           } catch (error: unknown) {
                             const errorMessage = error instanceof Error ? error.message : 'Multi-chain deployment failed';
-                            setCreationError(errorMessage);
-                            setCreationStep('error');
+                            tokenCreationState.setCreationError(errorMessage);
+                            tokenCreationState.setCreationStep('error');
                           } finally {
-                            setIsCreating(false);
+                            tokenCreationState.setIsCreating(false);
                           }
                         }}
                         onCancel={() => {
@@ -641,7 +641,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   </Card>
 
                   <div className="flex space-x-4">
-                    <Button variant="secondary" onClick={() => setCreationStep('form')} fullWidth>
+                    <Button variant="secondary" onClick={() => tokenCreationState.setCreationStep('form')} fullWidth>
                       Back to Edit
                     </Button>
                     <Button 
@@ -672,24 +672,24 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                 <div className="text-center py-12">
                   <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-6" />
                   <h3 className="text-xl font-semibold text-white mb-2">
-                    {creationResult?.multiChain 
+                    {tokenCreationState.creationResult?.multiChain
                       ? 'Multi-Chain Deployment Successful! 🎉'
                       : 'Token Created Successfully! 🎉'
                     }
                   </h3>
                   <p className="text-gray-400 mb-6">
-                    {creationResult?.multiChain
-                      ? `Your token has been deployed across ${Array.from(creationResult.results.values()).filter(r => r.success).length} chain(s)!`
+                    {tokenCreationState.creationResult?.multiChain
+                      ? `Your token has been deployed across ${Array.from(tokenCreationState.creationResult.results.values()).filter(r => r.success).length} chain(s)!`
                       : 'Your token is now live on KasPump and ready for trading!'
                     }
                   </p>
-                  
-                  {creationResult && (
+
+                  {tokenCreationState.creationResult && (
                     <div className="space-y-4 mb-6">
-                      {creationResult.multiChain && creationResult.results ? (
+                      {tokenCreationState.creationResult.multiChain && tokenCreationState.creationResult.results ? (
                         // Multi-chain results
                         <div className="space-y-3">
-                          {Array.from(creationResult.results.values()).map((result, idx: number) => {
+                          {Array.from(tokenCreationState.creationResult.results.values()).map((result, idx: number) => {
                             return (
                               <Card
                                 key={result.chainId || idx}
@@ -726,17 +726,17 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                         // Single-chain result
                         <Card className="bg-gray-800/30 text-left">
                           <div className="space-y-2 text-sm">
-                            <div><span className="text-gray-400">Token Address:</span> <span className="text-white font-mono">{creationResult.tokenAddress}</span></div>
-                            <div><span className="text-gray-400">AMM Address:</span> <span className="text-white font-mono">{creationResult.ammAddress}</span></div>
-                            <div><span className="text-gray-400">Transaction:</span> <span className="text-white font-mono">{creationResult.txHash}</span></div>
+                            <div><span className="text-gray-400">Token Address:</span> <span className="text-white font-mono">{tokenCreationState.creationResult.tokenAddress}</span></div>
+                            <div><span className="text-gray-400">AMM Address:</span> <span className="text-white font-mono">{tokenCreationState.creationResult.ammAddress}</span></div>
+                            <div><span className="text-gray-400">Transaction:</span> <span className="text-white font-mono">{tokenCreationState.creationResult.txHash}</span></div>
                           </div>
                         </Card>
                       )}
                     </div>
                   )}
-                  
+
                   <Button variant="primary" onClick={onClose} fullWidth>
-                    {creationResult?.multiChain ? 'View Tokens' : 'Start Trading'}
+                    {tokenCreationState.creationResult?.multiChain ? 'View Tokens' : 'Start Trading'}
                   </Button>
                 </div>
               )}
@@ -748,7 +748,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
                   <p className="text-red-400 mb-6">{tokenCreationState.creationError}</p>
                   
                   <div className="flex space-x-4">
-                    <Button variant="secondary" onClick={() => setCreationStep('form')} fullWidth>
+                    <Button variant="secondary" onClick={() => tokenCreationState.setCreationStep('form')} fullWidth>
                       Try Again
                     </Button>
                     <Button variant="primary" onClick={onClose} fullWidth>
@@ -779,26 +779,26 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
       
       {/* Success Animations - Outside AnimatePresence */}
       <ConfettiSuccess trigger={showConfetti} duration={3000} />
-      {creationResult && (
+      {tokenCreationState.creationResult && (
         <SuccessToast
           isOpen={showSuccessToast}
           onClose={() => setShowSuccessToast(false)}
-          title={creationResult?.multiChain 
+          title={tokenCreationState.creationResult?.multiChain
             ? 'Multi-Chain Deployment Successful! 🎉'
             : 'Token Created Successfully! 🎉'
           }
-          message={creationResult?.multiChain
-            ? `Deployed to ${Array.from(creationResult.results.values()).filter(r => r.success).length} chain(s)`
+          message={tokenCreationState.creationResult?.multiChain
+            ? `Deployed to ${Array.from(tokenCreationState.creationResult.results.values()).filter(r => r.success).length} chain(s)`
             : 'Your token is now live and ready for trading!'
           }
-          txHash={'txHash' in (creationResult ?? {}) ? creationResult.txHash : Array.from(creationResult?.multiChain ? creationResult.results.values() : [])[0]?.txHash}
-          explorerUrl={'explorerUrl' in (creationResult ?? {}) ? (creationResult as SingleChainCreationResult & { explorerUrl?: string }).explorerUrl : undefined}
+          txHash={'txHash' in (tokenCreationState.creationResult ?? {}) ? tokenCreationState.creationResult.txHash : Array.from(tokenCreationState.creationResult?.multiChain ? tokenCreationState.creationResult.results.values() : [])[0]?.txHash}
+          explorerUrl={'explorerUrl' in (tokenCreationState.creationResult ?? {}) ? (tokenCreationState.creationResult as SingleChainCreationResult & { explorerUrl?: string }).explorerUrl : undefined}
           duration={8000}
           onAction={() => {
-            if (creationResult?.tokenAddress) {
-              window.location.href = `/tokens/${creationResult.tokenAddress}`;
+            if (tokenCreationState.creationResult?.tokenAddress) {
+              window.location.href = `/tokens/${tokenCreationState.creationResult.tokenAddress}`;
             } else {
-              const firstResult = Array.from((creationResult?.results as Map<any, any>)?.values() || [])?.[0] as any;
+              const firstResult = Array.from((tokenCreationState.creationResult?.results as Map<any, any>)?.values() || [])?.[0] as any;
               if (firstResult?.tokenAddress) {
                 window.location.href = `/tokens/${firstResult.tokenAddress}`;
               }

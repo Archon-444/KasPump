@@ -1,16 +1,28 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, TrendingUp, Zap, Users, Search, Star } from 'lucide-react';
-import { WalletConnectButton } from '../components/features/WalletConnectButton';
-import { TokenCard, TokenCardSkeleton } from '../components/features/TokenCard';
+import { Plus, TrendingUp, Zap, Users, Rocket } from 'lucide-react';
+import { TokenCard } from '../components/features/TokenCard';
 import { TokenListSkeleton, EmptyState } from '../components/features/LoadingStates';
-import { TokenCreationModal } from '../components/features/TokenCreationModal';
 import dynamic from 'next/dynamic';
 import { TokenSearchFilters, TokenFilters } from '../components/features/TokenSearchFilters';
-import { PWAInstallBanner } from '../components/features/PWAInstallBanner';
-import { MobileNavigation, MobileHeader, useMobileNavigation, MobileTokenCard } from '../components/mobile';
+import { MobileTokenCard } from '../components/mobile';
+import { Button } from '../components/ui';
+import {
+  AmbientBackground,
+  GlowCard,
+  GlowButton,
+  AnimatedBadge,
+  GradientText,
+} from '../components/ui/enhanced';
+import { useRouter } from 'next/navigation';
+import { useContracts } from '../hooks/useContracts';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { useServiceWorkerCache } from '../hooks/useServiceWorkerCache';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { KasPumpToken } from '../types';
+import { cn } from '../utils';
 
 // Lazy load heavy components for better mobile performance
 const TokenTradingPage = dynamic(
@@ -21,8 +33,7 @@ const TokenTradingPage = dynamic(
     return { default: mod.TokenTradingPage };
   }).catch((error) => {
     console.error('Failed to load TokenTradingPage:', error);
-    // Return a fallback component
-    return { 
+    return {
       default: () => <div className="flex items-center justify-center min-h-screen text-red-400">Failed to load trading page</div>
     };
   }),
@@ -40,8 +51,7 @@ const TokenCarousel = dynamic(
     return { default: mod.TokenCarousel };
   }).catch((error) => {
     console.error('Failed to load TokenCarousel:', error);
-    // Return a fallback component
-    return { 
+    return {
       default: () => <div className="h-64 flex items-center justify-center text-gray-400">Failed to load carousel</div>
     };
   }),
@@ -50,29 +60,10 @@ const TokenCarousel = dynamic(
     ssr: false,
   }
 );
-import { Button, Input, Card } from '../components/ui';
-import {
-  AmbientBackground,
-  GlowCard,
-  GlowButton,
-  AnimatedBadge,
-  GradientText,
-  StatCard
-} from '../components/ui/enhanced';
-import { useRouter } from 'next/navigation';
-import { useContracts } from '../hooks/useContracts';
-import { useFavorites } from '../hooks/useFavorites';
-import { useKeyboardShortcuts, COMMON_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
-import { usePullToRefresh } from '../hooks/usePullToRefresh';
-import { useServiceWorkerCache } from '../hooks/useServiceWorkerCache';
-import { useIsMobile } from '../hooks/useIsMobile';
-import { KasPumpToken } from '../types';
-import { debounce, cn } from '../utils';
 
-export default function HomePage() {
+export default function DiscoverPage() {
   const [tokens, setTokens] = useState<KasPumpToken[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedToken, setSelectedToken] = useState<KasPumpToken | null>(null);
   const [filters, setFilters] = useState<TokenFilters>({
     searchQuery: '',
@@ -84,10 +75,7 @@ export default function HomePage() {
   });
 
   const router = useRouter();
-  const mobileNav = useMobileNavigation();
-
   const contracts = useContracts();
-  const favorites = useFavorites();
   const { cacheTokenList } = useServiceWorkerCache();
   const isMobile = useIsMobile();
 
@@ -96,27 +84,20 @@ export default function HomePage() {
     try {
       setLoading(true);
 
-      // Fetch real tokens from blockchain
       if (!contracts.isInitialized || !contracts.getAllTokens || !contracts.getTokenInfo) {
-        console.warn('Contracts not initialized, waiting...');
         setTokens([]);
         return;
       }
 
       try {
-        // Get all token addresses from the factory
         const tokenAddresses = await contracts.getAllTokens();
 
         if (!tokenAddresses || tokenAddresses.length === 0) {
-          console.log('No tokens deployed yet');
           setTokens([]);
           cacheTokenList({ tokens: [] });
           return;
         }
 
-        console.log(`Fetching info for ${tokenAddresses.length} tokens...`);
-
-        // Fetch detailed info for each token
         const tokenPromises = tokenAddresses.map(async (address) => {
           try {
             return await contracts.getTokenInfo(address);
@@ -127,16 +108,11 @@ export default function HomePage() {
         });
 
         const tokenResults = await Promise.all(tokenPromises);
-
-        // Filter out failed fetches
         const validTokens = tokenResults.filter(
           (token): token is KasPumpToken => token !== null
         );
 
-        console.log(`Successfully loaded ${validTokens.length} tokens`);
         setTokens(validTokens);
-
-        // Cache tokens for offline access
         cacheTokenList({ tokens: validTokens });
       } catch (error) {
         console.error('Failed to fetch tokens from blockchain:', error);
@@ -150,16 +126,14 @@ export default function HomePage() {
     }
   }, [contracts.isInitialized, contracts.getAllTokens, contracts.getTokenInfo, cacheTokenList]);
 
-  // Load tokens on mount and when contracts are initialized
   useEffect(() => {
-    // Small delay to ensure contracts are ready
     const timer = setTimeout(() => {
       loadTokens();
     }, 100);
     return () => clearTimeout(timer);
   }, [loadTokens]);
 
-  // Pull-to-refresh support (mobile) - must be after loadTokens is defined
+  // Pull-to-refresh support (mobile)
   const { elementRef: pullRefreshRef, isPulling, pullProgress } = usePullToRefresh({
     onRefresh: loadTokens,
     enabled: isMobile,
@@ -169,7 +143,6 @@ export default function HomePage() {
   const filteredTokens = useMemo(() => {
     let filtered = [...tokens];
 
-    // Search filter
     if (filters.searchQuery) {
       const query = filters.searchQuery.toLowerCase();
       filtered = filtered.filter(token =>
@@ -179,7 +152,6 @@ export default function HomePage() {
       );
     }
 
-    // Status filter
     if (filters.status === 'active') {
       filtered = filtered.filter(token => !token.isGraduated && (token.volume24h || 0) > 0);
     } else if (filters.status === 'graduated') {
@@ -189,10 +161,6 @@ export default function HomePage() {
       filtered = filtered.filter(token => token.createdAt.getTime() > oneDayAgo);
     }
 
-    // Chain filter (if tokens had chainId, we'd filter here)
-    // For now, we'll skip since mock tokens don't have chainId
-
-    // Volume range filter
     if (filters.volumeRange === 'high') {
       filtered = filtered.filter(token => (token.volume24h || 0) >= 10000);
     } else if (filters.volumeRange === 'medium') {
@@ -204,7 +172,6 @@ export default function HomePage() {
       filtered = filtered.filter(token => (token.volume24h || 0) < 1000);
     }
 
-    // Sort
     filtered.sort((a, b) => {
       let compareA: number;
       let compareB: number;
@@ -252,42 +219,18 @@ export default function HomePage() {
     totalHolders: tokens.reduce((acc, token) => acc + token.holders, 0),
   };
 
-  const handleMobileNavigation = (page: string) => {
-    mobileNav.navigate(page);
-    
-    switch (page) {
-      case 'create-token':
-      case 'create':
-        setShowCreateModal(true);
-        break;
-      case 'home':
-        setSelectedToken(null);
-        break;
-      default:
-        console.log('Navigate to:', page);
-    }
-  };
-
   const handleQuickTrade = (token: KasPumpToken, type: 'buy' | 'sell') => {
     setSelectedToken(token);
-    // Auto-set trade type in the trading interface
-    console.log(`Quick ${type} for ${token.symbol}`);
   };
 
   // Show token trading page when a token is selected
   if (selectedToken) {
     return (
       <div className="pb-20 md:pb-0">
-        <TokenTradingPage 
-          token={selectedToken} 
-          onBack={() => setSelectedToken(null)} 
+        <TokenTradingPage
+          token={selectedToken}
+          onBack={() => setSelectedToken(null)}
         />
-        {isMobile && (
-          <MobileNavigation
-            currentPage="trading"
-            onNavigate={handleMobileNavigation}
-          />
-        )}
       </div>
     );
   }
@@ -295,7 +238,7 @@ export default function HomePage() {
   return (
     <div
       ref={pullRefreshRef as any}
-      className={cn('min-h-screen relative', isMobile && 'pb-20')}
+      className="min-h-screen relative"
     >
       {/* Ambient Background Effects */}
       <AmbientBackground
@@ -327,57 +270,6 @@ export default function HomePage() {
         </motion.div>
       )}
 
-      {/* Header */}
-      <header className="border-b border-gray-800/50 bg-gray-900/30 backdrop-blur-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center space-x-4">
-              <motion.a
-                href="/"
-                className="text-2xl font-bold gradient-text flex items-center space-x-2"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: 'spring', stiffness: 300 }}
-              >
-                <span className="text-3xl">🚀</span>
-                <span>KasPump</span>
-              </motion.a>
-              <div className="hidden sm:block text-sm text-gray-400">
-                Meme coins on BSC
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center space-x-6">
-              <Button variant="ghost" size="sm" onClick={() => router.push('/')}>Trade</Button>
-              <Button variant="ghost" size="sm" onClick={() => setShowCreateModal(true)}>Create</Button>
-              <Button variant="ghost" size="sm" onClick={() => router.push('/portfolio')}>Portfolio</Button>
-              <Button variant="ghost" size="sm" onClick={() => router.push('/analytics')}>Analytics</Button>
-              <Button variant="ghost" size="sm" onClick={() => router.push('/creator')}>Creator</Button>
-            </nav>
-
-            {/* Wallet Connection */}
-            <div className="flex items-center space-x-3">
-              <a
-                href="/favorites"
-                className="p-2 rounded-lg text-gray-400 hover:text-yellow-400 hover:bg-gray-800 transition-colors relative"
-                title="Favorites"
-              >
-                <Star size={20} />
-                {favorites.favoriteCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 text-gray-900 rounded-full text-xs font-bold flex items-center justify-center">
-                    {favorites.favoriteCount > 99 ? '99+' : favorites.favoriteCount}
-                  </span>
-                )}
-              </a>
-              <WalletConnectButton />
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Skip to main content link */}
       <a href="#main-content" className="skip-link">
         Skip to main content
@@ -392,7 +284,6 @@ export default function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          {/* Animated Badge */}
           <motion.div
             className="flex justify-center mb-6"
             initial={{ opacity: 0, y: -10 }}
@@ -428,11 +319,11 @@ export default function HomePage() {
           >
             <GlowButton
               size="lg"
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => router.push('/launch')}
               colorScheme="yellow"
             >
-              <Plus size={20} className="mr-2" />
-              Create Token
+              <Rocket size={20} className="mr-2" />
+              Launch New Token
             </GlowButton>
             <Button
               variant="outline"
@@ -502,7 +393,7 @@ export default function HomePage() {
               tokens={filteredTokens
                 .sort((a, b) => b.volume24h - a.volume24h)
                 .slice(0, 10)}
-              title="Trending Now 🔥"
+              title="Trending Now"
               subtitle="Top tokens by 24h volume"
               onTokenClick={(token) => setSelectedToken(token)}
               autoScroll={true}
@@ -521,7 +412,7 @@ export default function HomePage() {
                 {tokens.length} Active
               </AnimatedBadge>
             </div>
-            
+
             <TokenSearchFilters
               filters={filters}
               onFiltersChange={setFilters}
@@ -542,8 +433,8 @@ export default function HomePage() {
                   : "Be the first to launch a token on KasPump! Create your meme coin and watch it pump."
               }
               action={{
-                label: 'Create First Token',
-                onClick: () => setShowCreateModal(true),
+                label: 'Launch First Token',
+                onClick: () => router.push('/launch'),
                 icon: <Plus size={16} />,
               }}
             />
@@ -566,16 +457,14 @@ export default function HomePage() {
                   className="content-visibility-auto"
                 >
                   {isMobile ? (
-                    <MobileTokenCard 
-                      token={token} 
+                    <MobileTokenCard
+                      token={token}
                       onClick={() => setSelectedToken(token)}
                       onQuickTrade={handleQuickTrade}
                       showQuickActions={true}
                     />
                   ) : (
-                    <TokenCard token={token} onClick={() => {
-                      setSelectedToken(token);
-                    }} />
+                    <TokenCard token={token} onClick={() => setSelectedToken(token)} />
                   )}
                 </motion.div>
               ))}
@@ -583,17 +472,6 @@ export default function HomePage() {
           )}
         </section>
       </main>
-
-      {/* Token Creation Modal */}
-      <TokenCreationModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSuccess={(tokenData) => {
-          console.log('Token created:', tokenData);
-          setShowCreateModal(false);
-          loadTokens(); // Reload tokens
-        }}
-      />
 
       {/* Footer */}
       <footer className="border-t border-gray-800/50 bg-gray-900/30 mt-20 relative z-10">
@@ -603,17 +481,6 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
-      
-      {/* Mobile Navigation */}
-      {isMobile && (
-        <MobileNavigation
-          currentPage={mobileNav.currentPage as 'home' | 'trading' | 'create' | 'analytics' | 'profile'}
-          onNavigate={handleMobileNavigation}
-        />
-      )}
-
-      {/* PWA Install Banner */}
-      <PWAInstallBanner />
     </div>
   );
 }

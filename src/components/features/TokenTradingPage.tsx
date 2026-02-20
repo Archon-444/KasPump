@@ -22,6 +22,8 @@ import { PriceAlertModal } from './PriceAlertModal';
 import { FavoriteButton } from './FavoriteButton';
 import { RecentTradesFeed } from './RecentTradesFeed';
 import { HolderList } from './HolderList';
+import { BondingCurveSimulator } from './BondingCurveSimulator';
+import { RiskIndicators } from './RiskIndicators';
 import { MobileTradingInterface } from '../mobile';
 import { Card, Button, Badge, Progress } from '../ui';
 import { KasPumpToken, TradeData } from '../../types';
@@ -265,11 +267,21 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
           </Card>
         </motion.div>
 
+        {/* Risk Indicators */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="mb-6"
+        >
+          <RiskIndicators token={token} compact={true} />
+        </motion.div>
+
         {/* Main Trading Interface */}
         <div className={cn(
           'gap-6 mb-6',
-          isMobile 
-            ? 'flex flex-col space-y-6' 
+          isMobile
+            ? 'flex flex-col space-y-6'
             : 'grid grid-cols-1 lg:grid-cols-3'
         )}>
           {/* Chart Section */}
@@ -316,6 +328,27 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
             )}
           </motion.div>
         </div>
+
+        {/* Bonding Curve Simulator */}
+        {!token.isGraduated && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="mb-6"
+          >
+            <BondingCurveSimulator
+              currentPrice={token.price}
+              basePrice={token.price * 0.1}
+              slope={token.curveType === 'exponential' ? 0.0001 : 0.00000001}
+              curveType={token.curveType as 'linear' | 'exponential'}
+              totalSupply={token.totalSupply}
+              currentSupply={token.currentSupply}
+              currencySymbol="BNB"
+              compact={false}
+            />
+          </motion.div>
+        )}
 
         {/* Token Details Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -421,6 +454,16 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
             chainId={resolvedChainId}
             maxHolders={20}
           />
+        </motion.div>
+
+        {/* Full Risk Assessment */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.65 }}
+          className="mb-6"
+        >
+          <RiskIndicators token={token} compact={false} />
         </motion.div>
 
         {/* Social Share Panel */}
