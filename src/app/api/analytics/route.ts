@@ -281,7 +281,7 @@ async function getNewTokensCount(factoryContract: ethers.Contract, timeframe: st
     };
 
     const fromBlock = Math.max(0, currentBlock - (timeframeBlocks[timeframe as keyof typeof timeframeBlocks] || currentBlock));
-    const filter = factoryContract.filters.TokenCreated();
+    const filter = (factoryContract.filters as any).TokenCreated();
     const events = await factoryContract.queryFilter(filter, fromBlock, currentBlock);
 
     return events.length;
@@ -370,7 +370,7 @@ async function getTopPerformingTokens(
       if (!ammAddress) continue;
 
       const tradingData = await getTradingDataForAnalytics(provider, ammAddress);
-      // Consider "top performing" if >50% to graduation and volume > $1000
+      // Consider \"top performing\" if >50% to graduation and volume > $1000
       if (tradingData && tradingData.graduation > 5000 && tradingData.totalVolume > 1000) {
         topPerformingCount++;
       }
@@ -393,7 +393,7 @@ async function getAMMAddressForToken(factoryContract: ethers.Contract, tokenAddr
     // Method might not exist, fall through to events
   }
 
-  const filter = factoryContract.filters.TokenCreated(tokenAddress);
+  const filter = (factoryContract.filters as any).TokenCreated(tokenAddress);
   const events = await factoryContract.queryFilter(filter);
 
   if (events.length > 0 && 'args' in events[0]) {
