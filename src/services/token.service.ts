@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { BlockchainService } from './blockchain';
-import { TokenFactory } from '../../typechain-types';
+import { TokenFactory, BondingCurveAMM } from '../../typechain-types';
 
 export interface TokenDetails {
   address: string;
@@ -47,6 +47,9 @@ export class TokenService {
   static async getTokenDetails(chainId: number, tokenAddress: string): Promise<TokenDetails | null> {
     try {
       const factory = BlockchainService.getTokenFactory(chainId);
+      // Validate address format before calling contract
+      if (!ethers.isAddress(tokenAddress)) return null;
+      
       return await this.fetchTokenData(factory, chainId, tokenAddress);
     } catch (error) {
       console.error(`Error fetching token details for ${tokenAddress}:`, error);
@@ -63,6 +66,10 @@ export class TokenService {
     offset: number = 0
   ): Promise<PaginatedTokens> {
     const factory = BlockchainService.getTokenFactory(chainId);
+    
+    // In a production environment with thousands of tokens, 
+    // we would index these events into a database (PostgreSQL/MongoDB)
+    // rather than querying the blockchain directly for "all tokens"
     const allTokens = await factory.getAllTokens();
     
     // Slice for pagination
@@ -105,6 +112,9 @@ export class TokenService {
       const currentSupply = tradingData?.currentSupply || 0;
       const currentPrice = tradingData?.currentPrice || parseFloat(ethers.formatEther(config.basePrice));
       
+      // Handle BigInt properly by converting to string/number explicitly
+      const curveTypeVal = Number(config.curveType);
+
       return {
         address: tokenAddress,
         name: config.name,
@@ -118,13 +128,13 @@ export class TokenService {
         marketCap: currentSupply * currentPrice,
         basePrice: parseFloat(ethers.formatEther(config.basePrice)),
         slope: parseFloat(ethers.formatEther(config.slope)),
-        curveType: config.curveType === 0n ? 'linear' : 'exponential',
+        curveType: curveTypeVal === 0 ? 'linear' : 'exponential',
         graduationThreshold: parseFloat(ethers.formatEther(config.graduationThreshold)),
         graduationProgress: tradingData?.graduation || 0,
         volume24h: tradingData?.totalVolume || 0,
         isGraduated: tradingData?.isGraduated || false,
         ammAddress,
-        createdAt: await this.getTokenCreationTime(factory, chainId, tokenAddress),
+        createdAt: await this.getTokenCreationTime(factory, tokenAddress),
         analytics: {
           holders: 0, // Placeholder
           transactions24h: 0,
@@ -145,11 +155,15 @@ export class TokenService {
     } catch { /* method might not exist on older ABI */ }
 
     // Fallback to event filtering using TypeChain filters
-    const filter = factory.filters.TokenCreated(tokenAddress);
-    const events = await factory.queryFilter(filter);
-    
-    if (events.length > 0) {
-      return events[0].args.ammAddress;
+    try {
+      const filter = factory.filters.TokenCreated(tokenAddress);
+      const events = await factory.queryFilter(filter);
+      
+      if (events.length > 0) {
+        return events[0].args.ammAddress;
+      }
+    } catch (e) {
+      console.warn(`Failed to filter events for ${tokenAddress}`, e);
     }
     return null;
   }
@@ -160,11 +174,11 @@ export class TokenService {
       const info = await amm.getTradingInfo();
       
       return {
-        currentSupply: parseFloat(ethers.formatEther(info.virtualTokenReserves)), // Assuming reserves track supply
-        currentPrice: parseFloat(ethers.formatEther(info.currentPrice)),
-        totalVolume: parseFloat(ethers.formatEther(info.totalVolume)),
-        graduation: parseFloat(ethers.formatUnits(info.graduationThreshold, 2)), // Adjust decimals as needed
-        isGraduated: info.isGraduated
+        currentSupply: parseFloat(ethers.formatEther(info[0])), // currentSupply
+        currentPrice: parseFloat(ethers.formatEther(info[1])),  // currentPrice
+        totalVolume: parseFloat(ethers.formatEther(info[2])),   // totalVolume
+        graduation: parseFloat(ethers.formatUnits(info[3], 2)), // graduation progress
+        isGraduated: info[4] // isGraduated boolean
       };
     } catch {
       return null;
@@ -172,23 +186,28 @@ export class TokenService {
   }
 
   private static async getTokenCreator(factory: TokenFactory, tokenAddress: string): Promise<string> {
-    const filter = factory.filters.TokenCreated(tokenAddress);
-    const events = await factory.queryFilter(filter);
-    return events.length > 0 ? events[0].args.creator : ethers.ZeroAddress;
+    try {
+      const filter = factory.filters.TokenCreated(tokenAddress);
+      const events = await factory.queryFilter(filter);
+      return events.length > 0 ? events[0].args.creator : ethers.ZeroAddress;
+    } catch {
+      return ethers.ZeroAddress;
+    }
   }
 
   private static async getTokenCreationTime(
     factory: TokenFactory, 
-    chainId: number, 
     tokenAddress: string
   ): Promise<string> {
-    const filter = factory.filters.TokenCreated(tokenAddress);
-    const events = await factory.queryFilter(filter);
-    
-    if (events.length > 0) {
-      const block = await events[0].getBlock();
-      return new Date(block.timestamp * 1000).toISOString();
-    }
+    try {
+      const filter = factory.filters.TokenCreated(tokenAddress);
+      const events = await factory.queryFilter(filter);
+      
+      if (events.length > 0) {
+        const block = await events[0].getBlock();
+        return new Date(block.timestamp * 1000).toISOString();
+      }
+    } catch { /* ignore */ }
     return new Date().toISOString();
   }
 }
