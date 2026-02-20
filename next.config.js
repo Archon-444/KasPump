@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
   reactStrictMode: true,
   images: {
@@ -15,12 +17,15 @@ const nextConfig = {
   },
   webpack: (config) => {
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
+    
+    // Add explicit alias for typechain-types to help webpack resolve it
+    config.resolve.alias['typechain-types'] = path.join(__dirname, 'typechain-types');
+    
     return config;
   },
   typescript: {
     ignoreBuildErrors: true,
   },
-  // eslint: config removed as it's deprecated in next.config.js
 };
 
 module.exports = nextConfig;
