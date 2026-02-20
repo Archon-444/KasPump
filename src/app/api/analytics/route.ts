@@ -120,8 +120,8 @@ async function getPlatformAnalytics(
       // Note: Historical metrics require event indexing or database
       growth: {
         newTokens,
-        // Growth percentages would require historical data tracking
-        // Removed placeholder random values for production accuracy
+        volumeGrowth,
+        userGrowth,
       },
 
       // Partnership Data
@@ -220,7 +220,7 @@ async function countActiveTokens(
   provider: ethers.JsonRpcProvider,
   factoryContract: ethers.Contract,
   tokens: string[],
-  timeframe: string
+  _timeframe: string
 ): Promise<number> {
   // Count tokens with recent trading activity (volume > 0 and not graduated)
   // In production, this would query recent Trade events within the timeframe
