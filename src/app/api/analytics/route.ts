@@ -220,7 +220,7 @@ async function countActiveTokens(
   provider: ethers.JsonRpcProvider,
   factoryContract: ethers.Contract,
   tokens: string[],
-  timeframe: string
+  _timeframe: string
 ): Promise<number> {
   // Count tokens with recent trading activity (volume > 0 and not graduated)
   // In production, this would query recent Trade events within the timeframe
