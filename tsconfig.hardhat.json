@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "outDir": "./dist-hardhat"
+  },
+  "include": [
+    "hardhat.config.ts",
+    "scripts/**/*.ts",
+    "test/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src",
+    ".next"
+  ]
+}
