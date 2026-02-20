@@ -18,8 +18,6 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-
-    /* Additional Strict Type-Checking Options */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
@@ -52,6 +50,12 @@
       ],
       "@/lib/*": [
         "./src/lib/*"
+      ],
+      "typechain-types": [
+        "./typechain-types"
+      ],
+      "typechain-types/*": [
+        "./typechain-types/*"
       ]
     }
   },
@@ -60,7 +64,8 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    "typechain-types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
