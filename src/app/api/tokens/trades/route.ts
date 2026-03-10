@@ -38,28 +38,35 @@ export async function GET(request: NextRequest) {
       amm.queryFilter(sellFilter, fromBlock).catch(() => []),
     ]);
 
-    const trades = [
-      ...buyEvents.map(e => ({
-        type: 'buy' as const,
-        trader: (e as any).args?.buyer || '',
-        nativeAmount: ethers.formatEther((e as any).args?.nativeAmount || 0),
-        tokenAmount: ethers.formatEther((e as any).args?.tokenAmount || 0),
-        timestamp: 0,
-        txHash: e.transactionHash,
-        blockNumber: e.blockNumber,
-      })),
-      ...sellEvents.map(e => ({
-        type: 'sell' as const,
-        trader: (e as any).args?.seller || '',
-        nativeAmount: ethers.formatEther((e as any).args?.nativeAmount || 0),
-        tokenAmount: ethers.formatEther((e as any).args?.tokenAmount || 0),
-        timestamp: 0,
-        txHash: e.transactionHash,
-        blockNumber: e.blockNumber,
-      })),
+    const provider = amm.runner?.provider;
+    const allEvents = [
+      ...buyEvents.map(e => ({ e, type: 'buy' as const, trader: (e as any).args?.buyer || '' })),
+      ...sellEvents.map(e => ({ e, type: 'sell' as const, trader: (e as any).args?.seller || '' })),
     ]
-      .sort((a, b) => b.blockNumber - a.blockNumber)
+      .sort((a, b) => b.e.blockNumber - a.e.blockNumber)
       .slice(0, limit);
+
+    const uniqueBlocks = [...new Set(allEvents.map(t => t.e.blockNumber))];
+    const blockTimestamps = new Map<number, number>();
+
+    if (provider) {
+      await Promise.all(
+        uniqueBlocks.slice(0, 50).map(async (bn) => {
+          const block = await provider.getBlock(bn).catch(() => null);
+          if (block) blockTimestamps.set(bn, block.timestamp);
+        })
+      );
+    }
+
+    const trades = allEvents.map(({ e, type, trader }) => ({
+      type,
+      trader,
+      nativeAmount: ethers.formatEther((e as any).args?.nativeAmount || 0),
+      tokenAmount: ethers.formatEther((e as any).args?.tokenAmount || 0),
+      timestamp: (blockTimestamps.get(e.blockNumber) || 0) * 1000,
+      txHash: e.transactionHash,
+      blockNumber: e.blockNumber,
+    }));
 
     return NextResponse.json({ trades });
   } catch (error: any) {

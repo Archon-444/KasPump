@@ -22,6 +22,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { KasPumpToken } from '../types';
 import { cn } from '../utils';
 import { useTokenQuery } from '../hooks/useTokenQuery';
+import { KingOfTheHill } from '../components/features/KingOfTheHill';
 
 // Lazy load heavy components
 const TokenTradingPage = dynamic(
@@ -302,6 +303,16 @@ export default function DiscoverPage() {
               </div>
             </div>
           </GlowCard>
+        </motion.section>
+
+        {/* King of the Hill + About to Graduate */}
+        <motion.section
+          className="mb-6 relative z-10"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
+          <KingOfTheHill />
         </motion.section>
 
         {/* Trending Tokens Carousel */}
