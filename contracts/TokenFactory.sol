@@ -198,7 +198,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         // Deploy AMM with bonding curve (tier 0 = Basic for now)
         ammAddress = deployAMM(
             tokenAddress,
-            msg.sender,  // Token creator
+            payable(msg.sender),
             _basePrice,
             _slope,
             _curveType,
