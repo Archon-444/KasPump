@@ -162,54 +162,82 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     };
   }, [height, showVolume, isMobile]);
 
-  // Generate mock price data (replace with real data)
   useEffect(() => {
-    const generateMockData = (): PriceData[] => {
-      const data: PriceData[] = [];
-      const now = Math.floor(Date.now() / 1000);
-      let currentPrice = token.price;
-      
-      for (let i = 100; i >= 0; i--) {
-        const time = (now - i * 60 * 60) as UTCTimestamp; // 1 hour intervals
-        const variation = (Math.random() - 0.5) * 0.02; // ±1% variation
-        const open = currentPrice;
-        const close = open * (1 + variation);
-        const high = Math.max(open, close) * (1 + Math.random() * 0.01);
-        const low = Math.min(open, close) * (1 - Math.random() * 0.01);
-        const volume = Math.random() * 1000 + 100;
+    let cancelled = false;
 
-        data.push({
-          time,
-          open,
-          high,
-          low,
-          close,
-          volume
-        });
+    const fetchCandles = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/tokens/candles?address=${token.address}&timeframe=${timeframe}`
+        );
+        if (!res.ok) throw new Error('Failed to fetch candles');
 
-        currentPrice = close;
+        const { candles } = await res.json();
+
+        if (cancelled) return;
+
+        if (candles && candles.length > 0) {
+          const mapped: PriceData[] = candles.map((c: any) => ({
+            time: c.time as UTCTimestamp,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close,
+            volume: c.volume || 0,
+          }));
+          setPriceData(mapped);
+
+          if (candlestickSeriesRef.current) {
+            candlestickSeriesRef.current.setData(mapped);
+          }
+          if (volumeSeriesRef.current && showVolume) {
+            volumeSeriesRef.current.setData(
+              mapped.map(d => ({
+                time: d.time,
+                value: d.volume || 0,
+                color: d.close >= d.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)',
+              }))
+            );
+          }
+        } else {
+          const now = Math.floor(Date.now() / 1000) as UTCTimestamp;
+          const single: PriceData = {
+            time: now,
+            open: token.price,
+            high: token.price,
+            low: token.price,
+            close: token.price,
+            volume: 0,
+          };
+          setPriceData([single]);
+          if (candlestickSeriesRef.current) {
+            candlestickSeriesRef.current.setData([single]);
+          }
+        }
+      } catch (err) {
+        console.error('Chart data fetch error:', err);
+        const now = Math.floor(Date.now() / 1000) as UTCTimestamp;
+        const fallback: PriceData = {
+          time: now,
+          open: token.price,
+          high: token.price,
+          low: token.price,
+          close: token.price,
+          volume: 0,
+        };
+        setPriceData([fallback]);
+        if (candlestickSeriesRef.current) {
+          candlestickSeriesRef.current.setData([fallback]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      return data;
     };
 
-    const mockData = generateMockData();
-    setPriceData(mockData);
-    setLoading(false);
+    fetchCandles();
 
-    // Update chart with data
-    if (candlestickSeriesRef.current) {
-      candlestickSeriesRef.current.setData(mockData);
-    }
-
-    if (volumeSeriesRef.current && showVolume) {
-      const volumeData = mockData.map(d => ({
-        time: d.time,
-        value: d.volume || 0,
-        color: d.close >= d.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
-      }));
-      volumeSeriesRef.current.setData(volumeData);
-    }
+    return () => { cancelled = true; };
   }, [token.address, token.price, showVolume, timeframe]);
 
   const toggleFullscreen = () => {

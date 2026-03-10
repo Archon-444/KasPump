@@ -52,6 +52,12 @@ export class BlockchainService {
     return BondingCurveAMM__factory.connect(ammAddress, provider);
   }
 
+  static resolveChainId(chainId?: number): number {
+    if (chainId && RPC_URLS[chainId]) return chainId;
+    const defaultChainId = parseInt(process.env.NEXT_PUBLIC_DEFAULT_CHAIN_ID || '97', 10);
+    return RPC_URLS[defaultChainId] ? defaultChainId : 97;
+  }
+
   private getFactoryContract(): TokenFactory {
     if (this.factoryContract) return this.factoryContract;
 

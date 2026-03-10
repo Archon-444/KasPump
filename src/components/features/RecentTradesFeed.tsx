@@ -37,11 +37,24 @@ export const RecentTradesFeed: React.FC<RecentTradesFeedProps> = ({
     }
   });
 
-  // Initialize with mock data or fetch recent trades from API
   useEffect(() => {
-    // In production, fetch initial trades from API
-    // For now, we'll start with empty array and let WebSocket populate it
-  }, [tokenAddress, chainId]);
+    const fetchInitialTrades = async () => {
+      try {
+        const res = await fetch(
+          `/api/tokens/trades?address=${tokenAddress}${chainId ? `&chainId=${chainId}` : ''}&limit=${maxTrades}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.trades && data.trades.length > 0) {
+          setTrades(data.trades);
+        }
+      } catch (err) {
+        console.error('Failed to fetch initial trades:', err);
+      }
+    };
+
+    fetchInitialTrades();
+  }, [tokenAddress, chainId, maxTrades]);
 
   if (trades.length === 0) {
     return (

@@ -21,6 +21,7 @@ import { TokenSocialShare } from './TokenSocialShare';
 import { PriceAlertModal } from './PriceAlertModal';
 import { FavoriteButton } from './FavoriteButton';
 import { RecentTradesFeed } from './RecentTradesFeed';
+import { TokenCommentThread } from './TokenCommentThread';
 import { HolderList } from './HolderList';
 import { BondingCurveSimulator } from './BondingCurveSimulator';
 import { RiskIndicators } from './RiskIndicators';
@@ -441,6 +442,19 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
           />
           </motion.div>
         </div>
+
+        {/* Comment Thread */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
+          className="mb-6"
+        >
+          <TokenCommentThread
+            tokenAddress={token.address}
+            creatorAddress={(token as any).creator}
+          />
+        </motion.div>
 
         {/* Holders List */}
         <motion.div
