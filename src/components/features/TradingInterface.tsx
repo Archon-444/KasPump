@@ -150,50 +150,48 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   };
 
   return (
-    <Card className={cn('p-6 space-y-6', className)}>
-      {/* Trade Type Selector - Mobile optimized */}
-      <div className="flex items-center space-x-2 bg-gray-800/50 p-1 rounded-lg">
+    <Card className={cn('p-5 space-y-5', className)}>
+      {/* Trade Type Selector */}
+      <div className="flex items-center gap-1.5 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06]">
         <button
           onClick={() => setTradeType('buy')}
           className={cn(
-            'flex-1 px-4 py-4 rounded-md font-semibold transition-all duration-200',
-            'min-h-[56px]', // Larger touch target for mobile
-            'touch-manipulation', // Optimize touch response
+            'flex-1 px-4 py-3 rounded-lg font-semibold transition-all duration-200',
+            'touch-manipulation',
             tradeType === 'buy'
-              ? 'bg-green-600 text-white shadow-lg shadow-green-600/20 active:bg-green-700'
-              : 'text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600'
+              ? 'bg-green-500/15 text-green-400 shadow-sm'
+              : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
           )}
         >
-          <div className="flex items-center justify-center space-x-2">
-            <TrendingUp size={20} />
-            <span className="text-base sm:text-sm">Buy</span>
+          <div className="flex items-center justify-center gap-2">
+            <TrendingUp size={17} />
+            <span className="text-sm">Buy</span>
           </div>
         </button>
         <button
           onClick={() => setTradeType('sell')}
           className={cn(
-            'flex-1 px-4 py-4 rounded-md font-semibold transition-all duration-200',
-            'min-h-[56px]', // Larger touch target for mobile
-            'touch-manipulation', // Optimize touch response
+            'flex-1 px-4 py-3 rounded-lg font-semibold transition-all duration-200',
+            'touch-manipulation',
             tradeType === 'sell'
-              ? 'bg-red-600 text-white shadow-lg shadow-red-600/20 active:bg-red-700'
-              : 'text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600'
+              ? 'bg-red-500/15 text-red-400 shadow-sm'
+              : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
           )}
         >
-          <div className="flex items-center justify-center space-x-2">
-            <TrendingDown size={20} />
-            <span className="text-base sm:text-sm">Sell</span>
+          <div className="flex items-center justify-center gap-2">
+            <TrendingDown size={17} />
+            <span className="text-sm">Sell</span>
           </div>
         </button>
       </div>
 
       {/* Amount Input */}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-gray-300">
+          <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
             {tradeType === 'buy' ? 'You pay' : 'You sell'}
           </label>
-          <div className="text-sm text-gray-400">
+          <div className="text-xs text-gray-500 tabular-nums">
             Balance: {formatCurrency(tradeType === 'buy' ? userBalance : userTokenBalance, tradeType === 'buy' ? 'BNB' : token.symbol)}
           </div>
         </div>
@@ -204,34 +202,31 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
-            inputMode="decimal" // Better mobile keyboard
+            inputMode="decimal"
             className={cn(
-              'w-full px-4 py-5 sm:py-4 bg-gray-800/50 border border-gray-600 rounded-lg',
-              'text-2xl sm:text-xl font-mono text-white placeholder-gray-500',
-              'focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/50',
+              'w-full px-4 py-4 bg-white/[0.03] border border-white/[0.08] rounded-xl',
+              'text-xl font-mono text-white placeholder-gray-600',
+              'focus:outline-none focus:border-yellow-500/40 focus:ring-2 focus:ring-yellow-500/20',
               'transition-all duration-200',
-              'min-h-[56px]', // Mobile touch target
-              'touch-manipulation', // Optimize touch response
-              isInsufficientBalance() && 'border-red-500 focus:border-red-500 focus:ring-red-500/50'
+              'touch-manipulation',
+              isInsufficientBalance() && 'border-red-500/40 focus:border-red-500/40 focus:ring-red-500/20'
             )}
           />
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm sm:text-base">
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-xs uppercase tracking-wider">
             {tradeType === 'buy' ? 'BNB' : token.symbol}
           </div>
         </div>
 
-        {/* Quick Amount Buttons - Mobile optimized */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-1.5">
           {amountPresets.map((preset) => (
             <button
               key={preset}
               onClick={() => handleQuickAmount(preset)}
               className={cn(
-                'px-4 py-3 bg-gray-700/50 hover:bg-gray-600 active:bg-gray-500',
-                'text-gray-300 font-medium rounded-lg transition-all',
-                'text-sm sm:text-xs',
-                'min-h-[48px]', // Mobile touch target
-                'touch-manipulation' // Optimize touch response
+                'py-2 bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12]',
+                'text-gray-400 hover:text-gray-200 font-medium rounded-lg transition-all duration-150',
+                'text-xs',
+                'touch-manipulation'
               )}
             >
               {preset === 100 ? 'Max' : `${preset}%`}
@@ -245,7 +240,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="space-y-3 p-4 bg-gray-800/20 rounded-lg border border-gray-700/30"
+          className="space-y-3 p-3.5 bg-white/[0.02] rounded-xl border border-white/[0.06]"
         >
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-400">
@@ -369,25 +364,25 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
         </AnimatePresence>
       </div>
 
-      {/* Trade Button - Mobile optimized */}
+      {/* Trade Button */}
       <Button
         onClick={handleTradeClick}
         disabled={!amount || parseFloat(amount) <= 0 || isInsufficientBalance() || loading || quoteLoading}
         className={cn(
-          'w-full min-h-[56px] text-base sm:text-lg font-bold transition-all duration-200',
-          'touch-manipulation', // Optimize touch response
+          'w-full h-12 text-sm font-semibold transition-all duration-200',
+          'touch-manipulation rounded-xl',
           tradeType === 'buy'
-            ? 'bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-lg shadow-green-600/20'
-            : 'bg-red-600 hover:bg-red-700 active:bg-red-800 shadow-lg shadow-red-600/20',
-          'disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none',
-          'transform active:scale-[0.98]' // Touch feedback
+            ? 'bg-green-500 hover:bg-green-400 text-white shadow-glow-green'
+            : 'bg-red-500 hover:bg-red-400 text-white shadow-glow-red',
+          'disabled:opacity-35 disabled:cursor-not-allowed disabled:shadow-none',
+          'active:scale-[0.98]'
         )}
       >
-        <div className="flex items-center justify-center space-x-2">
+        <div className="flex items-center justify-center gap-2">
           {loading ? (
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
           ) : (
-            <Zap size={22} />
+            <Zap size={16} />
           )}
           <span>{getTradeButtonText()}</span>
         </div>

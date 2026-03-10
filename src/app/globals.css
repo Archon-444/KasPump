@@ -221,25 +221,25 @@ img[loading="lazy"] {
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --background: 225 15% 4%;
+    --foreground: 0 0% 97%;
+    --card: 225 15% 6%;
+    --card-foreground: 0 0% 97%;
+    --popover: 225 15% 6%;
+    --popover-foreground: 0 0% 97%;
+    --primary: 0 0% 97%;
+    --primary-foreground: 225 15% 6%;
+    --secondary: 225 10% 12%;
+    --secondary-foreground: 0 0% 97%;
+    --muted: 225 10% 12%;
+    --muted-foreground: 225 5% 55%;
+    --accent: 225 10% 12%;
+    --accent-foreground: 0 0% 97%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --destructive-foreground: 0 0% 97%;
+    --border: 225 10% 13%;
+    --input: 225 10% 13%;
+    --ring: 43 96% 56%;
   }
 }
 
@@ -249,6 +249,15 @@ img[loading="lazy"] {
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  
+  ::selection {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fff;
   }
 }
 
@@ -266,18 +275,17 @@ img[loading="lazy"] {
 
   /* ========== AMBIENT BACKGROUND EFFECTS ========== */
 
-  /* Roof light - Top-down radial glow */
   .roof-light {
     position: absolute;
-    top: -20%;
+    top: -25%;
     left: 50%;
     transform: translateX(-50%);
-    width: 140vw;
-    height: 60vh;
-    background: radial-gradient(50% 100% at 50% 50%, rgba(243, 186, 47, 0.12) 0%, rgba(249, 115, 22, 0.08) 30%, transparent 100%);
+    width: 120vw;
+    height: 50vh;
+    background: radial-gradient(ellipse 60% 80% at 50% 30%, rgba(251, 191, 36, 0.08) 0%, rgba(249, 115, 22, 0.04) 40%, transparent 80%);
     pointer-events: none;
     z-index: 0;
-    filter: blur(60px);
+    filter: blur(80px);
   }
 
   /* Conic light beam effect */
@@ -358,29 +366,34 @@ img[loading="lazy"] {
 
   /* ========== GLOW CARD STYLES ========== */
 
-  /* Gradient border card wrapper */
   .glow-card-wrapper {
-    @apply relative p-px rounded-xl overflow-hidden;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    @apply relative p-px rounded-2xl overflow-hidden;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .glow-card-wrapper::before {
     content: '';
-    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
-    background: linear-gradient(to bottom, rgba(243, 186, 47, 0.2), rgba(249, 115, 22, 0.1));
+    @apply absolute inset-0 opacity-0 transition-opacity duration-500;
+    background: linear-gradient(180deg, rgba(251, 191, 36, 0.15) 0%, rgba(249, 115, 22, 0.05) 100%);
   }
 
   .glow-card-wrapper:hover::before {
     @apply opacity-100;
   }
 
+  .glow-card-wrapper:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(251, 191, 36, 0.08);
+  }
+
   .glow-card-inner {
-    @apply relative h-full rounded-[11px] transition-colors duration-300;
+    @apply relative h-full rounded-[15px] transition-colors duration-300;
     background: hsl(var(--card));
   }
 
   .glow-card-wrapper:hover .glow-card-inner {
-    background: hsl(var(--card) / 0.95);
+    background: hsl(var(--card) / 0.97);
   }
 
   /* ========== GLOW BUTTON STYLES ========== */
@@ -425,7 +438,12 @@ img[loading="lazy"] {
   }
   
   .token-card-glow {
-    @apply transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/25;
+    @apply transition-all duration-300 ease-smooth;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  
+  .token-card-glow:hover {
+    box-shadow: 0 8px 30px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(251, 191, 36, 0.1);
   }
   
   .success-glow {
@@ -437,7 +455,7 @@ img[loading="lazy"] {
   }
   
   .glassmorphism {
-    @apply backdrop-blur-sm bg-white/10 border border-white/20;
+    @apply backdrop-blur-md bg-white/[0.04] border border-white/[0.08];
   }
   
   .gradient-text {

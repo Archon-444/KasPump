@@ -254,43 +254,45 @@ export default function LaunchPage() {
     <div className="min-h-screen relative">
       <AmbientBackground colorScheme="yellow" showOrbs={true} showStars={true} />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 relative z-10">
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <Rocket className="text-yellow-400" size={28} />
-              Launch New Token
+            <h1 className="text-2xl font-semibold text-white flex items-center gap-2.5 tracking-tight">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-glow-sm">
+                <Rocket size={16} className="text-white" />
+              </div>
+              Launch Token
             </h1>
-            <p className="text-gray-400 mt-1">
-              Create and deploy your token in under 3 minutes
+            <p className="text-gray-500 text-sm mt-1">
+              Deploy in under 3 minutes
             </p>
           </div>
 
           {/* Mode Toggle */}
-          <div className="flex items-center gap-2 bg-gray-800/50 rounded-lg p-1">
+          <div className="flex items-center bg-white/[0.04] rounded-xl p-0.5 border border-white/[0.06]">
             <button
               onClick={() => setMode('beginner')}
               className={cn(
-                'px-3 py-1.5 rounded-md text-sm font-medium transition-all',
+                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
                 mode === 'beginner'
                   ? 'bg-yellow-500 text-white shadow-sm'
                   : 'text-gray-400 hover:text-white'
               )}
             >
-              <Sparkles size={14} className="inline mr-1" />
+              <Sparkles size={12} className="inline mr-1" />
               Guided
             </button>
             <button
               onClick={() => setMode('advanced')}
               className={cn(
-                'px-3 py-1.5 rounded-md text-sm font-medium transition-all',
+                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
                 mode === 'advanced'
                   ? 'bg-yellow-500 text-white shadow-sm'
                   : 'text-gray-400 hover:text-white'
               )}
             >
-              <Settings size={14} className="inline mr-1" />
+              <Settings size={12} className="inline mr-1" />
               Advanced
             </button>
           </div>
@@ -671,38 +673,28 @@ export default function LaunchPage() {
               </AnimatePresence>
 
               {/* Navigation Buttons */}
-              {wizardStep < 5 && (
-                <div className="flex justify-between mt-6">
-                  <Button
-                    variant="ghost"
-                    onClick={handleBack}
-                    disabled={wizardStep === 1}
-                    className="text-gray-400"
-                  >
-                    <ArrowLeft size={16} className="mr-2" />
-                    Back
-                  </Button>
+              <div className="flex justify-between mt-5">
+                <Button
+                  variant="ghost"
+                  onClick={handleBack}
+                  disabled={wizardStep === 1}
+                  className="text-gray-400 hover:text-white"
+                  size="sm"
+                >
+                  <ArrowLeft size={15} className="mr-1.5" />
+                  Back
+                </Button>
+                {wizardStep < 5 && (
                   <Button
                     onClick={handleNext}
-                    className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600"
+                    variant="gradient"
+                    size="sm"
                   >
                     Next
-                    <ArrowRight size={16} className="ml-2" />
+                    <ArrowRight size={15} className="ml-1.5" />
                   </Button>
-                </div>
-              )}
-              {wizardStep === 5 && (
-                <div className="flex justify-start mt-6">
-                  <Button
-                    variant="ghost"
-                    onClick={handleBack}
-                    className="text-gray-400"
-                  >
-                    <ArrowLeft size={16} className="mr-2" />
-                    Back
-                  </Button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Live Preview Sidebar */}

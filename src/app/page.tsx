@@ -193,26 +193,26 @@ export default function DiscoverPage() {
         </motion.div>
       )}
 
-      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
         {/* Hero Section */}
         <motion.section
-          className="text-center py-12 mb-12 relative z-10"
-          initial={{ opacity: 0, y: 20 }}
+          className="text-center pt-8 pb-10 mb-8 relative z-10"
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
         >
           <motion.div
-            className="flex justify-center mb-6"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            className="flex justify-center mb-5"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
           >
             <AnimatedBadge variant="live" animated={true}>
               Live on BSC
             </AnimatedBadge>
           </motion.div>
 
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight mb-6 animate-fade-in-up">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight mb-5 animate-fade-in-up leading-[1.1]">
             <span className="text-white">Launch Your </span>
             <GradientText
               as="span"
@@ -223,31 +223,31 @@ export default function DiscoverPage() {
               Meme Coin
             </GradientText>
           </h1>
-          <p className="text-lg md:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed font-light">
-            Fair launch, bonding curve trading, instant liquidity on BNB Smart Chain.
-            No presale, no team allocation, just pure meme magic.
+          <p className="text-base md:text-lg text-gray-400 mb-8 max-w-xl mx-auto leading-relaxed">
+            Fair launch, bonding curve trading, instant liquidity.
+            No presale, no team allocation.
           </p>
 
           <motion.div
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-            initial={{ opacity: 0, y: 20 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-3"
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
           >
             <GlowButton
               size="lg"
               onClick={() => router.push('/launch')}
               colorScheme="yellow"
             >
-              <Rocket size={20} className="mr-2" />
-              Launch New Token
+              <Rocket size={18} className="mr-2" />
+              Launch Token
             </GlowButton>
             <Button
               variant="outline"
               size="lg"
               onClick={() => document.getElementById('tokens')?.scrollIntoView({ behavior: 'smooth' })}
-              icon={<TrendingUp size={20} />}
-              className="border-white/10 hover:bg-white/5"
+              icon={<TrendingUp size={18} />}
+              className="border-white/[0.08] hover:bg-white/[0.04] text-gray-300"
             >
               Browse Tokens
             </Button>
@@ -256,50 +256,50 @@ export default function DiscoverPage() {
 
         {/* Stats Section */}
         <motion.section
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 relative z-10"
-          initial={{ opacity: 0, y: 20 }}
+          className="grid grid-cols-3 gap-3 md:gap-4 mb-10 relative z-10"
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
+          transition={{ duration: 0.5, delay: 0.25 }}
         >
-          <GlowCard padding="lg">
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-3">
-                <div className="p-3 rounded-xl bg-yellow-500/10">
-                  <Zap className="w-7 h-7 text-yellow-400" />
+          <GlowCard padding="md">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-yellow-500/[0.08] flex-shrink-0 hidden sm:flex">
+                <Zap className="w-5 h-5 text-yellow-400" />
+              </div>
+              <div>
+                <div className="text-xl md:text-2xl font-bold text-white tabular-nums">
+                  {isLoading ? <span className="text-gray-600">--</span> : stats.totalTokens}
                 </div>
+                <div className="text-xs text-gray-500 font-medium">Tokens</div>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">
-                {isLoading ? '...' : stats.totalTokens}
-              </div>
-              <div className="text-sm text-gray-400 font-medium">Tokens Launched</div>
             </div>
           </GlowCard>
 
-          <GlowCard padding="lg">
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-3">
-                <div className="p-3 rounded-xl bg-green-500/10">
-                  <TrendingUp className="w-7 h-7 text-green-400" />
+          <GlowCard padding="md">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-green-500/[0.08] flex-shrink-0 hidden sm:flex">
+                <TrendingUp className="w-5 h-5 text-green-400" />
+              </div>
+              <div>
+                <div className="text-xl md:text-2xl font-bold text-white tabular-nums">
+                  {isLoading ? <span className="text-gray-600">--</span> : `$${stats.totalVolume.toLocaleString()}`}
                 </div>
+                <div className="text-xs text-gray-500 font-medium">24h Volume</div>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">
-                {isLoading ? '...' : `$${stats.totalVolume.toLocaleString()}`}
-              </div>
-              <div className="text-sm text-gray-400 font-medium">24h Volume</div>
             </div>
           </GlowCard>
 
-          <GlowCard padding="lg">
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-3">
-                <div className="p-3 rounded-xl bg-blue-500/10">
-                  <Users className="w-7 h-7 text-blue-400" />
+          <GlowCard padding="md">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-blue-500/[0.08] flex-shrink-0 hidden sm:flex">
+                <Users className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <div className="text-xl md:text-2xl font-bold text-white tabular-nums">
+                  {isLoading ? <span className="text-gray-600">--</span> : stats.totalHolders.toLocaleString()}
                 </div>
+                <div className="text-xs text-gray-500 font-medium">Holders</div>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">
-                {isLoading ? '...' : stats.totalHolders.toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-400 font-medium">Total Holders</div>
             </div>
           </GlowCard>
         </motion.section>
@@ -307,10 +307,10 @@ export default function DiscoverPage() {
         {/* Trending Tokens Carousel */}
         {filteredTokens.length > 0 && (
           <motion.section
-            className="mb-12 relative z-10"
-            initial={{ opacity: 0, y: 20 }}
+            className="mb-10 relative z-10"
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
           >
             <TokenCarousel
               tokens={filteredTokens
@@ -326,16 +326,19 @@ export default function DiscoverPage() {
 
         {/* Tokens Section */}
         <section id="tokens" className="relative z-10">
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-2xl font-bold text-white">
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-5">
+              <h2 className="text-xl font-semibold text-white tracking-tight">
                 Live Tokens
               </h2>
               <AnimatedBadge variant="success" animated={tokens.length > 0}>
                 {tokens.length} Active
               </AnimatedBadge>
               {isRefetching && (
-                <span className="text-xs text-yellow-500 animate-pulse ml-2">Updating...</span>
+                <div className="flex items-center gap-1.5 ml-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                  <span className="text-xs text-yellow-400/80">Updating</span>
+                </div>
               )}
             </div>
 
@@ -351,12 +354,12 @@ export default function DiscoverPage() {
             <TokenListSkeleton count={6} />
           ) : filteredTokens.length === 0 ? (
             <EmptyState
-              icon={<TrendingUp className="h-12 w-12 text-gray-400" />}
+              icon={<TrendingUp className="h-12 w-12 text-gray-500" />}
               title="No tokens found"
               description={
                 filters.searchQuery
                   ? `No tokens match "${filters.searchQuery}". Try adjusting your search or filters.`
-                  : "Be the first to launch a token on KasPump! Create your meme coin and watch it pump."
+                  : "Be the first to launch a token on KasPump!"
               }
               action={{
                 label: 'Launch First Token',
@@ -367,19 +370,19 @@ export default function DiscoverPage() {
           ) : (
             <motion.div
               className={cn(
-                'space-y-4',
-                !isMobile && 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 space-y-0'
+                'space-y-3',
+                !isMobile && 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 space-y-0'
               )}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: 0.4 }}
             >
               {filteredTokens.map((token, index) => (
                 <motion.div
                   key={token.address}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3) }}
                   className="content-visibility-auto"
                 >
                   {isMobile ? (
@@ -400,10 +403,11 @@ export default function DiscoverPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800/50 bg-gray-900/30 mt-20 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center text-gray-400">
-            <p>&copy; 2025 KasPump. Built on BNB Smart Chain.</p>
+      <footer className="border-t border-white/[0.04] mt-16 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <p>&copy; {new Date().getFullYear()} KasPump</p>
+            <p>Built on BNB Smart Chain</p>
           </div>
         </div>
       </footer>

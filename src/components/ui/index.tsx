@@ -5,27 +5,26 @@ import React, { forwardRef } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../utils';
 
-// Button variants using class-variance-authority
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background",
+  "inline-flex items-center justify-center rounded-xl text-sm font-medium transition-all duration-200 ease-smooth focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40 focus-visible:ring-offset-2 disabled:opacity-40 disabled:pointer-events-none ring-offset-background",
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground hover:bg-primary/90",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        success: "bg-green-600 text-white hover:bg-green-700",
-        danger: "bg-red-600 text-white hover:bg-red-700",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        outline: "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground",
-        gradient: "bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600",
-        glow: "relative bg-background border border-white/10 text-white hover:bg-background/90 animate-glow-pulse"
+        primary: "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 active:scale-[0.98]",
+        success: "bg-green-600 text-white hover:bg-green-500 active:scale-[0.98] shadow-glow-green/0 hover:shadow-glow-green",
+        danger: "bg-red-600 text-white hover:bg-red-500 active:scale-[0.98] shadow-glow-red/0 hover:shadow-glow-red",
+        ghost: "hover:bg-white/[0.04] hover:text-accent-foreground active:scale-[0.98]",
+        outline: "border border-white/[0.08] bg-transparent hover:bg-white/[0.04] hover:border-white/[0.12] active:scale-[0.98]",
+        gradient: "bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-400 hover:to-orange-400 shadow-glow-sm hover:shadow-glow active:scale-[0.98]",
+        glow: "relative bg-background border border-white/[0.08] text-white hover:bg-white/[0.04] hover:border-white/[0.12]"
       },
       size: {
-        xs: "h-7 px-2 text-xs",
+        xs: "h-7 px-2.5 text-xs",
         sm: "h-8 px-3 text-sm",
         md: "h-10 px-4 py-2",
-        lg: "h-11 px-8",
-        xl: "h-12 px-10 text-lg"
+        lg: "h-11 px-6",
+        xl: "h-12 px-8 text-base"
       },
       fullWidth: {
         true: "w-full",
@@ -81,7 +80,6 @@ export const Button: React.FC<ButtonComponent> = ({
   );
 };
 
-// Card component
 export const Card: React.FC<{
   children: React.ReactNode;
   className?: string;
@@ -89,13 +87,13 @@ export const Card: React.FC<{
 }> = ({ children, className, padding = 'md' }) => {
   const paddingClasses = {
     sm: 'p-3',
-    md: 'p-6',
-    lg: 'p-8'
+    md: 'p-5',
+    lg: 'p-6'
   };
 
   return (
     <div className={cn(
-      "rounded-lg border bg-card text-card-foreground shadow-sm",
+      "rounded-2xl border border-white/[0.06] bg-card text-card-foreground shadow-card",
       paddingClasses[padding],
       className
     )}>
@@ -134,8 +132,8 @@ export const Input = forwardRef<HTMLInputElement, {
         step={step}
         aria-label={ariaLabel}
         className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          error && "border-red-500",
+          "flex h-10 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/30 focus-visible:border-yellow-500/40 disabled:cursor-not-allowed disabled:opacity-40 transition-all duration-200",
+          error && "border-red-500/50 focus-visible:ring-red-500/30",
           className
         )}
       />
@@ -171,8 +169,8 @@ export const Textarea: React.FC<{
         onChange={onChange}
         rows={rows}
         className={cn(
-          "flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          error && "border-red-500",
+          "flex min-h-[80px] w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-sm ring-offset-background placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/30 focus-visible:border-yellow-500/40 disabled:cursor-not-allowed disabled:opacity-40 transition-all duration-200 resize-none",
+          error && "border-red-500/50",
           className
         )}
       />
@@ -203,7 +201,7 @@ export const Select: React.FC<{
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
         className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-10 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/30 focus-visible:border-yellow-500/40 disabled:cursor-not-allowed disabled:opacity-40 transition-all duration-200 appearance-none cursor-pointer",
           className
         )}
       >
@@ -220,23 +218,23 @@ export const Select: React.FC<{
   );
 };
 
-// Badge component
 export const Badge: React.FC<{
   children: React.ReactNode;
-  variant?: 'default' | 'success' | 'danger' | 'warning' | 'info';
+  variant?: 'default' | 'success' | 'danger' | 'warning' | 'info' | 'secondary';
   className?: string;
 }> = ({ children, variant = 'default', className }) => {
   const variants = {
-    default: 'bg-primary/10 text-primary',
-    success: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    danger: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-    warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-    info: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+    default: 'bg-white/[0.06] text-gray-300 border border-white/[0.06]',
+    secondary: 'bg-white/[0.04] text-gray-400 border border-white/[0.06]',
+    success: 'bg-green-500/[0.1] text-green-400 border border-green-500/[0.15]',
+    danger: 'bg-red-500/[0.1] text-red-400 border border-red-500/[0.15]',
+    warning: 'bg-yellow-500/[0.1] text-yellow-400 border border-yellow-500/[0.15]',
+    info: 'bg-blue-500/[0.1] text-blue-400 border border-blue-500/[0.15]'
   };
 
   return (
     <span className={cn(
-      "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+      "inline-flex items-center rounded-lg px-2 py-0.5 text-[11px] font-semibold",
       variants[variant],
       className
     )}>
@@ -245,7 +243,6 @@ export const Badge: React.FC<{
   );
 };
 
-// Progress component
 export const Progress: React.FC<{
   value: number;
   max?: number;
@@ -256,16 +253,16 @@ export const Progress: React.FC<{
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="flex justify-between items-center mb-1">
-        {showLabel && (
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+      {showLabel && (
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-xs font-medium text-gray-400 tabular-nums">
             {percentage.toFixed(1)}%
           </span>
-        )}
-      </div>
-      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+        </div>
+      )}
+      <div className="w-full bg-white/[0.06] rounded-full h-1.5 overflow-hidden">
         <div 
-          className="bg-primary h-2.5 rounded-full transition-all duration-300 ease-out" 
+          className="bg-gradient-to-r from-yellow-500 to-amber-400 h-full rounded-full transition-all duration-500 ease-out" 
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -289,22 +286,21 @@ export const Spinner: React.FC<{
   );
 };
 
-// Alert component
 export const Alert: React.FC<{
   children: React.ReactNode;
   variant?: 'default' | 'success' | 'danger' | 'warning';
   className?: string;
 }> = ({ children, variant = 'default', className }) => {
   const variants = {
-    default: 'border-border bg-background text-foreground',
-    success: 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-400',
-    danger: 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-400',
-    warning: 'border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-400'
+    default: 'border-white/[0.06] bg-white/[0.03] text-foreground',
+    success: 'border-green-500/[0.15] bg-green-500/[0.06] text-green-400',
+    danger: 'border-red-500/[0.15] bg-red-500/[0.06] text-red-400',
+    warning: 'border-yellow-500/[0.15] bg-yellow-500/[0.06] text-yellow-400'
   };
 
   return (
     <div className={cn(
-      "relative w-full rounded-lg border p-4",
+      "relative w-full rounded-xl border p-4",
       variants[variant],
       className
     )}>
