@@ -6,7 +6,7 @@ import { TrendingUp, TrendingDown, ExternalLink, Clock } from 'lucide-react';
 import { Card } from '../ui';
 import { useTradeEvents, TradeEvent } from '../../hooks/useWebSocket';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
-import { cn, formatCurrency, truncateAddress, formatTimeAgo } from '../../utils';
+import { cn, formatCurrency, formatTimeAgo } from '../../utils';
 import { getExplorerUrl } from '../../config/chains';
 
 export interface RecentTradesFeedProps {
@@ -26,13 +26,9 @@ export const RecentTradesFeed: React.FC<RecentTradesFeedProps> = ({
   const wallet = useMultichainWallet();
 
   useTradeEvents((trade: TradeEvent) => {
-    if (
-      trade.tokenAddress.toLowerCase() === tokenAddress.toLowerCase() &&
-      (chainId === undefined || trade.chainId === chainId)
-    ) {
+    if (trade.tokenAddress.toLowerCase() === tokenAddress.toLowerCase()) {
       setTrades(prev => {
         const newTrades = [trade, ...prev];
-        // Remove duplicates based on txHash
         const unique = newTrades.filter((t, index, self) =>
           index === self.findIndex(t2 => t2.txHash === t.txHash)
         );
@@ -73,8 +69,8 @@ export const RecentTradesFeed: React.FC<RecentTradesFeedProps> = ({
         <AnimatePresence>
           {trades.map((trade, index) => {
             const isBuy = trade.type === 'buy';
-            const isOwnTrade = wallet.address?.toLowerCase() === trade.user.toLowerCase();
-            const explorerUrl = getExplorerUrl(trade.chainId, 'tx', trade.txHash);
+            const isOwnTrade = wallet.address?.toLowerCase() === trade.trader?.toLowerCase();
+            const explorerUrl = chainId ? getExplorerUrl(chainId, 'tx', trade.txHash) : undefined;
 
             return (
               <motion.div
@@ -113,8 +109,8 @@ export const RecentTradesFeed: React.FC<RecentTradesFeedProps> = ({
                         {isBuy ? 'Buy' : 'Sell'}
                       </span>
                       <span className="text-sm text-white">
-                        {parseFloat(trade.amount).toLocaleString(undefined, {
-                          maximumFractionDigits: 2,
+                        {parseFloat(trade.nativeAmount || '0').toLocaleString(undefined, {
+                          maximumFractionDigits: 6,
                         })}
                       </span>
                       {isOwnTrade && (

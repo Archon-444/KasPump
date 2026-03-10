@@ -11,6 +11,23 @@ import {
   BondingCurveAMM
 } from 'typechain-types';
 
+const RPC_URLS: Record<number, string> = {
+  56: process.env.NEXT_PUBLIC_BSC_RPC_URL || 'https://bsc-dataseed1.binance.org',
+  97: process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL || 'https://data-seed-prebsc-1-s1.binance.org:8545',
+  42161: process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
+  421614: process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc',
+  8453: process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org',
+  84532: process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org',
+};
+
+function getProvider(chainId: number): ethers.Provider {
+  const rpcUrl = RPC_URLS[chainId];
+  if (!rpcUrl) {
+    throw new Error(`No RPC URL configured for chain ${chainId}`);
+  }
+  return new ethers.JsonRpcProvider(rpcUrl);
+}
+
 export class BlockchainService {
   private provider: ethers.Provider;
   private chainId: number;
@@ -21,6 +38,20 @@ export class BlockchainService {
     this.chainId = chainId;
   }
 
+  static getTokenFactory(chainId: number): TokenFactory {
+    const factoryAddress = getTokenFactoryAddress(chainId);
+    if (!factoryAddress) {
+      throw new Error(`TokenFactory not deployed on chain ${chainId} (${getChainName(chainId)})`);
+    }
+    const provider = getProvider(chainId);
+    return TokenFactory__factory.connect(factoryAddress, provider);
+  }
+
+  static getAMM(ammAddress: string, chainId: number): BondingCurveAMM {
+    const provider = getProvider(chainId);
+    return BondingCurveAMM__factory.connect(ammAddress, provider);
+  }
+
   private getFactoryContract(): TokenFactory {
     if (this.factoryContract) return this.factoryContract;
 
@@ -29,23 +60,19 @@ export class BlockchainService {
       throw new Error(`TokenFactory not deployed on chain ${this.chainId} (${getChainName(this.chainId)})`);
     }
 
-    // Connect using TypeChain factory
     this.factoryContract = TokenFactory__factory.connect(factoryAddress, this.provider);
     return this.factoryContract;
   }
 
-  // Get AMM contract for a specific token
   private async getAMMContract(tokenAddress: string): Promise<BondingCurveAMM> {
     const factory = this.getFactoryContract();
     
-    // TypeSafe call to factory
     const ammAddress = await factory.getTokenAMM(tokenAddress);
     
     if (!ammAddress || ammAddress === ethers.ZeroAddress) {
       throw new Error(`AMM not found for token ${tokenAddress}`);
     }
 
-    // Connect using TypeChain factory
     return BondingCurveAMM__factory.connect(ammAddress, this.provider);
   }
 

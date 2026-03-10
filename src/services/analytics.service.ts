@@ -88,7 +88,8 @@ export class AnalyticsService {
         
         const amm = BlockchainService.getAMM(ammAddress, chainId);
         const info = await amm.getTradingInfo();
-        volume += parseFloat(ethers.formatEther(info.totalVolume));
+        // getTradingInfo returns [currentSupply, currentPrice, totalVolume, graduationProgress, isGraduated]
+        volume += parseFloat(ethers.formatEther(info[2]));
       } catch { continue; }
     }
     return volume;
@@ -107,9 +108,9 @@ export class AnalyticsService {
         
         const amm = BlockchainService.getAMM(ammAddress, chainId);
         const info = await amm.getTradingInfo();
-        
-        const supply = parseFloat(ethers.formatEther(info.virtualTokenReserves));
-        const price = parseFloat(ethers.formatEther(info.currentPrice));
+        // info[0] = currentSupply, info[1] = currentPrice
+        const supply = parseFloat(ethers.formatEther(info[0]));
+        const price = parseFloat(ethers.formatEther(info[1]));
         mcap += supply * price;
       } catch { continue; }
     }
@@ -129,7 +130,8 @@ export class AnalyticsService {
         
         const amm = BlockchainService.getAMM(ammAddress, chainId);
         const info = await amm.getTradingInfo();
-        if (info.isGraduated) count++;
+        // info[4] = isGraduated
+        if (info[4]) count++;
       } catch { continue; }
     }
     return count;

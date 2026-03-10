@@ -315,16 +315,20 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         uint256 _graduationThreshold,
         uint8 _tier
     ) internal returns (address) {
+        IDexRouterRegistry.RouterConfig memory routerConfig = dexRouterRegistry.getRouterConfig(block.chainid);
+        require(routerConfig.enabled, "DEX router not enabled for this chain");
+        require(routerConfig.router != address(0), "DEX router address not set");
+
         BondingCurveAMM amm = new BondingCurveAMM(
             _tokenAddress,
-            _creator,  // Token creator receives graduation funds
+            _creator,
             _basePrice,
             _slope,
             uint8(_curveType),
             _graduationThreshold,
             feeRecipient,
             _tier,
-            address(dexRouterRegistry)  // Registry for automated liquidity
+            routerConfig.router
         );
 
         return address(amm);
