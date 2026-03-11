@@ -43,6 +43,13 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     uint8 public immutable membershipTier; // For tiered fees
     IPancakeRouter public immutable dexRouter; // DEX router for liquidity provision
 
+    // ========== ANTI-SNIPER PROTECTION ==========
+
+    uint256 public immutable launchTimestamp;
+    uint256 public immutable sniperProtectionDuration; // seconds
+    uint256 public constant MAX_SNIPER_FEE = 9900; // 99% max fee in basis points
+    uint256 public constant DEFAULT_SNIPER_DURATION = 60; // 60 seconds default
+
     // ========== MUTABLE STATE ==========
 
     uint256 public currentSupply;
@@ -188,7 +195,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         uint256 _graduationThreshold,
         address payable _feeRecipient,
         uint8 _membershipTier,
-        address _dexRouter
+        address _dexRouter,
+        uint256 _sniperProtectionDuration
     ) Ownable(msg.sender) {
         // ========== CRITICAL: Comprehensive Input Validation ==========
 
@@ -224,6 +232,10 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         feeRecipient = _feeRecipient;
         membershipTier = _membershipTier;
         dexRouter = IPancakeRouter(_dexRouter);
+        launchTimestamp = block.timestamp;
+        sniperProtectionDuration = _sniperProtectionDuration > 0
+            ? _sniperProtectionDuration
+            : DEFAULT_SNIPER_DURATION;
     }
 
     // ========== EXTERNAL FUNCTIONS ==========
@@ -438,12 +450,39 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @dev Get platform fee based on membership tier
+     * @dev Get platform fee based on membership tier + anti-sniper sliding fee
+     * During sniper protection window, fee starts at 99% and linearly decays
+     * to the normal tier fee over sniperProtectionDuration seconds.
      */
     function getPlatformFee() public view returns (uint256) {
-        if (membershipTier == 2) return ENTERPRISE_FEE; // 0.25%
-        if (membershipTier == 1) return PREMIUM_FEE;    // 0.5%
-        return BASIC_FEE; // 1.0%
+        uint256 baseFee;
+        if (membershipTier == 2) baseFee = ENTERPRISE_FEE;
+        else if (membershipTier == 1) baseFee = PREMIUM_FEE;
+        else baseFee = BASIC_FEE;
+
+        uint256 elapsed = block.timestamp - launchTimestamp;
+        if (elapsed >= sniperProtectionDuration) {
+            return baseFee;
+        }
+
+        uint256 remaining = sniperProtectionDuration - elapsed;
+        uint256 sniperSurcharge = ((MAX_SNIPER_FEE - baseFee) * remaining) / sniperProtectionDuration;
+        return baseFee + sniperSurcharge;
+    }
+
+    /**
+     * @dev Check if anti-sniper protection is still active
+     */
+    function isSniperProtectionActive() external view returns (bool) {
+        return block.timestamp < launchTimestamp + sniperProtectionDuration;
+    }
+
+    /**
+     * @dev Get remaining sniper protection time in seconds
+     */
+    function sniperProtectionRemaining() external view returns (uint256) {
+        if (block.timestamp >= launchTimestamp + sniperProtectionDuration) return 0;
+        return (launchTimestamp + sniperProtectionDuration) - block.timestamp;
     }
 
     /**

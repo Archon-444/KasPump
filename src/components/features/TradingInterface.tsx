@@ -149,8 +149,30 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
     return `${tradeType === 'buy' ? 'Buy' : 'Sell'} ${token.symbol}`;
   };
 
+  const sniperProtectionActive = (() => {
+    if (!token.createdAt) return false;
+    const elapsed = (Date.now() - token.createdAt.getTime()) / 1000;
+    return elapsed < 60;
+  })();
+
+  const sniperSecondsLeft = sniperProtectionActive
+    ? Math.max(0, Math.ceil(60 - (Date.now() - token.createdAt.getTime()) / 1000))
+    : 0;
+
   return (
     <Card className={cn('p-5 space-y-5', className)}>
+      {/* Anti-sniper protection banner */}
+      {sniperProtectionActive && (
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-yellow-500/[0.08] border border-yellow-500/[0.15] rounded-xl">
+          <Shield size={14} className="text-yellow-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-yellow-400">Anti-sniper protection active</p>
+            <p className="text-[10px] text-yellow-400/60">Higher fees for {sniperSecondsLeft}s to prevent bot sniping</p>
+          </div>
+          <span className="text-xs font-bold text-yellow-400 tabular-nums">{sniperSecondsLeft}s</span>
+        </div>
+      )}
+
       {/* Trade Type Selector */}
       <div className="flex items-center gap-1.5 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06]">
         <button

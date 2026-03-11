@@ -70,7 +70,11 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
     return hoursSinceLaunch < 24;
   }, [token.createdAt]);
 
-  // Check if token is trending (high volume relative to market cap)
+  const isSniperProtected = useMemo(() => {
+    const secondsSinceLaunch = (Date.now() - token.createdAt.getTime()) / 1000;
+    return secondsSinceLaunch < 60;
+  }, [token.createdAt]);
+
   const isTrending = useMemo(() => {
     const volumeToMcapRatio = token.marketCap > 0 ? (token.volume24h / token.marketCap) * 100 : 0;
     return volumeToMcapRatio > 30;
@@ -120,7 +124,13 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-white text-base truncate">{token.name}</h3>
-                {isNewLaunch && (
+                {isSniperProtected && (
+                  <span className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold bg-yellow-500/15 text-yellow-400 rounded-md">
+                    <Shield size={9} />
+                    PROTECTED
+                  </span>
+                )}
+                {isNewLaunch && !isSniperProtected && (
                   <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold bg-purple-500/15 text-purple-400 rounded-md">
                     NEW
                   </span>
