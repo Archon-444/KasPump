@@ -259,7 +259,7 @@ export default function AlertsPage() {
           currentPage="profile"
           onNavigate={(page) => {
             if (page === 'home') router.push('/');
-            else if (page === 'create') router.push('/');
+            else if (page === 'create') router.push('/launch');
             else if (page === 'profile') router.push('/portfolio');
           }}
         />

@@ -213,7 +213,7 @@ export default function LaunchPage() {
               variant="primary"
               onClick={() => {
                 if (tokenCreationState.creationResult?.tokenAddress) {
-                  router.push(`/tokens/${tokenCreationState.creationResult.tokenAddress}`);
+                  router.push(`/token/${tokenCreationState.creationResult.tokenAddress}`);
                 } else {
                   router.push('/');
                 }

@@ -22,7 +22,7 @@ export const TokenSocialShare: React.FC<TokenSocialShareProps> = ({
   const [copied, setCopied] = React.useState(false);
 
   const tokenUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/tokens/${token.address}${chainId ? `?chain=${chainId}` : ''}`
+    ? `${window.location.origin}/token/${token.address}${chainId ? `?chain=${chainId}` : ''}`
     : '';
   
   const explorerUrl = chainId ? getExplorerUrl(chainId, 'address', token.address) : null;

@@ -264,7 +264,7 @@ export default function CreatorDashboardPage() {
                         key={`${token.chainId}-${token.address}`}
                         token={token}
                         onClick={(token) => {
-                          router.push(`/tokens/${token.address}?chain=${token.chainId}`);
+                          router.push(`/token/${token.address}`);
                         }}
                       />
                     ))}

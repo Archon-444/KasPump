@@ -125,13 +125,21 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         router.push('/');
         break;
       case 'create':
+      case 'create-token':
         router.push('/launch');
         break;
       case 'analytics':
         router.push('/analytics');
         break;
       case 'profile':
+      case 'portfolio':
         router.push('/portfolio');
+        break;
+      case 'quick-trade':
+        router.push('/');
+        break;
+      case 'notifications':
+        router.push('/alerts');
         break;
       default:
         break;
@@ -229,17 +237,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         )}
       >
         {/* Logo */}
-        <div className={cn(
-          'flex items-center h-16 px-4 border-b border-white/[0.06]',
-          sidebarCollapsed ? 'justify-center' : 'gap-3',
-        )}>
+        <a
+          href="/"
+          className={cn(
+            'flex items-center h-16 px-4 border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors',
+            sidebarCollapsed ? 'justify-center' : 'gap-3',
+          )}
+        >
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-glow-sm">
             <Rocket size={16} className="text-white" />
           </div>
           {!sidebarCollapsed && (
             <span className="text-base font-semibold text-white tracking-tight">KasPump</span>
           )}
-        </div>
+        </a>
 
         {/* Primary Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1">
