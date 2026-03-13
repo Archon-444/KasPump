@@ -371,6 +371,27 @@ export default function LaunchPage() {
                           onChange={(e) => tokenCreationState.updateFormData({ description: e.target.value })}
                           rows={3}
                         />
+
+                        <div className="pt-3 border-t border-white/[0.06]">
+                          <label className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3 block">Social Links (optional)</label>
+                          <div className="space-y-3">
+                            <Input
+                              placeholder="Twitter / X URL"
+                              value={tokenCreationState.formData.twitterUrl}
+                              onChange={(e) => tokenCreationState.updateFormData({ twitterUrl: e.target.value })}
+                            />
+                            <Input
+                              placeholder="Telegram URL"
+                              value={tokenCreationState.formData.telegramUrl}
+                              onChange={(e) => tokenCreationState.updateFormData({ telegramUrl: e.target.value })}
+                            />
+                            <Input
+                              placeholder="Website URL"
+                              value={tokenCreationState.formData.websiteUrl}
+                              onChange={(e) => tokenCreationState.updateFormData({ websiteUrl: e.target.value })}
+                            />
+                          </div>
+                        </div>
                       </div>
                     </Card>
                   </motion.div>

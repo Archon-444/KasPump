@@ -171,31 +171,29 @@ export function useContracts() {
       const imageUrlToUse = imageUrl || '';
       const creationFee = await contract.CREATION_FEE();
 
-      // Estimate gas - TypeSafe!
-      const gasEstimate = await contract.createToken.estimateGas(
-        tokenData.name,
-        tokenData.symbol,
-        tokenData.description,
-        imageUrlToUse,
+      const createParams = {
+        name: tokenData.name,
+        symbol: tokenData.symbol,
+        description: tokenData.description,
+        imageUrl: imageUrlToUse,
         totalSupply,
         basePrice,
         slope,
         curveType,
+        twitterUrl: tokenData.twitterUrl || '',
+        telegramUrl: tokenData.telegramUrl || '',
+        websiteUrl: tokenData.websiteUrl || '',
+      };
+
+      const gasEstimate = await contract.createToken.estimateGas(
+        createParams,
         { value: creationFee }
       );
 
       const gasLimit = (gasEstimate * BigInt(120)) / BigInt(100);
 
-      // Execute transaction - TypeSafe!
       const tx = await contract.createToken(
-        tokenData.name,
-        tokenData.symbol,
-        tokenData.description,
-        imageUrlToUse,
-        totalSupply,
-        basePrice,
-        slope,
-        curveType,
+        createParams,
         { gasLimit, value: creationFee }
       );
 

@@ -408,6 +408,45 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
                   </p>
                 </div>
 
+                {/* Social Links */}
+                {((token as any).twitterUrl || (token as any).telegramUrl || (token as any).websiteUrl) && (
+                  <div className="flex flex-wrap gap-2">
+                    {(token as any).twitterUrl && (
+                      <a
+                        href={(token as any).twitterUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg text-xs text-gray-300 hover:text-white transition-all"
+                      >
+                        <span>𝕏</span>
+                        Twitter
+                      </a>
+                    )}
+                    {(token as any).telegramUrl && (
+                      <a
+                        href={(token as any).telegramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg text-xs text-gray-300 hover:text-white transition-all"
+                      >
+                        <span>✈</span>
+                        Telegram
+                      </a>
+                    )}
+                    {(token as any).websiteUrl && (
+                      <a
+                        href={(token as any).websiteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg text-xs text-gray-300 hover:text-white transition-all"
+                      >
+                        <span>🌐</span>
+                        Website
+                      </a>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm text-gray-400">Contract Address</label>
