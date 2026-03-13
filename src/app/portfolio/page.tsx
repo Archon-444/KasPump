@@ -183,7 +183,7 @@ export default function PortfolioPage() {
             currentPage="profile"
             onNavigate={(page) => {
               if (page === 'home') router.push('/');
-              else if (page === 'create') router.push('/');
+              else if (page === 'create') router.push('/launch');
               else if (page === 'analytics') router.push('/analytics');
             }}
           />

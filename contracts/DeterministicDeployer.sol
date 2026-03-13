@@ -224,7 +224,10 @@ contract DeterministicDeployer is Ownable {
  * @dev Helper contract to coordinate multi-chain deployments
  * @notice Deploy this AFTER DeterministicDeployer on each chain
  */
-contract MultiChainDeploymentHelper {
+contract MultiChainDeploymentHelper is Ownable {
+
+    constructor() Ownable(msg.sender) {}
+
 
     struct ChainDeployment {
         uint256 chainId;

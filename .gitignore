@@ -47,7 +47,7 @@ Thumbs.db
 # Hardhat files
 cache/
 artifacts/
-typechain-types/
+# typechain-types/ is committed because the Next.js frontend imports from it
 
 # Deployment files
 deployments/

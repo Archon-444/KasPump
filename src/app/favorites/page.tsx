@@ -155,7 +155,7 @@ export default function FavoritesPage() {
                   <TokenCard
                     token={token}
                     onClick={() => {
-                      router.push(`/tokens/${token.address}`);
+                      router.push(`/token/${token.address}`);
                     }}
                   />
                 </motion.div>
@@ -184,7 +184,7 @@ export default function FavoritesPage() {
           currentPage="profile"
           onNavigate={(page) => {
             if (page === 'home') router.push('/');
-            else if (page === 'create') router.push('/');
+            else if (page === 'create') router.push('/launch');
             else if (page === 'profile') router.push('/portfolio');
           }}
         />

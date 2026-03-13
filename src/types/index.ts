@@ -82,6 +82,9 @@ export interface TokenCreationForm {
   curveType: 'linear' | 'exponential';
   basePrice: number;
   slope: number;
+  twitterUrl: string;
+  telegramUrl: string;
+  websiteUrl: string;
 }
 
 export interface SwapQuote {

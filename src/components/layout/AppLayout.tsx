@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Rocket,
@@ -16,9 +16,9 @@ import {
   X,
   Palette,
   Bell,
+  Wallet,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { WalletConnectButton } from '../features/WalletConnectButton';
 import { MobileNavigation } from '../mobile';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useFavorites } from '../../hooks/useFavorites';
@@ -93,6 +93,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const favorites = useFavorites();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [WalletConnectButton, setWalletConnectButton] = useState<React.ComponentType<any> | null>(null);
+
+  // Dynamically load WalletConnectButton only on client side after Web3Provider is ready
+  useEffect(() => {
+    import('../features/WalletConnectButton')
+      .then((module) => {
+        setWalletConnectButton(() => module.WalletConnectButton);
+      })
+      .catch((error) => {
+        console.error('Failed to load WalletConnectButton:', error);
+      });
+  }, []);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -113,13 +125,21 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         router.push('/');
         break;
       case 'create':
+      case 'create-token':
         router.push('/launch');
         break;
       case 'analytics':
         router.push('/analytics');
         break;
       case 'profile':
+      case 'portfolio':
         router.push('/portfolio');
+        break;
+      case 'quick-trade':
+        router.push('/');
+        break;
+      case 'notifications':
+        router.push('/alerts');
         break;
       default:
         break;
@@ -139,21 +159,23 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     return (
       <div className="min-h-screen pb-20">
         {/* Mobile Header */}
-        <header className="sticky top-0 z-40 border-b border-gray-800/50 bg-gray-900/80 backdrop-blur-md">
+        <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[hsl(225,15%,4%)]/80 backdrop-blur-xl">
           <div className="flex items-center justify-between px-4 h-14">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+              className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all duration-200"
             >
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
 
-            <a href="/" className="text-lg font-bold text-white flex items-center gap-2">
-              <Rocket size={20} className="text-yellow-400" />
+            <a href="/" className="text-base font-semibold text-white flex items-center gap-2 tracking-tight">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-glow-sm">
+                <Rocket size={14} className="text-white" />
+              </div>
               <span>KasPump</span>
             </a>
 
-            <WalletConnectButton />
+            {WalletConnectButton && <WalletConnectButton />}
           </div>
 
           {/* Mobile Dropdown Menu */}
@@ -163,24 +185,24 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="border-t border-gray-800/50 bg-gray-900/95 backdrop-blur-md overflow-hidden"
+                className="border-t border-white/[0.06] bg-[hsl(225,15%,5%)]/95 backdrop-blur-xl overflow-hidden"
               >
-                <nav className="p-3 space-y-1">
+                <nav className="p-3 space-y-0.5">
                   {[...primaryNavItems, ...secondaryNavItems].map((item) => (
                     <button
                       key={item.href}
                       onClick={() => handleNavigation(item.href)}
                       className={cn(
-                        'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                        'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
                         isActive(item.href)
-                          ? 'bg-yellow-500/10 text-yellow-400'
-                          : 'text-gray-400 hover:text-white hover:bg-gray-800',
+                          ? 'bg-yellow-500/[0.12] text-yellow-400'
+                          : 'text-gray-400 hover:text-white hover:bg-white/[0.04]',
                       )}
                     >
                       {item.icon}
                       <span>{item.label}</span>
                       {item.label === 'Favorites' && favorites.favoriteCount > 0 && (
-                        <span className="ml-auto bg-yellow-500 text-gray-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
+                        <span className="ml-auto bg-yellow-400/90 text-gray-900 text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full">
                           {favorites.favoriteCount}
                         </span>
                       )}
@@ -210,25 +232,30 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          'fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r border-gray-800/50 bg-gray-900/50 backdrop-blur-md transition-all duration-300',
-          sidebarCollapsed ? 'w-16' : 'w-56',
+          'fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r border-white/[0.06] bg-[hsl(225,15%,5%)]/80 backdrop-blur-xl transition-all duration-300 ease-smooth',
+          sidebarCollapsed ? 'w-[68px]' : 'w-60',
         )}
       >
         {/* Logo */}
-        <div className={cn(
-          'flex items-center h-16 px-4 border-b border-gray-800/50',
-          sidebarCollapsed ? 'justify-center' : 'gap-3',
-        )}>
-          <Rocket size={24} className="text-yellow-400 flex-shrink-0" />
-          {!sidebarCollapsed && (
-            <span className="text-lg font-bold text-white">KasPump</span>
+        <a
+          href="/"
+          className={cn(
+            'flex items-center h-16 px-4 border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors',
+            sidebarCollapsed ? 'justify-center' : 'gap-3',
           )}
-        </div>
+        >
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-glow-sm">
+            <Rocket size={16} className="text-white" />
+          </div>
+          {!sidebarCollapsed && (
+            <span className="text-base font-semibold text-white tracking-tight">KasPump</span>
+          )}
+        </a>
 
         {/* Primary Navigation */}
-        <nav className="flex-1 p-3 space-y-1">
-          <div className={cn('text-[10px] uppercase text-gray-500 font-medium mb-2', sidebarCollapsed ? 'text-center' : 'px-3')}>
-            {sidebarCollapsed ? '---' : 'Main'}
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          <div className={cn('text-[10px] uppercase text-gray-500/80 font-semibold tracking-wider mb-3', sidebarCollapsed ? 'text-center' : 'px-3')}>
+            {sidebarCollapsed ? '\u2022' : 'Main'}
           </div>
           {primaryNavItems.map((item) => (
             <button
@@ -236,36 +263,34 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               onClick={() => handleNavigation(item.href)}
               title={sidebarCollapsed ? item.label : undefined}
               className={cn(
-                'w-full flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150',
+                'w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 ease-smooth group relative',
                 sidebarCollapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5',
                 isActive(item.href)
-                  ? 'bg-yellow-500/10 text-yellow-400 shadow-sm shadow-yellow-500/5'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50',
+                  ? 'bg-yellow-500/[0.12] text-yellow-400'
+                  : 'text-gray-400 hover:text-white hover:bg-white/[0.04]',
               )}
             >
+              {isActive(item.href) && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-yellow-400 rounded-r-full" />
+              )}
               <span className="flex-shrink-0">{item.icon}</span>
               {!sidebarCollapsed && (
                 <div className="flex-1 text-left">
                   <div>{item.label}</div>
-                  {item.description && (
-                    <div className="text-[10px] text-gray-500 font-normal">{item.description}</div>
-                  )}
                 </div>
               )}
               {!sidebarCollapsed && item.badge && (
-                <span className="bg-yellow-500 text-gray-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
+                <span className="bg-yellow-500 text-gray-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                   {item.badge}
                 </span>
               )}
             </button>
           ))}
 
-          {/* Divider */}
-          <div className="my-3 border-t border-gray-800/50" />
+          <div className="my-4 mx-3 border-t border-white/[0.06]" />
 
-          {/* Secondary Navigation */}
-          <div className={cn('text-[10px] uppercase text-gray-500 font-medium mb-2', sidebarCollapsed ? 'text-center' : 'px-3')}>
-            {sidebarCollapsed ? '---' : 'More'}
+          <div className={cn('text-[10px] uppercase text-gray-500/80 font-semibold tracking-wider mb-3', sidebarCollapsed ? 'text-center' : 'px-3')}>
+            {sidebarCollapsed ? '\u2022' : 'More'}
           </div>
           {secondaryNavItems.map((item) => (
             <button
@@ -273,17 +298,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               onClick={() => handleNavigation(item.href)}
               title={sidebarCollapsed ? item.label : undefined}
               className={cn(
-                'w-full flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150',
+                'w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 ease-smooth relative',
                 sidebarCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
                 isActive(item.href)
-                  ? 'bg-yellow-500/10 text-yellow-400'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50',
+                  ? 'bg-yellow-500/[0.12] text-yellow-400'
+                  : 'text-gray-400 hover:text-white hover:bg-white/[0.04]',
               )}
             >
+              {isActive(item.href) && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-yellow-400 rounded-r-full" />
+              )}
               <span className="flex-shrink-0">{item.icon}</span>
               {!sidebarCollapsed && <span>{item.label}</span>}
               {!sidebarCollapsed && item.label === 'Favorites' && favorites.favoriteCount > 0 && (
-                <span className="ml-auto bg-yellow-500 text-gray-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
+                <span className="ml-auto bg-yellow-400/90 text-gray-900 text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full">
                   {favorites.favoriteCount}
                 </span>
               )}
@@ -292,47 +320,47 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         </nav>
 
         {/* Collapse Toggle */}
-        <div className="p-3 border-t border-gray-800/50">
+        <div className="p-3 border-t border-white/[0.06]">
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/50 transition-colors text-sm"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-gray-500 hover:text-gray-300 hover:bg-white/[0.04] transition-all duration-200 text-sm"
           >
             {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            {!sidebarCollapsed && <span>Collapse</span>}
+            {!sidebarCollapsed && <span className="text-xs">Collapse</span>}
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
       <div className={cn(
-        'flex-1 flex flex-col transition-all duration-300',
-        sidebarCollapsed ? 'ml-16' : 'ml-56',
+        'flex-1 flex flex-col transition-all duration-300 ease-smooth',
+        sidebarCollapsed ? 'ml-[68px]' : 'ml-60',
       )}>
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-30 h-16 border-b border-gray-800/50 bg-gray-900/30 backdrop-blur-md">
+        <header className="sticky top-0 z-30 h-14 border-b border-white/[0.06] bg-[hsl(225,15%,4%)]/70 backdrop-blur-xl">
           <div className="flex items-center justify-between h-full px-6">
-            {/* Page Title / Breadcrumb */}
-            <div className="text-sm text-gray-400">
-              {primaryNavItems.find(item => isActive(item.href))?.label ||
-               secondaryNavItems.find(item => isActive(item.href))?.label ||
-               'KasPump'}
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-medium text-white">
+                {primaryNavItems.find(item => isActive(item.href))?.label ||
+                 secondaryNavItems.find(item => isActive(item.href))?.label ||
+                 'KasPump'}
+              </h1>
             </div>
 
-            {/* Right Actions */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => handleNavigation('/favorites')}
-                className="p-2 rounded-lg text-gray-400 hover:text-yellow-400 hover:bg-gray-800 transition-colors relative"
+                className="p-2 rounded-lg text-gray-400 hover:text-yellow-400 hover:bg-white/[0.04] transition-all duration-200 relative"
                 title="Favorites"
               >
-                <Star size={18} />
+                <Star size={17} />
                 {favorites.favoriteCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-yellow-400 text-gray-900 rounded-full text-[10px] font-bold flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-yellow-400 text-gray-900 rounded-full text-[9px] font-bold flex items-center justify-center shadow-sm">
                     {favorites.favoriteCount > 99 ? '99+' : favorites.favoriteCount}
                   </span>
                 )}
               </button>
-              <WalletConnectButton />
+              {WalletConnectButton && <WalletConnectButton />}
             </div>
           </div>
         </header>

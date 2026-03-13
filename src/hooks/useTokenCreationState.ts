@@ -86,10 +86,13 @@ const DEFAULT_FORM_DATA: TokenCreationForm = {
   symbol: '',
   description: '',
   image: null,
-  totalSupply: 1000000000, // 1 billion default
+  totalSupply: 1000000000,
   curveType: 'linear',
   basePrice: 0.000001,
   slope: 0.00000001,
+  twitterUrl: '',
+  telegramUrl: '',
+  websiteUrl: '',
 };
 
 export function useTokenCreationState({

@@ -63,19 +63,46 @@ export class TokenService {
   static async getTokens(
     chainId: number, 
     limit: number = 20, 
-    offset: number = 0
+    offset: number = 0,
+    search?: string
   ): Promise<PaginatedTokens> {
     const factory = BlockchainService.getTokenFactory(chainId);
-    
-    // In a production environment with thousands of tokens, 
-    // we would index these events into a database (PostgreSQL/MongoDB)
-    // rather than querying the blockchain directly for "all tokens"
     const allTokens = await factory.getAllTokens();
-    
-    // Slice for pagination
-    const paginatedAddresses = allTokens.slice(offset, offset + limit);
 
-    // Fetch details in parallel
+    let tokenAddresses = allTokens;
+
+    if (search && search.trim()) {
+      const query = search.trim().toLowerCase();
+
+      if (ethers.isAddress(query)) {
+        tokenAddresses = allTokens.filter(
+          addr => addr.toLowerCase() === query
+        );
+      } else {
+        const configs = await Promise.all(
+          allTokens.map(async (addr) => {
+            try {
+              const config = await factory.getTokenConfig(addr);
+              return { addr, name: config.name, symbol: config.symbol };
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        tokenAddresses = configs
+          .filter((c): c is NonNullable<typeof c> =>
+            c !== null && (
+              c.name.toLowerCase().includes(query) ||
+              c.symbol.toLowerCase().includes(query)
+            )
+          )
+          .map(c => c.addr);
+      }
+    }
+
+    const paginatedAddresses = tokenAddresses.slice(offset, offset + limit);
+
     const tokensWithData = await Promise.all(
       paginatedAddresses.map(address => this.fetchTokenData(factory, chainId, address))
     );
@@ -85,10 +112,10 @@ export class TokenService {
     return {
       tokens: validTokens,
       pagination: {
-        total: allTokens.length,
+        total: tokenAddresses.length,
         offset,
         limit,
-        hasMore: offset + limit < allTokens.length
+        hasMore: offset + limit < tokenAddresses.length
       }
     };
   }

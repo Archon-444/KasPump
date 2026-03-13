@@ -45,23 +45,17 @@ const HolderListComponent: React.FC<HolderListProps> = ({
       try {
         setLoading(true);
 
-        // Accurate holder tracking requires:
-        // 1. Querying all Transfer events from token contract
-        // 2. Building balance map from event history
-        // 3. This needs event indexing (subgraph/API) for efficiency
+        const res = await fetch(
+          `/api/tokens/holders?address=${tokenAddress}${chainId ? `&chainId=${chainId}` : ''}&limit=${maxHolders}`
+        );
 
-        // For now, show empty state with explanation
-        // In production, implement with:
-        // - Event indexer (The Graph, Alchemy, etc.)
-        // - Backend API aggregating Transfer events
-        // - Periodic snapshot updates
+        if (!res.ok) {
+          setHolders([]);
+          return;
+        }
 
-        setHolders([]);
-
-        // Note: Could query specific known addresses if needed:
-        // const tokenContract = contracts.getTokenContract(tokenAddress);
-        // const balance = await tokenContract.balanceOf(address);
-
+        const data = await res.json();
+        setHolders(data.holders || []);
       } catch (error) {
         console.error('Failed to load holders:', error);
         setHolders([]);

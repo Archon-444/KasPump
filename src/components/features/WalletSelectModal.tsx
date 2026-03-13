@@ -2,13 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Wallet, X, ExternalLink, QrCode, Smartphone } from 'lucide-react';
+import { X, ExternalLink, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useConnect } from 'wagmi';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
-import { useMobileWallet } from '../../hooks/useMobileWallet';
-import { Button } from '../ui';
-import { cn } from '../../utils';
 
 interface WalletSelectModalProps {
   isOpen: boolean;
@@ -18,7 +15,7 @@ interface WalletSelectModalProps {
 interface WalletOption {
   id: string;
   name: string;
-  icon: React.ReactNode;
+  icon: string;
   description: string;
   onClick: () => void;
   isAvailable: boolean;
@@ -28,46 +25,33 @@ interface WalletOption {
 export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, onClose }) => {
   const wallet = useMultichainWallet();
   const { connect, connectors, isPending } = useConnect();
-  
-  // Use portal to render modal at root level (above everything)
-  // MUST be called before any conditional returns (Rules of Hooks)
   const [mounted, setMounted] = useState(false);
+  const [connectingId, setConnectingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   const handleConnect = async (connectorId: string) => {
     try {
       const connector = connectors.find(c => c.id === connectorId);
-      if (!connector) {
-        console.error(`Connector ${connectorId} not found. Available connectors:`, connectors.map(c => c.id));
-        alert(`Wallet connector "${connectorId}" is not available. Please try another option.`);
-        return;
-      }
-      
-      console.log(`Attempting to connect with ${connectorId}...`);
+      if (!connector) return;
+
+      setConnectingId(connectorId);
       await connect({ connector });
-      console.log(`Successfully connected with ${connectorId}`);
       onClose();
-    } catch (error: any) {
-      console.error('Failed to connect:', error);
-      const errorMessage = error?.message || error?.toString() || 'Unknown error';
-      alert(`Failed to connect wallet: ${errorMessage}`);
+    } catch (error) {
+      console.error('Wallet connection failed:', error);
+    } finally {
+      setConnectingId(null);
     }
   };
 
-  const detectInjectedWallet = () => {
+  const detectInjected = () => {
     if (typeof window === 'undefined') return null;
-    const ethereum = (window as any).ethereum;
-    if (!ethereum) return null;
-    
-    if (ethereum.isMetaMask) return 'metaMask';
-    if (ethereum.isTrust || ethereum.isTrustWallet) return 'trust';
-    if (ethereum.isRabby) return 'rabby';
-    if (ethereum.isOKExWallet || ethereum.okexchain) return 'okx';
-    if (ethereum.isTokenPocket) return 'tokenpocket';
-    if (ethereum.isBinance) return 'binance';
+    const eth = (window as any).ethereum;
+    if (!eth) return null;
+    if (eth.isMetaMask) return 'metaMask';
+    if (eth.isTrust) return 'trust';
+    if (eth.isRabby) return 'rabby';
     return 'injected';
   };
 
@@ -76,231 +60,156 @@ export const WalletSelectModal: React.FC<WalletSelectModalProps> = ({ isOpen, on
       id: 'metaMask',
       name: 'MetaMask',
       icon: '🦊',
-      description: 'Connect using MetaMask extension',
+      description: 'Browser extension',
       onClick: () => handleConnect('metaMask'),
-      isAvailable: connectors.some(c => c.id === 'metaMask') || detectInjectedWallet() === 'metaMask',
+      isAvailable: connectors.some(c => c.id === 'metaMask') || detectInjected() === 'metaMask',
       installUrl: 'https://metamask.io/download/',
     },
     {
       id: 'walletConnect',
       name: 'WalletConnect',
       icon: '🔗',
-      description: 'Scan QR code with any WalletConnect-compatible wallet',
+      description: 'Scan QR code',
       onClick: () => handleConnect('walletConnect'),
       isAvailable: connectors.some(c => c.id === 'walletConnect'),
     },
     {
       id: 'coinbaseWallet',
       name: 'Coinbase Wallet',
-      icon: '📱',
-      description: 'Connect using Coinbase Wallet',
+      icon: '🔵',
+      description: 'Coinbase app or extension',
       onClick: () => handleConnect('coinbaseWallet'),
-      isAvailable: connectors.some(c => c.id === 'coinbaseWallet') || false,
+      isAvailable: connectors.some(c => c.id === 'coinbaseWallet'),
       installUrl: 'https://www.coinbase.com/wallet',
-    },
-    {
-      id: 'trust',
-      name: 'Trust Wallet',
-      icon: '🛡️',
-      description: 'Connect using Trust Wallet extension',
-      onClick: () => handleConnect('injected'),
-      isAvailable: detectInjectedWallet() === 'trust' || connectors.some(c => c.id === 'injected'),
-      installUrl: 'https://trustwallet.com/download',
-    },
-    {
-      id: 'rabby',
-      name: 'Rabby Wallet',
-      icon: '🐰',
-      description: 'Connect using Rabby extension',
-      onClick: () => handleConnect('injected'),
-      isAvailable: detectInjectedWallet() === 'rabby' || wallet.availableConnectors?.some(c => c.id === 'injected'),
-      installUrl: 'https://rabby.io/',
-    },
-    {
-      id: 'okx',
-      name: 'OKX Wallet',
-      icon: '⚡',
-      description: 'Connect using OKX Wallet extension',
-      onClick: () => handleConnect('injected'),
-      isAvailable: detectInjectedWallet() === 'okx' || wallet.availableConnectors?.some(c => c.id === 'injected'),
-      installUrl: 'https://www.okx.com/web3',
-    },
-    {
-      id: 'binance',
-      name: 'Binance Wallet',
-      icon: '🟡',
-      description: 'Connect using Binance Wallet extension',
-      onClick: () => handleConnect('injected'),
-      isAvailable: detectInjectedWallet() === 'binance' || wallet.availableConnectors?.some(c => c.id === 'injected'),
-      installUrl: 'https://www.binance.com/en/web3wallet',
     },
     {
       id: 'injected',
       name: 'Browser Wallet',
       icon: '🌐',
-      description: 'Connect using your browser wallet',
+      description: 'Detected browser wallet',
       onClick: () => handleConnect('injected'),
-      isAvailable: wallet.availableConnectors?.some(c => c.id === 'injected') && detectInjectedWallet() !== null,
+      isAvailable: connectors.some(c => c.id === 'injected') && detectInjected() !== null,
     },
   ];
 
-  const availableWallets = walletOptions.filter(w => w.isAvailable);
-  const installableWallets = walletOptions.filter(w => !w.isAvailable && w.installUrl);
+  const available = walletOptions.filter(w => w.isAvailable);
+  const installable = walletOptions.filter(w => !w.isAvailable && w.installUrl);
 
-  // Debug logging
-  useEffect(() => {
-    if (isOpen) {
-      console.log('WalletSelectModal opened');
-      console.log('Available connectors:', connectors.map(c => c.id));
-      console.log('Available wallets:', availableWallets.map(w => w.name));
-    }
-  }, [isOpen, connectors, availableWallets]);
-
-  // Don't render portal on server side or if not mounted
-  if (!mounted || typeof window === 'undefined' || !isOpen) {
-    return null;
-  }
+  if (!mounted || typeof window === 'undefined' || !isOpen) return null;
 
   const modalContent = (
     <AnimatePresence mode="wait">
       {isOpen && (
-        <div 
-          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 overflow-hidden"
-          style={{ 
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 99999,
-            pointerEvents: 'auto',
-            maxWidth: '100vw',
-            maxHeight: '100vh',
-          }}
-        >
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-        />
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          />
 
-        {/* Modal */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          onClick={(e) => e.stopPropagation()}
-          className="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full overflow-hidden"
-          style={{
-            maxWidth: 'min(28rem, calc(100vw - 2rem))',
-            maxHeight: 'calc(100vh - 2rem)',
-            margin: 'auto',
-            position: 'relative',
-            zIndex: 1,
-          }}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-700">
-            <h2 className="text-2xl font-bold text-white">Connect Wallet</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <X size={24} />
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
-            <p className="text-gray-400 text-sm mb-6">
-              Choose a wallet to connect to KasPump
-            </p>
-
-            {/* Available Wallets */}
-            <div className="space-y-3 mb-6">
-              <h3 className="text-sm font-semibold text-gray-300 mb-3">Available Wallets</h3>
-              {availableWallets.map((wallet) => (
-                <motion.button
-                  key={wallet.id}
-                  onClick={wallet.onClick}
-                  className="w-full flex items-center space-x-4 p-4 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 rounded-xl transition-all hover:border-yellow-500/50 group"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  disabled={isPending}
-                >
-                  <div className="text-3xl">{wallet.icon}</div>
-                  <div className="flex-1 text-left">
-                    <div className="font-semibold text-white group-hover:text-yellow-400 transition-colors flex items-center gap-2">
-                      {wallet.name}
-                      {isPending && (
-                        <span className="text-xs text-yellow-400 animate-pulse">Connecting...</span>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-400">{wallet.description}</div>
-                  </div>
-                  {wallet.id === 'walletConnect' && (
-                    <ExternalLink size={16} className="text-gray-400" />
-                  )}
-                </motion.button>
-              ))}
+          {/* Modal */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 10 }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-sm bg-[hsl(225,15%,7%)] border border-white/[0.08] rounded-2xl shadow-elevated overflow-hidden"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
+              <h2 className="text-base font-semibold text-white">Connect Wallet</h2>
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-white/[0.04] transition-colors"
+              >
+                <X size={16} />
+              </button>
             </div>
 
-            {/* Install Wallets */}
-            {installableWallets.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-300 mb-3">Get a Wallet</h3>
-                {installableWallets.map((wallet) => (
-                  <a
-                    key={wallet.id}
-                    href={wallet.installUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full flex items-center space-x-4 p-4 bg-gray-800/30 hover:bg-gray-800/50 border border-gray-700/50 rounded-xl transition-all"
-                  >
-                    <div className="text-3xl">{wallet.icon}</div>
-                    <div className="flex-1 text-left">
-                      <div className="font-semibold text-gray-300">{wallet.name}</div>
-                      <div className="text-xs text-gray-500">Install to connect</div>
-                    </div>
-                    <ExternalLink size={16} className="text-gray-500" />
-                  </a>
-                ))}
-              </div>
-            )}
+            {/* Wallet List */}
+            <div className="p-3 max-h-[60vh] overflow-y-auto">
+              {available.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold px-2 mb-2">Available</p>
+                  <div className="space-y-1">
+                    {available.map((w) => {
+                      const isConnecting = connectingId === w.id || (isPending && connectingId === w.id);
+                      return (
+                        <button
+                          key={w.id}
+                          onClick={w.onClick}
+                          disabled={isPending}
+                          className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/[0.04] transition-all duration-150 group disabled:opacity-50"
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center text-lg flex-shrink-0">
+                            {w.icon}
+                          </div>
+                          <div className="flex-1 text-left min-w-0">
+                            <div className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors flex items-center gap-2">
+                              {w.name}
+                              {isConnecting && (
+                                <div className="w-3 h-3 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+                              )}
+                            </div>
+                            <div className="text-[10px] text-gray-500">{w.description}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
-            {availableWallets.length === 0 && installableWallets.length === 0 && (
-              <div className="text-center py-8">
-                <Wallet size={48} className="mx-auto text-gray-600 mb-4" />
-                <p className="text-gray-400">
-                  No wallets detected. Please install a wallet to continue.
-                </p>
-              </div>
-            )}
-          </div>
-        </motion.div>
+              {installable.length > 0 && (
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold px-2 mb-2">Install</p>
+                  <div className="space-y-1">
+                    {installable.map((w) => (
+                      <a
+                        key={w.id}
+                        href={w.installUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/[0.03] transition-colors"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-lg flex-shrink-0 opacity-60">
+                          {w.icon}
+                        </div>
+                        <div className="flex-1 text-left">
+                          <div className="text-sm text-gray-400">{w.name}</div>
+                          <div className="text-[10px] text-gray-600">Get wallet</div>
+                        </div>
+                        <ExternalLink size={12} className="text-gray-600" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {available.length === 0 && installable.length === 0 && (
+                <div className="text-center py-8">
+                  <Wallet size={28} className="mx-auto text-gray-600 mb-3" />
+                  <p className="text-sm text-gray-500">No wallets detected</p>
+                  <p className="text-xs text-gray-600 mt-1">Install MetaMask to get started</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-white/[0.06]">
+              <p className="text-[10px] text-gray-600 text-center">
+                By connecting, you agree to the Terms of Service
+              </p>
+            </div>
+          </motion.div>
         </div>
       )}
     </AnimatePresence>
   );
 
-  // Render modal in portal at document body level
-  // This ensures it's above all other content including headers
-  const portalTarget = typeof document !== 'undefined' ? document.body : null;
-  
-  if (!portalTarget) {
-    return null;
-  }
-
-  return createPortal(modalContent, portalTarget);
+  return createPortal(modalContent, document.body);
 };
-

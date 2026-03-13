@@ -1,8 +1,7 @@
-// Real Wallet Connection Component (replaces mock version)
 'use client';
 
 import React from 'react';
-import { Wallet, Power, Copy, ExternalLink, Settings } from 'lucide-react';
+import { Wallet, Power, Copy, ExternalLink, Settings, ChevronDown } from 'lucide-react';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
 import { WalletSelectModal } from './WalletSelectModal';
 import { Button } from '../ui';
@@ -12,17 +11,12 @@ interface WalletConnectButtonProps {
   className?: string;
 }
 
-// Helper functions
-const formatBnbBalance = (balance: string): string => {
+const formatBalance = (balance: string): string => {
   const num = parseFloat(balance);
-  if (num === 0) return '0.0000';
-  if (num < 0.0001) return num.toExponential(2);
-  return num.toFixed(4);
-};
-
-const formatAddress = (address: string | null): string => {
-  if (!address) return '';
-  return truncateAddress(address, 6, 4);
+  if (num === 0) return '0.00';
+  if (num < 0.0001) return '<0.0001';
+  if (num < 1) return num.toFixed(4);
+  return num.toFixed(2);
 };
 
 export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ className }) => {
@@ -41,299 +35,216 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ classN
     }
   };
 
-  const handleConnect = async () => {
-    // Show wallet selection modal instead of auto-connecting
-    console.log('Connect button clicked, opening wallet modal...');
-    setShowWalletModal(true);
-    console.log('showWalletModal state:', true);
-  };
-
   const handleDisconnect = async () => {
     try {
       await wallet.disconnectWallet();
       setShowDropdown(false);
     } catch (error) {
-      console.error('Failed to disconnect wallet:', error);
+      console.error('Disconnect failed:', error);
     }
   };
 
-  // Check if any wallet is available
-  // Always show connect button - let the modal handle wallet detection
-  const hasAvailableWallet = wallet.availableConnectors && wallet.availableConnectors.length > 0;
-  
-  // Debug logging
-  React.useEffect(() => {
-    console.log('WalletConnectButton - Available connectors:', wallet.availableConnectors?.map(c => c.id) || []);
-    console.log('WalletConnectButton - Has available wallet:', hasAvailableWallet);
-    console.log('WalletConnectButton - Wallet connected:', wallet.connected);
-    console.log('WalletConnectButton - showWalletModal state:', showWalletModal);
-  }, [wallet.availableConnectors, hasAvailableWallet, wallet.connected, showWalletModal]);
-
-  // Always show connect button - connectors might load asynchronously
   if (!wallet.connected) {
     return (
       <>
-        <div className={cn("relative", className)}>
-          <Button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('Button clicked! Current showWalletModal:', showWalletModal);
-              handleConnect();
-              console.log('After handleConnect, showWalletModal should be true');
-            }}
-            loading={wallet.isConnecting}
-            disabled={wallet.isConnecting}
-            icon={<Wallet size={16} />}
-            variant="primary"
-          >
-            {wallet.isConnecting ? 'Connecting...' : 'Connect Wallet'}
-          </Button>
-          
-          {wallet.error && (
-            <div className="absolute top-full mt-2 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800 max-w-sm">
-              {wallet.error}
-            </div>
+        <button
+          onClick={() => setShowWalletModal(true)}
+          disabled={wallet.isConnecting}
+          className={cn(
+            'flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200',
+            'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-glow-sm',
+            'hover:from-yellow-400 hover:to-orange-400 hover:shadow-glow',
+            'active:scale-[0.97]',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+            className
           )}
-        </div>
-        
-        {/* Wallet Selection Modal - Always render, let modal handle visibility */}
+        >
+          {wallet.isConnecting ? (
+            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <Wallet size={14} />
+          )}
+          <span>{wallet.isConnecting ? 'Connecting...' : 'Connect Wallet'}</span>
+        </button>
+
         <WalletSelectModal
           isOpen={showWalletModal}
-          onClose={() => {
-            console.log('Closing wallet modal');
-            setShowWalletModal(false);
-          }}
+          onClose={() => setShowWalletModal(false)}
         />
       </>
     );
   }
 
   return (
-    <div className={cn("relative", className)}>
-      <Button
+    <div className={cn('relative', className)}>
+      <button
         onClick={() => setShowDropdown(!showDropdown)}
-        variant="secondary"
-        className="min-w-[160px] justify-between"
+        className={cn(
+          'flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200',
+          'bg-white/[0.06] border border-white/[0.08] text-gray-200',
+          'hover:bg-white/[0.1] hover:border-white/[0.12]',
+          'active:scale-[0.97]'
+        )}
       >
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full" />
-          <span>{formatAddress(wallet.address!)}</span>
+        <div className="w-5 h-5 rounded-md bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-[8px] font-bold text-white">
+          {wallet.address!.slice(2, 4).toUpperCase()}
         </div>
-        <svg
-          className={cn("ml-2 h-4 w-4 transition-transform", showDropdown && "rotate-180")}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </Button>
+        <span className="font-mono">{truncateAddress(wallet.address!, 4, 3)}</span>
+        <ChevronDown size={12} className={cn('text-gray-500 transition-transform', showDropdown && 'rotate-180')} />
+      </button>
 
+      {/* Dropdown */}
       {showDropdown && (
-        <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-          {/* Account Info */}
-          <div className="p-4 border-b border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-500">Account</span>
-              <div className="flex items-center space-x-1">
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
+          <div className="absolute top-full right-0 mt-2 w-72 bg-[hsl(225,15%,8%)] border border-white/[0.08] rounded-2xl shadow-elevated z-50 overflow-hidden animate-scale-in">
+            {/* Address */}
+            <div className="p-4 border-b border-white/[0.06]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Account</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleCopyAddress}
+                    className="p-1 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/[0.04] transition-colors"
+                    title="Copy address"
+                  >
+                    <Copy size={12} className={copySuccess ? 'text-green-400' : ''} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      const base = wallet.chainId === 97 ? 'https://testnet.bscscan.com'
+                        : wallet.chainId === 56 ? 'https://bscscan.com'
+                        : wallet.chainId === 42161 ? 'https://arbiscan.io'
+                        : wallet.chainId === 8453 ? 'https://basescan.org'
+                        : 'https://testnet.bscscan.com';
+                      window.open(`${base}/address/${wallet.address}`, '_blank');
+                    }}
+                    className="p-1 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/[0.04] transition-colors"
+                    title="View on explorer"
+                  >
+                    <ExternalLink size={12} />
+                  </button>
+                </div>
+              </div>
+              <code className="text-xs text-gray-300 font-mono break-all leading-relaxed">
+                {wallet.address}
+              </code>
+              {copySuccess && (
+                <p className="text-[10px] text-green-400 mt-1">Copied!</p>
+              )}
+            </div>
+
+            {/* Balance */}
+            <div className="p-4 border-b border-white/[0.06]">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Balance</span>
                 <button
-                  onClick={handleCopyAddress}
-                  className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
-                  title="Copy address"
+                  onClick={wallet.refreshBalance}
+                  className="text-[10px] text-yellow-400/70 hover:text-yellow-400 transition-colors"
                 >
-                  <Copy size={14} />
-                </button>
-                <button
-                  onClick={() => {
-                    const explorerUrl = wallet.chainId === 97 
-                      ? `https://testnet.bscscan.com/address/${wallet.address}`
-                      : wallet.chainId === 56
-                      ? `https://bscscan.com/address/${wallet.address}`
-                      : wallet.chainId === 42161
-                      ? `https://arbiscan.io/address/${wallet.address}`
-                      : wallet.chainId === 8453
-                      ? `https://basescan.org/address/${wallet.address}`
-                      : `https://explorer.example.com/address/${wallet.address}`;
-                    window.open(explorerUrl, '_blank');
-                  }}
-                  className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
-                  title="View on explorer"
-                >
-                  <ExternalLink size={14} />
+                  Refresh
                 </button>
               </div>
+              <div className="text-lg font-bold text-white mt-1 tabular-nums font-mono">
+                {wallet.balanceFormatted || formatBalance(wallet.balance)} <span className="text-xs text-gray-500 font-sans">BNB</span>
+              </div>
             </div>
-            <div className="font-mono text-sm text-gray-900 break-all">
-              {wallet.address}
-            </div>
-            {copySuccess && (
-              <div className="text-xs text-green-600 mt-1">Address copied!</div>
-            )}
-          </div>
 
-          {/* Balance */}
-          <div className="p-4 border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-500">Balance</span>
-              <button
-                onClick={wallet.refreshBalance}
-                className="text-xs text-blue-600 hover:text-blue-800"
+            {/* Actions */}
+            <div className="p-2">
+              <a
+                href="/settings"
+                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-400 hover:text-gray-200 hover:bg-white/[0.04] rounded-lg transition-colors"
               >
-                Refresh
+                <Settings size={13} />
+                Settings
+              </a>
+              <a
+                href={`/profile/${wallet.address}`}
+                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-400 hover:text-gray-200 hover:bg-white/[0.04] rounded-lg transition-colors"
+              >
+                <Wallet size={13} />
+                My Profile
+              </a>
+              <button
+                onClick={handleDisconnect}
+                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-400/80 hover:text-red-400 hover:bg-red-500/[0.06] rounded-lg transition-colors"
+              >
+                <Power size={13} />
+                Disconnect
               </button>
             </div>
-            <div className="text-lg font-semibold text-gray-900 mt-1">
-              {wallet.balanceFormatted || formatBnbBalance(wallet.balance)}
-            </div>
           </div>
-
-          {/* Actions */}
-          <div className="p-4 space-y-2">
-            <a
-              href="/settings"
-              className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
-            >
-              <Settings size={14} />
-              <span>Settings</span>
-            </a>
-            <Button
-              onClick={handleDisconnect}
-              variant="danger"
-              size="sm"
-              fullWidth
-              icon={<Power size={14} />}
-            >
-              Disconnect
-            </Button>
-          </div>
-        </div>
+        </>
       )}
 
-      {/* Click outside to close dropdown */}
-      {showDropdown && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setShowDropdown(false)}
-        />
-      )}
-
-      {/* Wallet Selection Modal - for connected state */}
       <WalletSelectModal
         isOpen={showWalletModal}
-        onClose={() => {
-          console.log('Closing wallet modal');
-          setShowWalletModal(false);
-        }}
+        onClose={() => setShowWalletModal(false)}
       />
     </div>
   );
 };
 
-// Wallet connection status indicator for other components
 export const WalletStatus: React.FC<{ className?: string }> = ({ className }) => {
   const wallet = useMultichainWallet();
 
-  const hasAvailableWallet = wallet.availableConnectors && wallet.availableConnectors.length > 0;
-  
-  if (!hasAvailableWallet) {
-    return (
-      <div className={cn("flex items-center text-amber-600", className)}>
-        <div className="w-2 h-2 bg-amber-500 rounded-full mr-2" />
-        <span className="text-sm">Wallet not installed</span>
-      </div>
-    );
-  }
-
   if (wallet.isConnecting) {
     return (
-      <div className={cn("flex items-center text-blue-600", className)}>
-        <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse" />
-        <span className="text-sm">Connecting...</span>
+      <div className={cn('flex items-center gap-1.5', className)}>
+        <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse" />
+        <span className="text-[10px] text-gray-400">Connecting...</span>
       </div>
     );
   }
 
   if (wallet.connected) {
     return (
-      <div className={cn("flex items-center text-green-600", className)}>
-        <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
-        <span className="text-sm">Connected</span>
+      <div className={cn('flex items-center gap-1.5', className)}>
+        <div className="w-1.5 h-1.5 bg-green-400 rounded-full" />
+        <span className="text-[10px] text-gray-400">Connected</span>
       </div>
     );
   }
 
   return (
-    <div className={cn("flex items-center text-red-600", className)}>
-      <div className="w-2 h-2 bg-red-500 rounded-full mr-2" />
-      <span className="text-sm">Not connected</span>
+    <div className={cn('flex items-center gap-1.5', className)}>
+      <div className="w-1.5 h-1.5 bg-gray-500 rounded-full" />
+      <span className="text-[10px] text-gray-500">Not connected</span>
     </div>
   );
 };
 
-// Hook for wallet connection requirements in other components
 export const useWalletGuard = () => {
   const wallet = useMultichainWallet();
 
   const requireConnection = (action: string = 'perform this action') => {
-    const hasAvailableWallet = wallet.availableConnectors && wallet.availableConnectors.length > 0;
-    
-    if (!hasAvailableWallet) {
-      throw new Error('Wallet is not installed. Please install a compatible wallet to continue.');
-    }
-    
     if (!wallet.connected) {
       throw new Error(`Please connect your wallet to ${action}.`);
     }
-
     return true;
   };
 
-  return {
-    ...wallet,
-    requireConnection,
-  };
+  return { ...wallet, requireConnection };
 };
 
-// Component for showing wallet requirements
 export const WalletRequired: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }> = ({ children, fallback }) => {
   const wallet = useMultichainWallet();
-  const hasAvailableWallet = wallet.availableConnectors && wallet.availableConnectors.length > 0;
-
-  if (!hasAvailableWallet) {
-    return (
-      fallback || (
-        <div className="text-center p-8 bg-amber-50 rounded-lg border border-amber-200">
-          <Wallet size={48} className="mx-auto text-amber-600 mb-4" />
-          <h3 className="text-lg font-semibold text-amber-800 mb-2">
-            Wallet Required
-          </h3>
-          <p className="text-amber-700 mb-4">
-            You need to install a compatible wallet (MetaMask, WalletConnect, etc.) to use this feature.
-          </p>
-          <Button
-            onClick={() => window.open('https://metamask.io/download/', '_blank')}
-            variant="primary"
-          >
-            Install Wallet
-          </Button>
-        </div>
-      )
-    );
-  }
 
   if (!wallet.connected) {
     return (
       fallback || (
-        <div className="text-center p-8 bg-blue-50 rounded-lg border border-blue-200">
-          <Wallet size={48} className="mx-auto text-blue-600 mb-4" />
-          <h3 className="text-lg font-semibold text-blue-800 mb-2">
+        <div className="text-center p-10 bg-white/[0.02] rounded-2xl border border-white/[0.06]">
+          <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto mb-4">
+            <Wallet size={24} className="text-gray-500" />
+          </div>
+          <h3 className="text-base font-semibold text-white mb-1.5">
             Connect Your Wallet
           </h3>
-          <p className="text-blue-700 mb-4">
+          <p className="text-sm text-gray-500 mb-5">
             Please connect your wallet to continue.
           </p>
           <WalletConnectButton />

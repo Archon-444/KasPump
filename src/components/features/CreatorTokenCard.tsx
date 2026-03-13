@@ -139,7 +139,7 @@ const CreatorTokenCardComponent: React.FC<CreatorTokenCardProps> = ({
         {/* Actions */}
         <div className="flex space-x-2 pt-4 border-t border-gray-700">
           <Link
-            href={`/tokens/${token.address}?chain=${token.chainId}`}
+            href={`/token/${token.address}`}
             className="flex-1"
             onClick={(e) => e.stopPropagation()}
           >

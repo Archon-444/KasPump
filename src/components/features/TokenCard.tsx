@@ -70,7 +70,11 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
     return hoursSinceLaunch < 24;
   }, [token.createdAt]);
 
-  // Check if token is trending (high volume relative to market cap)
+  const isSniperProtected = useMemo(() => {
+    const secondsSinceLaunch = (Date.now() - token.createdAt.getTime()) / 1000;
+    return secondsSinceLaunch < 60;
+  }, [token.createdAt]);
+
   const isTrending = useMemo(() => {
     const volumeToMcapRatio = token.marketCap > 0 ? (token.volume24h / token.marketCap) * 100 : 0;
     return volumeToMcapRatio > 30;
@@ -94,113 +98,104 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02, y: -4 }}
-      whileTap={{ scale: 0.98 }}
-      className="cursor-pointer gpu-accelerated"
+      whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+      className="cursor-pointer"
     >
       <button
         onClick={onClick}
         type="button"
-        className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded-lg"
+        className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded-2xl"
         aria-label={`View ${token.name} (${token.symbol}) - Price: ${formatCurrency(token.price, 'BNB', 8)}, ${isPositive ? 'up' : 'down'} ${formatPercentage(token.change24h)}`}
       >
         <Card
           className={cn(
-            "glassmorphism token-card-glow overflow-hidden transition-all duration-300",
-            "hover:border-yellow-500/30 hover:shadow-lg hover:shadow-yellow-500/10"
+            "glassmorphism token-card-glow overflow-hidden rounded-2xl",
+            "hover:border-white/[0.12]"
           )}
         >
-        {/* Status Badges Row */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {isNewLaunch && (
-            <Badge variant="secondary" className="bg-purple-500/20 text-purple-400 border-purple-500/30">
-              <Zap size={10} className="mr-1" />
-              New Launch
-            </Badge>
-          )}
-          {isTrending && (
-            <Badge variant="secondary" className="bg-orange-500/20 text-orange-400 border-orange-500/30">
-              <Flame size={10} className="mr-1" />
-              Trending
-            </Badge>
-          )}
-          <Badge variant="secondary" className={healthConfig.color}>
-            <HealthIcon size={10} className="mr-1" />
-            {healthConfig.label}
-          </Badge>
-        </div>
-
         {/* Header */}
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg gpu-accelerated">
+            <div className="w-11 h-11 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-glow-sm">
               {token.symbol.slice(0, 2)}
             </div>
-            <div>
-              <h3 className="font-semibold text-white text-lg">{token.name}</h3>
-              <p className="text-gray-400 text-sm">${token.symbol}</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-white text-base truncate">{token.name}</h3>
+                {isSniperProtected && (
+                  <span className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold bg-yellow-500/15 text-yellow-400 rounded-md">
+                    <Shield size={9} />
+                    PROTECTED
+                  </span>
+                )}
+                {isNewLaunch && !isSniperProtected && (
+                  <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold bg-purple-500/15 text-purple-400 rounded-md">
+                    NEW
+                  </span>
+                )}
+                {isTrending && (
+                  <Flame size={13} className="flex-shrink-0 text-orange-400" />
+                )}
+              </div>
+              <p className="text-gray-500 text-xs font-medium">${token.symbol}</p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-1.5">
             <FavoriteButton
               tokenAddress={token.address}
               chainId={(token as any).chainId}
               size="sm"
             />
-            <Badge variant={isPositive ? 'success' : 'danger'}>
-              <div className="flex items-center space-x-1">
-                {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                <span>{formatPercentage(token.change24h)}</span>
-              </div>
-            </Badge>
+            <div className={cn(
+              'flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold tabular-nums',
+              isPositive
+                ? 'bg-green-500/[0.1] text-green-400'
+                : 'bg-red-500/[0.1] text-red-400'
+            )}>
+              {isPositive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+              {formatPercentage(token.change24h)}
+            </div>
           </div>
         </div>
 
-        {/* Description */}
-        <p className="text-gray-300 text-sm mb-4 line-clamp-2">
-          {token.description || 'No description available'}
-        </p>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <p className="text-gray-400 text-xs">Price</p>
-            <p className="text-white font-semibold">
-              {formatCurrency(token.price, 'BNB', 8)}
-            </p>
+        {/* Price + Stats */}
+        <div className="mb-3">
+          <div className="text-lg font-bold text-white font-mono tabular-nums mb-2">
+            {formatCurrency(token.price, 'BNB', 8)}
           </div>
-          <div>
-            <p className="text-gray-400 text-xs">Market Cap</p>
-            <p className="text-white font-semibold">
-              {formatCurrency(token.marketCap, 'BNB')}
-            </p>
-          </div>
-          <div>
-            <p className="text-gray-400 text-xs">24h Volume</p>
-            <p className="text-white font-semibold">
-              {formatCurrency(token.volume24h, 'BNB')}
-            </p>
-          </div>
-          <div>
-            <p className="text-gray-400 text-xs">Holders</p>
-            <p className="text-white font-semibold flex items-center">
-              <Users size={14} className="mr-1" />
-              {token.holders}
-            </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">MCap</p>
+              <p className="text-white text-sm font-medium tabular-nums">
+                {formatCurrency(token.marketCap, 'BNB')}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Volume</p>
+              <p className="text-white text-sm font-medium tabular-nums">
+                {formatCurrency(token.volume24h, 'BNB')}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Holders</p>
+              <p className="text-white text-sm font-medium tabular-nums flex items-center gap-1">
+                <Users size={11} className="text-gray-500" />
+                {token.holders}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Enhanced Graduation Progress */}
+        {/* Graduation Progress */}
         {!token.isGraduated && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between text-xs mb-2">
-              <div className="flex items-center text-gray-400">
-                <Target size={12} className="mr-1" />
-                <span>Graduation Progress</span>
-              </div>
+          <div className="mb-3">
+            <div className="flex items-center justify-between text-[10px] mb-1.5">
+              <span className="text-gray-500 uppercase tracking-wider font-medium">Graduation</span>
               <span className={cn(
-                "font-semibold",
+                "font-bold tabular-nums",
                 token.bondingCurveProgress >= 80 ? "text-green-400" :
                 token.bondingCurveProgress >= 50 ? "text-yellow-400" :
                 "text-gray-400"
@@ -209,84 +204,56 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
               </span>
             </div>
 
-            {/* Multi-color progress bar with milestones */}
-            <div className="relative">
-              <Progress
-                value={token.bondingCurveProgress}
-                className="h-3"
-              />
-              {/* Milestone markers at 25%, 50%, 75% */}
-              <div className="absolute top-0 left-0 w-full h-3 pointer-events-none" aria-hidden="true">
-                <div className="absolute w-px h-full bg-gray-600" style={{ left: '25%' }} />
-                <div className="absolute w-px h-full bg-gray-600" style={{ left: '50%' }} />
-                <div className="absolute w-px h-full bg-gray-600" style={{ left: '75%' }} />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-xs mt-2">
-              <div className="flex items-center gap-1">
-                {token.bondingCurveProgress >= 80 ? (
-                  <>
-                    <span className="text-green-400">⚡ Near graduation!</span>
-                  </>
-                ) : token.bondingCurveProgress >= 50 ? (
-                  <>
-                    <span className="text-yellow-400">🔥 Halfway there</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-gray-500">Bonding curve</span>
-                  </>
+            <div className="relative h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-500",
+                  token.bondingCurveProgress >= 80 ? "bg-gradient-to-r from-green-500 to-emerald-400" :
+                  token.bondingCurveProgress >= 50 ? "bg-gradient-to-r from-yellow-500 to-amber-400" :
+                  "bg-gradient-to-r from-gray-500 to-gray-400"
                 )}
-              </div>
-              <span className="text-gray-500">
-                {(100 - token.bondingCurveProgress).toFixed(0)}% to DEX
-              </span>
+                style={{ width: `${Math.min(token.bondingCurveProgress, 100)}%` }}
+              />
             </div>
           </div>
         )}
 
-        {/* Graduated Badge with Enhanced Styling */}
+        {/* Graduated Badge */}
         {token.isGraduated && (
-          <div className="mb-4">
-            <Badge variant="success" className="w-full justify-center py-2 bg-green-500/20 border-green-500/30">
-              <div className="flex items-center gap-2">
-                <Target className="text-green-400" size={14} />
-                <span className="text-green-400 font-semibold">🎉 Graduated to DEX</span>
-              </div>
-            </Badge>
+          <div className="mb-3 px-3 py-2 bg-green-500/[0.08] border border-green-500/[0.15] rounded-xl flex items-center justify-center gap-2">
+            <Target className="text-green-400" size={13} />
+            <span className="text-green-400 text-xs font-semibold">Graduated to DEX</span>
           </div>
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-700/50">
-          <div className="flex items-center text-xs text-gray-400">
-            <Clock size={12} className="mr-1" />
+        <div className="flex items-center justify-between pt-3 border-t border-white/[0.04]">
+          <div className="flex items-center text-[11px] text-gray-500">
+            <Clock size={11} className="mr-1" />
             {formatTimeAgo(token.createdAt)}
           </div>
           
-          <div className="flex items-center space-x-2">
-            <Badge variant="default" className="text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-medium text-gray-500 bg-white/[0.04] px-2 py-0.5 rounded-md capitalize">
               {token.curveType}
-            </Badge>
+            </span>
+            <HealthIcon size={12} className={cn(
+              health.overall === 'excellent' ? 'text-green-400' :
+              health.overall === 'good' ? 'text-blue-400' :
+              health.overall === 'fair' ? 'text-yellow-400' : 'text-red-400'
+            )} />
             {showActions && (
-              <div className="flex space-x-1">
+              <div className="flex gap-1">
                 <button
-                  className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition-colors btn-glow-green"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Handle buy
-                  }}
+                  className="px-2.5 py-1 bg-green-500/15 hover:bg-green-500/25 text-green-400 text-xs font-medium rounded-lg transition-colors"
+                  onClick={(e) => { e.stopPropagation(); }}
                   aria-label={`Buy ${token.name}`}
                 >
                   Buy
                 </button>
                 <button
-                  className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded-md transition-colors btn-glow-red"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Handle sell
-                  }}
+                  className="px-2.5 py-1 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs font-medium rounded-lg transition-colors"
+                  onClick={(e) => { e.stopPropagation(); }}
                   aria-label={`Sell ${token.name}`}
                 >
                   Sell

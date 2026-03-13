@@ -42,16 +42,37 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
 
     enum CurveType { LINEAR, EXPONENTIAL }
 
+    struct CreateTokenParams {
+        string name;
+        string symbol;
+        string description;
+        string imageUrl;
+        uint256 totalSupply;
+        uint256 basePrice;
+        uint256 slope;
+        CurveType curveType;
+        string twitterUrl;
+        string telegramUrl;
+        string websiteUrl;
+    }
+
+    struct SocialLinks {
+        string twitterUrl;
+        string telegramUrl;
+        string websiteUrl;
+    }
+
     // ========== STATE VARIABLES ==========
 
     mapping(address => bool) public isKasPumpToken;
     mapping(address => TokenConfig) public tokenConfigs;
+    mapping(address => SocialLinks) public tokenSocialLinks;
     mapping(address => address) public tokenToAMM;
     address[] public allTokens;
 
     // Platform configuration
     uint256 public constant PLATFORM_FEE = 50; // 0.5% in basis points
-    uint256 public constant CREATION_FEE = 0.025 ether; // 0.025 BNB (~$25 USD) - BSC-only, no oracle needed
+    uint256 public constant CREATION_FEE = 0.005 ether; // 0.005 BNB (~$3 USD) - competitive with Four.meme
     address payable public feeRecipient;
     IDexRouterRegistry public dexRouterRegistry;
 
@@ -138,89 +159,65 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
      * - Creation fee anti-spam mechanism
      */
     function createToken(
-        string memory _name,
-        string memory _symbol,
-        string memory _description,
-        string memory _imageUrl,
-        uint256 _totalSupply,
-        uint256 _basePrice,
-        uint256 _slope,
-        CurveType _curveType
+        CreateTokenParams calldata p
     ) external payable nonReentrant whenNotPaused returns (address tokenAddress, address ammAddress) {
-        // ========== CREATION FEE CHECK ==========
-
         if (msg.value < CREATION_FEE) {
             revert InsufficientCreationFee();
         }
-
-        // ========== RATE LIMITING ==========
 
         if (block.timestamp < lastTokenCreation[msg.sender] + CREATION_COOLDOWN) {
             revert RateLimitExceeded();
         }
 
-        // ========== INPUT VALIDATION ==========
-
-        // Name validation
-        if (bytes(_name).length == 0 || bytes(_name).length > MAX_NAME_LENGTH) {
+        if (bytes(p.name).length == 0 || bytes(p.name).length > MAX_NAME_LENGTH) {
             revert InvalidInput("name");
         }
-
-        // Symbol validation
-        if (bytes(_symbol).length == 0 || bytes(_symbol).length > MAX_SYMBOL_LENGTH) {
+        if (bytes(p.symbol).length == 0 || bytes(p.symbol).length > MAX_SYMBOL_LENGTH) {
             revert InvalidInput("symbol");
         }
-
-        // Description validation
-        if (bytes(_description).length > MAX_DESCRIPTION_LENGTH) {
+        if (bytes(p.description).length > MAX_DESCRIPTION_LENGTH) {
             revert InvalidInput("description");
         }
-
-        // Supply validation
-        if (_totalSupply < MIN_TOTAL_SUPPLY || _totalSupply > MAX_TOTAL_SUPPLY) {
+        if (p.totalSupply < MIN_TOTAL_SUPPLY || p.totalSupply > MAX_TOTAL_SUPPLY) {
             revert InvalidInput("totalSupply");
         }
-
-        // Price validation
-        if (_basePrice == 0) {
+        if (p.basePrice == 0) {
             revert InvalidInput("basePrice");
         }
-
         if (address(dexRouterRegistry) == address(0)) {
             revert DexRouterRegistryNotSet();
         }
 
-        // ========== DEPLOYMENT ==========
+        tokenAddress = deployToken(p.name, p.symbol, p.totalSupply);
 
-        // Deploy token contract
-        tokenAddress = deployToken(_name, _symbol, _totalSupply);
-
-        // Deploy AMM with bonding curve (tier 0 = Basic for now)
         ammAddress = deployAMM(
             tokenAddress,
-            msg.sender,  // Token creator
-            _basePrice,
-            _slope,
-            _curveType,
-            _totalSupply * 80 / 100,  // 80% graduation threshold
-            0 // Basic tier
+            payable(msg.sender),
+            p.basePrice,
+            p.slope,
+            p.curveType,
+            p.totalSupply * 80 / 100,
+            0
         );
 
-        // ========== STATE UPDATES ==========
-
-        // Store configuration
         tokenConfigs[tokenAddress] = TokenConfig({
-            name: _name,
-            symbol: _symbol,
-            description: _description,
-            imageUrl: _imageUrl,
-            totalSupply: _totalSupply,
-            basePrice: _basePrice,
-            slope: _slope,
-            curveType: _curveType,
-            graduationThreshold: _totalSupply * 80 / 100,
+            name: p.name,
+            symbol: p.symbol,
+            description: p.description,
+            imageUrl: p.imageUrl,
+            totalSupply: p.totalSupply,
+            basePrice: p.basePrice,
+            slope: p.slope,
+            curveType: p.curveType,
+            graduationThreshold: p.totalSupply * 80 / 100,
             creator: msg.sender,
             createdAt: block.timestamp
+        });
+
+        tokenSocialLinks[tokenAddress] = SocialLinks({
+            twitterUrl: p.twitterUrl,
+            telegramUrl: p.telegramUrl,
+            websiteUrl: p.websiteUrl
         });
 
         isKasPumpToken[tokenAddress] = true;
@@ -233,11 +230,8 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         // ========== TOKEN TRANSFER ==========
 
         // Transfer initial supply to AMM
-        KRC20Token(tokenAddress).transfer(ammAddress, _totalSupply);
+        KRC20Token(tokenAddress).transfer(ammAddress, p.totalSupply);
 
-        // ========== FEE TRANSFER ==========
-
-        // Transfer creation fee to platform
         (bool success, ) = feeRecipient.call{value: msg.value}("");
         require(success, "Fee transfer failed");
 
@@ -247,9 +241,9 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
             tokenAddress,
             ammAddress,
             msg.sender,
-            _name,
-            _symbol,
-            _totalSupply,
+            p.name,
+            p.symbol,
+            p.totalSupply,
             block.timestamp
         );
 
@@ -315,16 +309,21 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         uint256 _graduationThreshold,
         uint8 _tier
     ) internal returns (address) {
+        IDexRouterRegistry.RouterConfig memory routerConfig = dexRouterRegistry.getRouterConfig(block.chainid);
+        require(routerConfig.enabled, "DEX router not enabled for this chain");
+        require(routerConfig.router != address(0), "DEX router address not set");
+
         BondingCurveAMM amm = new BondingCurveAMM(
             _tokenAddress,
-            _creator,  // Token creator receives graduation funds
+            _creator,
             _basePrice,
             _slope,
             uint8(_curveType),
             _graduationThreshold,
             feeRecipient,
             _tier,
-            address(dexRouterRegistry)  // Registry for automated liquidity
+            routerConfig.router,
+            60 // 60 seconds anti-sniper protection
         );
 
         return address(amm);
@@ -344,6 +343,10 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
      */
     function getTokenConfig(address _tokenAddress) external view returns (TokenConfig memory) {
         return tokenConfigs[_tokenAddress];
+    }
+
+    function getSocialLinks(address _tokenAddress) external view returns (SocialLinks memory) {
+        return tokenSocialLinks[_tokenAddress];
     }
 
     /**

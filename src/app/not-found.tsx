@@ -24,7 +24,7 @@ export default function NotFound() {
               Go Home
             </Button>
           </Link>
-          <Link href="/portfolio">
+          <Link href="/">
             <Button variant="secondary" className="w-full sm:w-auto flex items-center justify-center gap-2">
               <Search size={16} />
               Browse Tokens

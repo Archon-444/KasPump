@@ -50,7 +50,8 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Fetch paginated list
-    const result = await TokenService.getTokens(chainId, pageSize, offset);
+    const search = searchParams.get('search') || undefined;
+    const result = await TokenService.getTokens(chainId, pageSize, offset, search);
     return NextResponse.json(result);
 
   } catch (error: any) {

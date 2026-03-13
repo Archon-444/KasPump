@@ -157,11 +157,11 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
             duration={8000}
             onAction={() => {
               if (tokenCreationState.creationResult?.tokenAddress) {
-                window.location.href = `/tokens/${tokenCreationState.creationResult.tokenAddress}`;
+                window.location.href = `/token/${tokenCreationState.creationResult.tokenAddress}`;
               } else {
                 const firstResult = Array.from((tokenCreationState.creationResult?.results as Map<any, any>)?.values() || [])?.[0] as any;
                 if (firstResult?.tokenAddress) {
-                  window.location.href = `/tokens/${firstResult.tokenAddress}`;
+                  window.location.href = `/token/${firstResult.tokenAddress}`;
                 }
               }
             }}
@@ -796,11 +796,11 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({
           duration={8000}
           onAction={() => {
             if (tokenCreationState.creationResult?.tokenAddress) {
-              window.location.href = `/tokens/${tokenCreationState.creationResult.tokenAddress}`;
+              window.location.href = `/token/${tokenCreationState.creationResult.tokenAddress}`;
             } else {
               const firstResult = Array.from((tokenCreationState.creationResult?.results as Map<any, any>)?.values() || [])?.[0] as any;
               if (firstResult?.tokenAddress) {
-                window.location.href = `/tokens/${firstResult.tokenAddress}`;
+                window.location.href = `/token/${firstResult.tokenAddress}`;
               }
             }
           }}

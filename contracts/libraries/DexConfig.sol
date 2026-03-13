@@ -33,7 +33,7 @@ library DexConfig {
 
         // Arbitrum One - Uniswap V2 Router
         if (chainId == 42161) {
-            return 0x4752ba5dBc23f44D87826276BF6Fd6b1C372aD24;
+            return 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
         }
 
         // Base Mainnet - BaseSwap V2 Router
@@ -118,7 +118,7 @@ library DexConfig {
                 routerType: IDexRouterRegistry.RouterType.V2,
                 router: 0x10ED43C718714eb63d5aA57B78B54704E256024E,
                 positionManager: address(0),
-                wrappedNative: 0xbb4CdB9CBd36B01bD1cbaebF2De08d9173bc095c,
+                wrappedNative: 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c,
                 fee: 0,
                 enabled: true
             });
@@ -140,7 +140,7 @@ library DexConfig {
         if (chainId == 42161) {
             return IDexRouterRegistry.RouterConfig({
                 routerType: IDexRouterRegistry.RouterType.V2,
-                router: 0x4752ba5dBc23f44D87826276BF6Fd6b1C372aD24,
+                router: 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24,
                 positionManager: address(0),
                 wrappedNative: 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1,
                 fee: 0,
