@@ -5,12 +5,28 @@ const { ethers } = hre;
 const PRECISION = 1000000000000000000n; // 10^18
 
 async function deployFixture() {
-  const [deployer, user] = await ethers.getSigners();
+  const [deployer, user, referrer] = await ethers.getSigners();
 
   const totalSupply = 1_000_000n * PRECISION;
   const basePrice = 1_000_000_000_000n; // 1e12 wei (0.000001 ETH - minimum allowed)
   const slope = 1_000_000_000n; // 1 gwei
   const graduationThreshold = 800_000n * PRECISION;
+
+  // Deploy mock WETH and DEX router for constructor requirement
+  const MockWETH = await ethers.getContractFactory("MockWETH");
+  const weth = await MockWETH.deploy();
+  await weth.waitForDeployment();
+
+  const MockDEXFactory = await ethers.getContractFactory("MockDEXFactory");
+  const dexFactory = await MockDEXFactory.deploy();
+  await dexFactory.waitForDeployment();
+
+  const MockDEXRouter = await ethers.getContractFactory("MockDEXRouter");
+  const dexRouter = await MockDEXRouter.deploy(
+    await weth.getAddress(),
+    await dexFactory.getAddress()
+  );
+  await dexRouter.waitForDeployment();
 
   const TokenFactory = await ethers.getContractFactory("KRC20Token");
   const token = await TokenFactory.deploy(
@@ -24,18 +40,22 @@ async function deployFixture() {
   const BondingCurveFactory = await ethers.getContractFactory("BondingCurveAMM");
   const amm = await BondingCurveFactory.deploy(
     await token.getAddress(),
+    deployer.address, // tokenCreator
     basePrice,
     slope,
-    0,
+    0, // LINEAR curve
     graduationThreshold,
-    deployer.address,
-    0
+    deployer.address, // feeRecipient
+    0, // BASIC tier
+    await dexRouter.getAddress(), // DEX router
+    60, // sniper protection duration
+    ethers.ZeroAddress // no referrer
   );
   await amm.waitForDeployment();
 
   await token.transfer(await amm.getAddress(), totalSupply);
 
-  return { amm, token, deployer, user };
+  return { amm, token, deployer, user, referrer };
 }
 
 describe("BondingCurveAMM precision", function () {

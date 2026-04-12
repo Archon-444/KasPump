@@ -54,6 +54,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         string twitterUrl;
         string telegramUrl;
         string websiteUrl;
+        address referrer; // Optional referral address (address(0) if none)
     }
 
     struct SocialLinks {
@@ -82,6 +83,12 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
 
     // CREATE2 nonce for enhanced security
     mapping(address => uint256) private creatorNonces;
+
+    // Referral system
+    mapping(address => address) public tokenReferrer; // token address → referrer address
+    mapping(address => uint256) public referrerTotalEarnings; // referrer → total creation fee earnings
+    mapping(address => uint256) public referrerTokenCount; // referrer → tokens referred
+    uint256 public constant REFERRAL_CREATION_SHARE = 3000; // 30% of creation fee to referrer
 
     // Safety limits
     uint256 public constant MAX_NAME_LENGTH = 50;
@@ -122,6 +129,13 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         address indexed creator,
         uint256 amount,
         uint256 timestamp
+    );
+
+    event ReferralCreated(
+        address indexed tokenAddress,
+        address indexed creator,
+        address indexed referrer,
+        uint256 referrerReward
     );
 
     // ========== ERRORS ==========
@@ -190,6 +204,11 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
 
         tokenAddress = deployToken(p.name, p.symbol, p.totalSupply);
 
+        // Validate referrer: cannot refer yourself
+        address validReferrer = (p.referrer != address(0) && p.referrer != msg.sender)
+            ? p.referrer
+            : address(0);
+
         ammAddress = deployAMM(
             tokenAddress,
             payable(msg.sender),
@@ -197,7 +216,8 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
             p.slope,
             p.curveType,
             p.totalSupply * 80 / 100,
-            0
+            0,
+            payable(validReferrer)
         );
 
         tokenConfigs[tokenAddress] = TokenConfig({
@@ -224,6 +244,12 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         tokenToAMM[tokenAddress] = ammAddress;
         allTokens.push(tokenAddress);
 
+        // Track referral
+        if (validReferrer != address(0)) {
+            tokenReferrer[tokenAddress] = validReferrer;
+            referrerTokenCount[validReferrer]++;
+        }
+
         // Update rate limit
         lastTokenCreation[msg.sender] = block.timestamp;
 
@@ -232,8 +258,27 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         // Transfer initial supply to AMM
         KRC20Token(tokenAddress).transfer(ammAddress, p.totalSupply);
 
-        (bool success, ) = feeRecipient.call{value: msg.value}("");
-        require(success, "Fee transfer failed");
+        // ========== CREATION FEE SPLIT ==========
+
+        if (validReferrer != address(0)) {
+            // 30% to referrer, 70% to platform
+            uint256 referrerReward = (msg.value * REFERRAL_CREATION_SHARE) / 10000;
+            uint256 platformReward = msg.value - referrerReward;
+
+            (bool refSuccess, ) = payable(validReferrer).call{value: referrerReward}("");
+            require(refSuccess, "Referrer fee transfer failed");
+
+            (bool platSuccess, ) = feeRecipient.call{value: platformReward}("");
+            require(platSuccess, "Platform fee transfer failed");
+
+            referrerTotalEarnings[validReferrer] += referrerReward;
+
+            emit ReferralCreated(tokenAddress, msg.sender, validReferrer, referrerReward);
+        } else {
+            // No referrer — 100% to platform
+            (bool success, ) = feeRecipient.call{value: msg.value}("");
+            require(success, "Fee transfer failed");
+        }
 
         emit CreationFeeCollected(msg.sender, msg.value, block.timestamp);
 
@@ -307,7 +352,8 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         uint256 _slope,
         CurveType _curveType,
         uint256 _graduationThreshold,
-        uint8 _tier
+        uint8 _tier,
+        address payable _referrer
     ) internal returns (address) {
         IDexRouterRegistry.RouterConfig memory routerConfig = dexRouterRegistry.getRouterConfig(block.chainid);
         require(routerConfig.enabled, "DEX router not enabled for this chain");
@@ -323,7 +369,8 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
             feeRecipient,
             _tier,
             routerConfig.router,
-            60 // 60 seconds anti-sniper protection
+            60, // 60 seconds anti-sniper protection
+            _referrer
         );
 
         return address(amm);
@@ -368,6 +415,23 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
      */
     function isValidToken(address _token) external view returns (bool) {
         return isKasPumpToken[_token];
+    }
+
+    /**
+     * @dev Get referrer stats for a given address
+     */
+    function getReferrerStats(address _referrer) external view returns (
+        uint256 totalEarnings,
+        uint256 tokenCount
+    ) {
+        return (referrerTotalEarnings[_referrer], referrerTokenCount[_referrer]);
+    }
+
+    /**
+     * @dev Get referrer for a token
+     */
+    function getTokenReferrer(address _token) external view returns (address) {
+        return tokenReferrer[_token];
     }
 
     // ========== ADMIN FUNCTIONS ==========

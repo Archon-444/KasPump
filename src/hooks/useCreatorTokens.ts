@@ -59,6 +59,8 @@ export interface CreatorToken extends KasPumpToken {
   totalVolume?: number;
   /** Number of unique holders */
   holderCount?: number;
+  /** Accumulated creator fees from per-trade revenue sharing (withdrawable) */
+  accumulatedFees?: number;
 }
 
 /**
@@ -77,6 +79,8 @@ export interface CreatorStats {
   graduatedTokens: number;
   /** Number of active (non-graduated) tokens */
   activeTokens: number;
+  /** Total accumulated fees available for withdrawal across all tokens */
+  totalAccumulatedFees: number;
   /** Per-chain breakdown */
   chains: {
     chainId: number;
@@ -101,6 +105,7 @@ export function useCreatorTokens() {
     totalHolders: 0,
     graduatedTokens: 0,
     activeTokens: 0,
+    totalAccumulatedFees: 0,
     chains: [],
   });
   const [loading, setLoading] = useState(true);
@@ -168,7 +173,7 @@ export function useCreatorTokens() {
 
               // Get trading data
               const ammContract = new ethers.Contract(ammAddress, BondingCurveAMMABI.abi, provider);
-              const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] = 
+              const [currentSupply, currentPrice, totalVolume, graduation, isGraduated] =
                 await ammContract.getTradingInfo();
 
               const currentSupplyNumber = parseFloat(ethers.formatEther(currentSupply));
@@ -176,12 +181,19 @@ export function useCreatorTokens() {
               const volumeNumber = parseFloat(ethers.formatEther(totalVolume));
               const marketCap = currentSupplyNumber * priceNumber;
 
+              // Read accumulated creator fees from contract (per-trade revenue sharing)
+              let accumulatedFees = 0;
+              try {
+                const fees = await ammContract.creatorAccumulatedFees();
+                accumulatedFees = parseFloat(ethers.formatEther(fees));
+              } catch {
+                // Fallback for older contracts without revenue sharing
+              }
+
               // Get holder count (simplified - count addresses with balance > 0)
-              // In production, this would use a more efficient method
               let holderCount = 0;
               try {
                 const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-                // This is a placeholder - real implementation would track holders
                 holderCount = 0;
               } catch {
                 // Ignore errors for holder count
@@ -209,7 +221,8 @@ export function useCreatorTokens() {
                 ammAddress,
                 isGraduated,
                 totalVolume: volumeNumber,
-                totalEarnings: volumeNumber * 0.005, // 0.5% creator fee (simplified)
+                totalEarnings: accumulatedFees + (volumeNumber * 0.005),
+                accumulatedFees,
               };
 
               creatorTokens.push(creatorToken);
@@ -247,6 +260,8 @@ export function useCreatorTokens() {
         totalVolume: stats.totalVolume,
       }));
 
+      const totalAccumulatedFees = creatorTokens.reduce((sum, t) => sum + (t.accumulatedFees || 0), 0);
+
       setStats({
         totalTokens,
         totalVolume,
@@ -254,6 +269,7 @@ export function useCreatorTokens() {
         totalHolders,
         graduatedTokens,
         activeTokens,
+        totalAccumulatedFees,
         chains: chainsStats,
       });
 

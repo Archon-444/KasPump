@@ -60,6 +60,14 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     mapping(address => uint256) public withdrawableGraduationFunds;
     uint256 public totalGraduationFunds;
 
+    // Creator revenue sharing — accumulated from per-trade fee split
+    uint256 public creatorAccumulatedFees;
+
+    // Referral tracking
+    address payable public immutable referrer; // Address that referred token creation (can be zero)
+    uint256 public constant REFERRAL_TRADE_SHARE = 500; // 5% of platform fee goes to referrer (basis points)
+    uint256 public referrerAccumulatedFees;
+
     // DEX LP token tracking
     address public lpTokenAddress; // Address of LP token contract
     uint256 public lpTokensLocked; // Amount of LP tokens locked
@@ -70,10 +78,25 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     uint256 public constant PRECISION = 1e18;
     uint256 public constant MAX_SLIPPAGE = 1000; // 10% maximum slippage
 
-    // Tiered platform fees (basis points)
+    // Tiered platform fees (basis points) — used as floor for enterprise members
     uint256 public constant BASIC_FEE = 100;      // 1.0%
     uint256 public constant PREMIUM_FEE = 50;     // 0.5%
     uint256 public constant ENTERPRISE_FEE = 25;  // 0.25%
+
+    // Creator revenue sharing: 50% of platform fee goes to token creator on every trade
+    uint256 public constant CREATOR_FEE_SHARE = 5000; // 50% of fee in basis points
+
+    // Dynamic fee schedule — market-cap-based (in native currency, e.g. BNB)
+    uint256 public constant MCAP_TIER_1 = 1 ether;    // < 1 BNB mcap → 1.00%
+    uint256 public constant MCAP_TIER_2 = 10 ether;   // 1-10 BNB    → 0.75%
+    uint256 public constant MCAP_TIER_3 = 50 ether;   // 10-50 BNB   → 0.50%
+    uint256 public constant MCAP_TIER_4 = 100 ether;  // 50-100 BNB  → 0.25%
+    // > 100 BNB mcap → 0.10%
+    uint256 public constant DYNAMIC_FEE_1 = 100;  // 1.00%
+    uint256 public constant DYNAMIC_FEE_2 = 75;   // 0.75%
+    uint256 public constant DYNAMIC_FEE_3 = 50;   // 0.50%
+    uint256 public constant DYNAMIC_FEE_4 = 25;   // 0.25%
+    uint256 public constant DYNAMIC_FEE_5 = 10;   // 0.10%
 
     // Safety limits
     uint256 public constant MAX_TOTAL_SUPPLY = 1e12 * 1e18; // 1 trillion tokens max
@@ -144,6 +167,28 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         string reason
     );
 
+    event CreatorFeeAccumulated(
+        address indexed creator,
+        uint256 amount,
+        uint256 totalAccumulated
+    );
+
+    event CreatorFeesWithdrawn(
+        address indexed creator,
+        uint256 amount
+    );
+
+    event ReferrerFeeAccumulated(
+        address indexed referrer,
+        uint256 amount,
+        uint256 totalAccumulated
+    );
+
+    event ReferrerFeesWithdrawn(
+        address indexed referrer,
+        uint256 amount
+    );
+
     // ========== CUSTOM ERRORS ==========
 
     error InvalidAmount();
@@ -196,7 +241,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         address payable _feeRecipient,
         uint8 _membershipTier,
         address _dexRouter,
-        uint256 _sniperProtectionDuration
+        uint256 _sniperProtectionDuration,
+        address payable _referrer
     ) Ownable(msg.sender) {
         // ========== CRITICAL: Comprehensive Input Validation ==========
 
@@ -236,6 +282,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         sniperProtectionDuration = _sniperProtectionDuration > 0
             ? _sniperProtectionDuration
             : DEFAULT_SNIPER_DURATION;
+        referrer = _referrer; // Can be address(0) if no referrer
     }
 
     // ========== EXTERNAL FUNCTIONS ==========
@@ -264,10 +311,15 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
 
         uint256 nativeAmount = msg.value;
 
-        // Calculate fee based on membership tier
+        // Calculate fee based on dynamic market-cap tiers + membership floor
         uint256 platformFee = getPlatformFee();
         uint256 fee = (nativeAmount * platformFee) / 10000;
         uint256 nativeAfterFee = nativeAmount - fee;
+
+        // Split fee: 50% to creator, 5% to referrer (if exists), rest to platform
+        uint256 creatorCut = (fee * CREATOR_FEE_SHARE) / 10000;
+        uint256 referrerCut = (referrer != address(0)) ? (fee * REFERRAL_TRADE_SHARE) / 10000 : 0;
+        uint256 platformCut = fee - creatorCut - referrerCut;
 
         // Calculate tokens to mint based on curve
         uint256 tokensOut = calculateTokensOut(nativeAfterFee, currentSupply);
@@ -285,6 +337,12 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         currentSupply += tokensOut;
         totalVolume += nativeAmount;
 
+        // Accumulate creator and referrer fees (pull pattern — safe)
+        creatorAccumulatedFees += creatorCut;
+        if (referrerCut > 0) {
+            referrerAccumulatedFees += referrerCut;
+        }
+
         // Check for graduation
         bool graduated = currentSupply >= graduationThreshold;
 
@@ -293,14 +351,21 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Safe token transfer to buyer
         token.safeTransfer(msg.sender, tokensOut);
 
-        // Safe fee transfer
-        if (fee > 0) {
-            feeRecipient.sendValue(fee);
+        // Safe platform fee transfer (only platform's share)
+        if (platformCut > 0) {
+            feeRecipient.sendValue(platformCut);
         }
 
         // Handle graduation
         if (graduated && !isGraduated) {
             _graduateToken();
+        }
+
+        if (creatorCut > 0) {
+            emit CreatorFeeAccumulated(tokenCreator, creatorCut, creatorAccumulatedFees);
+        }
+        if (referrerCut > 0) {
+            emit ReferrerFeeAccumulated(referrer, referrerCut, referrerAccumulatedFees);
         }
 
         emit Trade(
@@ -339,15 +404,20 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Calculate native currency to return
         uint256 nativeOut = calculateNativeOut(tokenAmount, currentSupply);
 
-        // Calculate fee
+        // Calculate fee based on dynamic market-cap tiers + membership floor
         uint256 platformFee = getPlatformFee();
         uint256 fee = (nativeOut * platformFee) / 10000;
         uint256 nativeAfterFee = nativeOut - fee;
 
+        // Split fee: 50% to creator, 5% to referrer (if exists), rest to platform
+        uint256 creatorCut = (fee * CREATOR_FEE_SHARE) / 10000;
+        uint256 referrerCut = (referrer != address(0)) ? (fee * REFERRAL_TRADE_SHARE) / 10000 : 0;
+        uint256 platformCut = fee - creatorCut - referrerCut;
+
         // Slippage protection
         if (nativeAfterFee < minNativeOut) revert SlippageTooHigh();
 
-        // Ensure contract has enough native currency
+        // Ensure contract has enough native currency (include accumulated fees held in contract)
         if (nativeOut > address(this).balance) revert InsufficientBalance();
 
         // ========== EFFECTS ==========
@@ -355,6 +425,12 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Update state BEFORE external calls
         currentSupply -= tokenAmount;
         totalVolume += nativeOut;
+
+        // Accumulate creator and referrer fees (pull pattern — safe)
+        creatorAccumulatedFees += creatorCut;
+        if (referrerCut > 0) {
+            referrerAccumulatedFees += referrerCut;
+        }
 
         // ========== INTERACTIONS ==========
 
@@ -364,9 +440,16 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Safe native currency transfer to seller
         payable(msg.sender).sendValue(nativeAfterFee);
 
-        // Safe fee transfer
-        if (fee > 0) {
-            feeRecipient.sendValue(fee);
+        // Safe platform fee transfer (only platform's share)
+        if (platformCut > 0) {
+            feeRecipient.sendValue(platformCut);
+        }
+
+        if (creatorCut > 0) {
+            emit CreatorFeeAccumulated(tokenCreator, creatorCut, creatorAccumulatedFees);
+        }
+        if (referrerCut > 0) {
+            emit ReferrerFeeAccumulated(referrer, referrerCut, referrerAccumulatedFees);
         }
 
         emit Trade(
@@ -397,6 +480,42 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         payable(msg.sender).sendValue(amount);
 
         emit GraduationFundsWithdrawn(msg.sender, amount);
+    }
+
+    /**
+     * @dev Withdraw accumulated creator trading fees (pull payment pattern)
+     * @notice Creator earns 50% of platform fees on every trade of their token
+     */
+    function withdrawCreatorFees() external nonReentrant {
+        if (msg.sender != tokenCreator) revert NoWithdrawableFunds();
+        uint256 amount = creatorAccumulatedFees;
+        if (amount == 0) revert NoWithdrawableFunds();
+
+        // Effects before interactions
+        creatorAccumulatedFees = 0;
+
+        // Safe transfer
+        payable(msg.sender).sendValue(amount);
+
+        emit CreatorFeesWithdrawn(msg.sender, amount);
+    }
+
+    /**
+     * @dev Withdraw accumulated referrer fees (pull payment pattern)
+     * @notice Referrer earns 5% of platform fees on every trade
+     */
+    function withdrawReferrerFees() external nonReentrant {
+        if (msg.sender != referrer) revert NoWithdrawableFunds();
+        uint256 amount = referrerAccumulatedFees;
+        if (amount == 0) revert NoWithdrawableFunds();
+
+        // Effects before interactions
+        referrerAccumulatedFees = 0;
+
+        // Safe transfer
+        payable(msg.sender).sendValue(amount);
+
+        emit ReferrerFeesWithdrawn(msg.sender, amount);
     }
 
     // ========== VIEW FUNCTIONS ==========
@@ -450,16 +569,47 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @dev Get platform fee based on membership tier + anti-sniper sliding fee
-     * During sniper protection window, fee starts at 99% and linearly decays
-     * to the normal tier fee over sniperProtectionDuration seconds.
+     * @dev Get market cap in native currency (BNB/ETH)
+     * @return Market cap as currentSupply * currentPrice / PRECISION
+     */
+    function getMarketCap() public view returns (uint256) {
+        if (currentSupply == 0) return 0;
+        return (currentSupply * getCurrentPrice()) / PRECISION;
+    }
+
+    /**
+     * @dev Get platform fee based on dynamic market-cap tiers + membership floor + anti-sniper
+     *
+     * Fee schedule (market-cap based):
+     *   < 1 BNB   → 1.00%
+     *   1-10 BNB  → 0.75%
+     *   10-50 BNB → 0.50%
+     *   50-100 BNB→ 0.25%
+     *   > 100 BNB → 0.10%
+     *
+     * Enterprise members get min(dynamicFee, ENTERPRISE_FEE) as a floor discount.
+     * Anti-sniper surcharge is added on top during protection window.
      */
     function getPlatformFee() public view returns (uint256) {
-        uint256 baseFee;
-        if (membershipTier == 2) baseFee = ENTERPRISE_FEE;
-        else if (membershipTier == 1) baseFee = PREMIUM_FEE;
-        else baseFee = BASIC_FEE;
+        // Dynamic fee based on market cap
+        uint256 marketCap = getMarketCap();
+        uint256 dynamicFee;
+        if (marketCap >= MCAP_TIER_4) dynamicFee = DYNAMIC_FEE_5;      // > 100 BNB → 0.10%
+        else if (marketCap >= MCAP_TIER_3) dynamicFee = DYNAMIC_FEE_4;  // 50-100 BNB → 0.25%
+        else if (marketCap >= MCAP_TIER_2) dynamicFee = DYNAMIC_FEE_3;  // 10-50 BNB → 0.50%
+        else if (marketCap >= MCAP_TIER_1) dynamicFee = DYNAMIC_FEE_2;  // 1-10 BNB → 0.75%
+        else dynamicFee = DYNAMIC_FEE_1;                                 // < 1 BNB → 1.00%
 
+        // Membership tier acts as a floor discount (enterprise users never overpay)
+        uint256 memberFloor;
+        if (membershipTier == 2) memberFloor = ENTERPRISE_FEE;
+        else if (membershipTier == 1) memberFloor = PREMIUM_FEE;
+        else memberFloor = BASIC_FEE;
+
+        // Use the lower of dynamic fee and membership floor
+        uint256 baseFee = dynamicFee < memberFloor ? dynamicFee : memberFloor;
+
+        // Anti-sniper surcharge during protection window
         uint256 elapsed = block.timestamp - launchTimestamp;
         if (elapsed >= sniperProtectionDuration) {
             return baseFee;
@@ -694,7 +844,9 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     function _graduateToken() internal {
         isGraduated = true;
 
-        uint256 contractBalance = address(this).balance;
+        // Exclude accumulated creator/referrer fees from graduation split
+        uint256 reservedFees = creatorAccumulatedFees + referrerAccumulatedFees;
+        uint256 contractBalance = address(this).balance - reservedFees;
 
         // ECONOMIC MODEL: Three-way split for automated DEX liquidity
         uint256 liquidityAmount = (contractBalance * DEX_LIQUIDITY_PERCENT) / 100; // 70%

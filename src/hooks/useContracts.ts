@@ -171,6 +171,9 @@ export function useContracts() {
       const imageUrlToUse = imageUrl || '';
       const creationFee = await contract.CREATION_FEE();
 
+      // Check for referrer from URL params or passed data
+      const referrerAddress = tokenData.referrer || ethers.ZeroAddress;
+
       const createParams = {
         name: tokenData.name,
         symbol: tokenData.symbol,
@@ -183,6 +186,7 @@ export function useContracts() {
         twitterUrl: tokenData.twitterUrl || '',
         telegramUrl: tokenData.telegramUrl || '',
         websiteUrl: tokenData.websiteUrl || '',
+        referrer: referrerAddress,
       };
 
       const gasEstimate = await contract.createToken.estimateGas(
