@@ -93,6 +93,7 @@ const DEFAULT_FORM_DATA: TokenCreationForm = {
   twitterUrl: '',
   telegramUrl: '',
   websiteUrl: '',
+  referrer: '', // Populated from ?ref= URL param
 };
 
 export function useTokenCreationState({

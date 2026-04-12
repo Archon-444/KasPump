@@ -56,7 +56,9 @@ describe("DEX Integration", function () {
       graduationThreshold,
       platform.address,
       tier,
-      await dexRouter.getAddress() // DEX router
+      await dexRouter.getAddress(), // DEX router
+      60, // sniper protection duration
+      ethers.ZeroAddress // no referrer
     );
     await amm.waitForDeployment();
 

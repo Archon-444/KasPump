@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Coins, DollarSign, Users, Award, TrendingUp, Activity } from 'lucide-react';
+import { Coins, DollarSign, Users, Award, TrendingUp, Activity, Wallet } from 'lucide-react';
 import { Card } from '../ui';
 import { CreatorStats } from '../../hooks/useCreatorTokens';
 import { cn, formatCurrency } from '../../utils';
@@ -10,11 +10,13 @@ import { cn, formatCurrency } from '../../utils';
 export interface CreatorStatsCardProps {
   stats: CreatorStats;
   className?: string;
+  onClaimFees?: () => void;
 }
 
 export const CreatorStatsCard: React.FC<CreatorStatsCardProps> = ({
   stats,
-  className
+  className,
+  onClaimFees,
 }) => {
   const statItems = [
     {
@@ -32,18 +34,19 @@ export const CreatorStatsCard: React.FC<CreatorStatsCardProps> = ({
       bgColor: 'bg-green-500/10',
     },
     {
+      label: 'Claimable Fees',
+      value: `${stats.totalAccumulatedFees.toFixed(4)} BNB`,
+      icon: Wallet,
+      color: stats.totalAccumulatedFees > 0 ? 'text-emerald-400' : 'text-gray-400',
+      bgColor: stats.totalAccumulatedFees > 0 ? 'bg-emerald-500/10' : 'bg-gray-500/10',
+      action: stats.totalAccumulatedFees > 0 ? onClaimFees : undefined,
+    },
+    {
       label: 'Total Volume',
       value: formatCurrency(stats.totalVolume, 'USD', 0),
       icon: TrendingUp,
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/10',
-    },
-    {
-      label: 'Total Holders',
-      value: stats.totalHolders.toLocaleString(),
-      icon: Users,
-      color: 'text-pink-400',
-      bgColor: 'bg-pink-500/10',
     },
     {
       label: 'Graduated',
@@ -72,8 +75,11 @@ export const CreatorStatsCard: React.FC<CreatorStatsCardProps> = ({
         >
           <Card className={cn(
             'glassmorphism p-4 flex flex-col items-center text-center',
-            'hover:scale-105 transition-transform duration-300'
-          )}>
+            'hover:scale-105 transition-transform duration-300',
+            item.action && 'cursor-pointer ring-1 ring-emerald-500/30'
+          )}
+          onClick={item.action}
+          >
             <div className={cn('p-2 rounded-lg mb-2', item.bgColor)}>
               <item.icon className={cn('w-5 h-5', item.color)} />
             </div>
@@ -83,6 +89,11 @@ export const CreatorStatsCard: React.FC<CreatorStatsCardProps> = ({
             <div className="text-xs text-gray-400">
               {item.label}
             </div>
+            {item.action && (
+              <div className="text-xs text-emerald-400 mt-1 font-medium">
+                Click to claim
+              </div>
+            )}
           </Card>
         </motion.div>
       ))}

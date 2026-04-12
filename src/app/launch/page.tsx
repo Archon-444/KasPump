@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Rocket,
@@ -16,9 +16,11 @@ import {
   Upload,
   Loader,
   Info,
+  Link2,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAccount } from 'wagmi';
+import { ethers } from 'ethers';
 import { Button, Input, Textarea, Select, Card, Alert } from '../../components/ui';
 import { Stepper } from '../../components/ui/Stepper';
 import { BondingCurveSimulator } from '../../components/features/BondingCurveSimulator';
@@ -43,6 +45,7 @@ const WIZARD_STEPS = [
 
 export default function LaunchPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const contracts = useContracts();
   const { chainId } = useAccount();
   const ipfsUpload = useIPFSUpload();
@@ -50,6 +53,10 @@ export default function LaunchPage() {
   const currentChain = chainId ? getChainById(chainId) : null;
   const nativeCurrencySymbol = currentChain?.nativeCurrency?.symbol || 'BNB';
   const contractsDeployed = chainId ? areContractsDeployed(chainId) : false;
+
+  // Parse referral address from URL: /launch?ref=0x...
+  const referrerParam = searchParams.get('ref') || '';
+  const isValidReferrer = referrerParam ? ethers.isAddress(referrerParam) : false;
 
   const [wizardStep, setWizardStep] = useState(1);
   const [mode, setMode] = useState<'beginner' | 'advanced'>('beginner');
@@ -64,6 +71,13 @@ export default function LaunchPage() {
     },
     nativeCurrencySymbol,
   });
+
+  // Set referrer from URL param when page loads
+  useEffect(() => {
+    if (isValidReferrer && referrerParam) {
+      tokenCreationState.updateFormData({ referrer: referrerParam });
+    }
+  }, [isValidReferrer, referrerParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Local form errors for step validation
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});

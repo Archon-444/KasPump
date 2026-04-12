@@ -87,6 +87,12 @@ export const TokenCreationFormSchema = z.object({
     .int('Chain ID must be an integer')
     .positive('Chain ID must be positive')
     .optional(),
+
+  referrer: z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid referrer address')
+    .optional()
+    .or(z.literal('')),
 });
 
 export type TokenCreationFormData = z.infer<typeof TokenCreationFormSchema>;

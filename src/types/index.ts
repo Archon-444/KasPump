@@ -85,6 +85,7 @@ export interface TokenCreationForm {
   twitterUrl: string;
   telegramUrl: string;
   websiteUrl: string;
+  referrer: string; // Referral address from ?ref= URL param (ethers.ZeroAddress if none)
 }
 
 export interface SwapQuote {

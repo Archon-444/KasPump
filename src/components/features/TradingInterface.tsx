@@ -75,9 +75,16 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
       setPriceImpact(quote.priceImpact);
       setMinimumReceived(quote.minimumOutput);
 
-      // Calculate fees (1% platform fee on input amount)
-      const platformFee = inputAmount * 0.01;
-      setFees(platformFee);
+      // Dynamic fee based on market cap (matches contract logic)
+      // Fee schedule: <1 BNB mcap = 1%, 1-10 = 0.75%, 10-50 = 0.5%, 50-100 = 0.25%, >100 = 0.1%
+      const mcap = token.marketCap || 0;
+      let feeRate = 0.01; // default 1%
+      if (mcap > 100) feeRate = 0.001;
+      else if (mcap > 50) feeRate = 0.0025;
+      else if (mcap > 10) feeRate = 0.005;
+      else if (mcap > 1) feeRate = 0.0075;
+      const totalFee = inputAmount * feeRate;
+      setFees(totalFee);
       setGasFee(quote.gasFee);
     } catch (error) {
       console.error('Failed to get swap quote:', error);
@@ -300,10 +307,15 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-gray-400 flex items-center">
                 <DollarSign size={12} className="mr-1" />
-                Platform Fee
+                Total Fee
               </span>
               <span className="text-gray-300 font-mono">
                 {formatCurrency(fees, 'BNB', 6)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-500 ml-4">
+                50% to creator / 45% platform / 5% referrer
               </span>
             </div>
 
