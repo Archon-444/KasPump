@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
-import fs from 'fs/promises';
-import path from 'path';
+import { kv } from '@vercel/kv';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,28 +14,21 @@ interface Comment {
   isCreator?: boolean;
 }
 
-const DATA_DIR = path.join(process.cwd(), '.data', 'comments');
-
-async function ensureDataDir() {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-}
-
-function getFilePath(tokenAddress: string): string {
-  return path.join(DATA_DIR, `${tokenAddress.toLowerCase()}.json`);
+function commentKey(tokenAddress: string): string {
+  return `comments:${tokenAddress.toLowerCase()}`;
 }
 
 async function readComments(tokenAddress: string): Promise<Comment[]> {
   try {
-    const data = await fs.readFile(getFilePath(tokenAddress), 'utf-8');
-    return JSON.parse(data);
+    const comments = await kv.get<Comment[]>(commentKey(tokenAddress));
+    return comments || [];
   } catch {
     return [];
   }
 }
 
 async function writeComments(tokenAddress: string, comments: Comment[]) {
-  await ensureDataDir();
-  await fs.writeFile(getFilePath(tokenAddress), JSON.stringify(comments, null, 2));
+  await kv.set(commentKey(tokenAddress), comments);
 }
 
 export async function GET(request: NextRequest) {
