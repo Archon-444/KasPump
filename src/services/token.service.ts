@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { BlockchainService } from './blockchain';
+import { MoralisService } from './moralis.service';
 import { TokenFactory, BondingCurveAMM } from '../../typechain-types';
 
 export interface TokenDetails {
@@ -163,7 +164,7 @@ export class TokenService {
         ammAddress,
         createdAt: await this.getTokenCreationTime(factory, tokenAddress),
         analytics: {
-          holders: 0, // Placeholder
+          holders: await MoralisService.getHolderCount(tokenAddress, chainId),
           transactions24h: 0,
           priceChange24h: 0,
           volumeChange24h: 0
