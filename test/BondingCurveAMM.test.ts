@@ -92,9 +92,81 @@ describe("BondingCurveAMM precision", function () {
     const ammBalanceAfterSell = await ethers.provider.getBalance(
       await amm.getAddress()
     );
-    expect(ammBalanceAfterSell).to.equal(0n);
+    // After selling, accumulated creator fees remain in the contract
+    const accumulatedFees = await amm.creatorAccumulatedFees();
+    expect(ammBalanceAfterSell).to.equal(accumulatedFees);
 
     const ammTokenBalance = await token.balanceOf(await amm.getAddress());
     expect(ammTokenBalance).to.equal(1_000_000n * PRECISION);
+  });
+});
+
+describe("BondingCurveAMM fee insolvency fix", function () {
+  it("sellTokens excludes reserved fees from available liquidity", async function () {
+    const { amm, token, deployer, user } = await deployFixture();
+
+    // Buy tokens to generate creator fee accumulation
+    const deposit = ethers.parseEther("1");
+    await amm.connect(user).buyTokens(0, { value: deposit });
+
+    const creatorFees = await amm.creatorAccumulatedFees();
+    expect(creatorFees).to.be.gt(0n);
+
+    // Verify accumulated fees are protected from sell drainage
+    const contractBalance = await ethers.provider.getBalance(await amm.getAddress());
+    expect(contractBalance).to.be.gt(creatorFees);
+
+    // Creator should be able to withdraw their fees after user sells
+    const userTokens = await token.balanceOf(user.address);
+    await token.connect(user).approve(await amm.getAddress(), userTokens);
+    await amm.connect(user).sellTokens(userTokens, 0);
+
+    // After sell, contract balance should still cover accumulated fees
+    const balanceAfterSell = await ethers.provider.getBalance(await amm.getAddress());
+    const totalAccumulatedFees = await amm.creatorAccumulatedFees();
+    expect(balanceAfterSell).to.be.gte(totalAccumulatedFees);
+  });
+});
+
+describe("BondingCurveAMM emergencyWithdraw", function () {
+  it("reverts when contract is not paused", async function () {
+    const { amm, deployer } = await deployFixture();
+
+    await expect(
+      amm.connect(deployer).emergencyWithdraw("test")
+    ).to.be.revertedWithCustomError(amm, "EnforcedPause");
+  });
+
+  it("succeeds when contract is paused", async function () {
+    const { amm, deployer, user } = await deployFixture();
+
+    // Add some funds via buy
+    await amm.connect(user).buyTokens(0, { value: ethers.parseEther("0.1") });
+
+    // Pause the contract
+    await amm.connect(deployer).pause();
+
+    // Emergency withdraw should succeed
+    await expect(
+      amm.connect(deployer).emergencyWithdraw("critical bug found")
+    ).to.emit(amm, "EmergencyWithdraw");
+  });
+
+  it("preserves reserved creator fees", async function () {
+    const { amm, deployer, user } = await deployFixture();
+
+    // Buy tokens to generate creator fees
+    await amm.connect(user).buyTokens(0, { value: ethers.parseEther("1") });
+
+    const creatorFees = await amm.creatorAccumulatedFees();
+    expect(creatorFees).to.be.gt(0n);
+
+    // Pause and emergency withdraw
+    await amm.connect(deployer).pause();
+    await amm.connect(deployer).emergencyWithdraw("test withdrawal");
+
+    // Contract should still hold the reserved fees
+    const balanceAfter = await ethers.provider.getBalance(await amm.getAddress());
+    expect(balanceAfter).to.equal(creatorFees);
   });
 });

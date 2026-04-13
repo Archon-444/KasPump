@@ -167,6 +167,11 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         string reason
     );
 
+    event LiquidityProvisionFailed(
+        uint256 nativeAmount,
+        uint256 timestamp
+    );
+
     event CreatorFeeAccumulated(
         address indexed creator,
         uint256 amount,
@@ -417,8 +422,10 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Slippage protection
         if (nativeAfterFee < minNativeOut) revert SlippageTooHigh();
 
-        // Ensure contract has enough native currency (include accumulated fees held in contract)
-        if (nativeOut > address(this).balance) revert InsufficientBalance();
+        // Ensure contract has enough native currency (exclude reserved creator/referrer fees)
+        uint256 reservedFees = creatorAccumulatedFees + referrerAccumulatedFees;
+        uint256 availableLiquidity = address(this).balance - reservedFees;
+        if (nativeOut > availableLiquidity) revert InsufficientBalance();
 
         // ========== EFFECTS ==========
 
@@ -933,11 +940,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             // If DEX liquidity fails, don't revert graduation
             // Funds remain in contract for emergency withdrawal
             // This prevents DoS attacks on graduation
-            emit Graduated(
-                currentSupply,
-                nativeAmount,
-                block.timestamp
-            );
+            emit LiquidityProvisionFailed(nativeAmount, block.timestamp);
         }
     }
 
@@ -989,12 +992,17 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
      * @dev Emergency withdraw (only if critical bug discovered)
      * @param reason Reason for emergency withdrawal (for transparency)
      */
-    function emergencyWithdraw(string calldata reason) external onlyOwner {
-        uint256 balance = address(this).balance;
+    function emergencyWithdraw(string calldata reason) external onlyOwner whenPaused {
+        uint256 reservedFees = creatorAccumulatedFees + referrerAccumulatedFees;
+        uint256 withdrawable = address(this).balance > reservedFees
+            ? address(this).balance - reservedFees
+            : 0;
 
-        emit EmergencyWithdraw(owner(), balance, reason);
+        emit EmergencyWithdraw(owner(), withdrawable, reason);
 
-        payable(owner()).sendValue(balance);
+        if (withdrawable > 0) {
+            payable(owner()).sendValue(withdrawable);
+        }
     }
 
     /**
