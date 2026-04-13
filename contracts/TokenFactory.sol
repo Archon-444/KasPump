@@ -146,6 +146,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     error DeploymentFailed();
     error InsufficientCreationFee();
     error DexRouterRegistryNotSet();
+    error InvalidToken();
 
     // ========== CONSTRUCTOR ==========
 
@@ -400,6 +401,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
      * @dev Get AMM address for token
      */
     function getTokenAMM(address _tokenAddress) external view returns (address) {
+        if (!isKasPumpToken[_tokenAddress]) revert InvalidToken();
         return tokenToAMM[_tokenAddress];
     }
 
