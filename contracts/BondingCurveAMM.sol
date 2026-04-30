@@ -205,28 +205,36 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     // Structured ops/safety event surface (V2 — see plan §10).
     // Legacy `Trade` is preserved for indexer compatibility; consumers should
     // migrate to TradeExecuted for richer trade context.
+    //
+    // `nativeGross` and `nativeNet` are kept symmetric across buy and sell so
+    // an indexer can aggregate volume off either field without mixing units:
+    //   buy:  nativeGross = post-cap-clamp gross, nativeNet = nativeAfterFee
+    //   sell: nativeGross = curve-computed gross, nativeNet = nativeAfterFee
     event TradeExecuted(
         address indexed trader,
+        address indexed token,
         bool isBuy,
         uint256 supplyBefore,
         uint256 supplyAfter,
-        uint256 nativeAmount,
+        uint256 nativeGross,
+        uint256 nativeNet,
         uint256 tokenAmount,
+        uint256 feeAmount,
         uint256 feeBps,
         uint256 priceAfter
     );
 
-    event PriceDeviationBlocked(
-        address indexed trader,
-        bool isBuy,
-        uint256 spotBefore,
-        uint256 spotProjected,
-        uint256 deviationBps
-    );
+    // Note: there is intentionally NO PriceDeviationBlocked event. The deviation
+    // guard reverts the trade and reverted EVM transactions discard logs, so an
+    // event there is a false monitoring surface. Use the parameterized
+    // `PriceDeviation` custom error below; consumers decode it from failed
+    // simulations / provider error responses / debug_traceTransaction output.
 
     event SoftLaunchCapHit(
+        address indexed token,
         address indexed buyer,
-        uint256 allowedNative,
+        uint256 requestedNative,
+        uint256 acceptedNative,
         uint256 refundedNative
     );
 
@@ -252,7 +260,13 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     error DEXLiquidityFailed();
     error MaxBuyExceeded();
     error SameBlockTrade();
-    error PriceDeviation();
+    error PriceDeviation(
+        address trader,
+        bool isBuy,
+        uint256 spotBefore,
+        uint256 spotProjected,
+        uint256 deviationBps
+    );
     error SoftLaunchCapReached();
 
     // ========== MODIFIERS ==========
@@ -394,6 +408,11 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Calculate tokens to mint based on curve
         uint256 tokensOut = calculateTokensOut(nativeAfterFee, supplyBefore);
 
+        // Reject zero-output buys: when the soft-launch cap clamps nativeAmount
+        // to a tiny remainder the curve math can return 0 tokens, and the
+        // slippage check below permits this when minTokensOut == 0.
+        if (tokensOut == 0) revert InvalidAmount();
+
         // Slippage protection
         if (tokensOut < minTokensOut) revert SlippageTooHigh();
 
@@ -419,8 +438,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
                 uint256 diff = spotProjected > ref ? spotProjected - ref : ref - spotProjected;
                 uint256 deviation = (diff * 10000) / ref;
                 if (deviation > MAX_PRICE_DEVIATION_BPS) {
-                    emit PriceDeviationBlocked(msg.sender, true, spotBefore, spotProjected, deviation);
-                    revert PriceDeviation();
+                    revert PriceDeviation(msg.sender, true, spotBefore, spotProjected, deviation);
                 }
             }
         }
@@ -457,9 +475,18 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         }
 
         // Soft-launch refund (after fee + token transfers, before graduation).
+        // Emitting `msg.value` (= requested) explicitly alongside the clamped
+        // `nativeAmount` (= accepted) makes ops dashboards' "real demand"
+        // queries trivial without reconstructing requested off-chain.
         if (refundAmount > 0) {
             payable(msg.sender).sendValue(refundAmount);
-            emit SoftLaunchCapHit(msg.sender, nativeAmount, refundAmount);
+            emit SoftLaunchCapHit(
+                address(token),
+                msg.sender,
+                msg.value,
+                nativeAmount,
+                refundAmount
+            );
         }
 
         // Handle graduation
@@ -486,11 +513,14 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
 
         emit TradeExecuted(
             msg.sender,
+            address(token),
             true,
             supplyBefore,
             currentSupply,
-            nativeAmount,
+            nativeAmount,    // nativeGross: post-cap clamp, before fee
+            nativeAfterFee,  // nativeNet: allocated to mint
             tokensOut,
+            fee,
             platformFee,
             priceAfter
         );
@@ -566,8 +596,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
                 uint256 diff = spotProjected > ref ? spotProjected - ref : ref - spotProjected;
                 uint256 deviation = (diff * 10000) / ref;
                 if (deviation > MAX_PRICE_DEVIATION_BPS) {
-                    emit PriceDeviationBlocked(msg.sender, false, spotBefore, spotProjected, deviation);
-                    revert PriceDeviation();
+                    revert PriceDeviation(msg.sender, false, spotBefore, spotProjected, deviation);
                 }
             }
         }
@@ -619,11 +648,14 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
 
         emit TradeExecuted(
             msg.sender,
+            address(token),
             false,
             supplyBefore,
             currentSupply,
-            nativeAfterFee,
+            nativeOut,       // nativeGross: curve-computed, before fee
+            nativeAfterFee,  // nativeNet: actually sent to seller
             tokenAmount,
+            fee,
             platformFee,
             priceAfter
         );

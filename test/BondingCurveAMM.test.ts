@@ -274,10 +274,10 @@ describe("BondingCurveAMM soft-launch cap", function () {
     // Cap state recorded the full allowed amount.
     expect(await amm.totalNativeRaised()).to.equal(cap);
 
-    // SoftLaunchCapHit was emitted with the refund amount.
+    // SoftLaunchCapHit args: (token, buyer, requested, accepted, refunded).
     await expect(tx)
       .to.emit(amm, "SoftLaunchCapHit")
-      .withArgs(user.address, cap, sendValue - cap);
+      .withArgs(await amm.token(), user.address, sendValue, cap, sendValue - cap);
   });
 
   it("reverts buys that arrive after the cap is fully consumed", async function () {
@@ -317,5 +317,30 @@ describe("BondingCurveAMM TradeExecuted event", function () {
     const tx = await amm.connect(user).buyTokens(0, { value: 1_000_000_000n });
     await expect(tx).to.emit(amm, "TradeExecuted");
     await expect(tx).to.emit(amm, "Trade");
+  });
+});
+
+describe("BondingCurveAMM PriceDeviation guard", function () {
+  it("reverts with parameterized PriceDeviation when spot deviates > 50% in window", async function () {
+    const { amm, user } = await deployFixture();
+
+    // Tiny initial buy inside the sniper window — refreshes lastTradePrice
+    // to ~basePrice. Stays well under MaxBuyExceeded (2% of remaining).
+    await amm.connect(user).buyTokens(0, { value: 1_000n });
+
+    // Second buy in the same window large enough that the projected spot
+    // crosses the 50% deviation bound vs the snapshot above. With basePrice
+    // 1e12 and slope 1e9, ~700 tokens (1e15 wei) doubles the spot price.
+    // Stays under MaxBuyExceeded (2% of remaining = 16,000 tokens).
+    await expect(
+      amm.connect(user).buyTokens(0, { value: 1_000_000_000_000_000n })
+    ).to.be.revertedWithCustomError(amm, "PriceDeviation");
+  });
+
+  it("does not emit a PriceDeviationBlocked log when reverting", async function () {
+    // The event was deliberately removed (reverted txs discard logs); this
+    // guards against a regression that re-introduces the false ops surface.
+    const { amm } = await deployFixture();
+    expect(() => amm.interface.getEvent("PriceDeviationBlocked")).to.throw();
   });
 });
