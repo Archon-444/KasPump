@@ -147,7 +147,10 @@ export class BlockchainService {
         symbol: config.symbol,
         description: config.description,
         image: config.imageUrl,
-        curveType: config.curveType === 0n ? 'linear' : 'exponential', // 0 = Linear, 1 = Exponential
+        // V2: curve shape is standardized — every token uses the same sigmoid.
+        // The legacy `curveType` field is preserved on the type for indexer/UI
+        // compat and always reports 'sigmoid' going forward.
+        curveType: 'sigmoid',
         currentSupply,
         price: currentPrice,
         volume24h: totalVolume, // Note: this is total volume, not 24h. Indexer needed for 24h.

@@ -155,11 +155,21 @@ export function useMultiChainDeployment() {
 
       const factoryContract = new ethers.Contract(factoryAddress, TokenFactoryABI.abi, signer);
 
-      // Prepare contract parameters
-      const totalSupply = ethers.parseEther(tokenData.totalSupply.toString());
-      const basePrice = ethers.parseEther(tokenData.basePrice.toString());
-      const slope = ethers.parseEther(tokenData.slope.toString());
-      const curveType = tokenData.curveType === 'linear' ? 0 : 1;
+      // V2: TokenFactory.CreateTokenParams was slimmed in PR 2 — totalSupply,
+      // basePrice, slope, and curveType are protocol-wide constants now (see
+      // contracts/libraries/BondingCurveMath.sol). This hook is scheduled for
+      // deletion in PR 4 along with MultiChainDeployment, but until then we
+      // emit the slim struct so the call doesn't revert at the contract.
+      const createParams = {
+        name: tokenData.name,
+        symbol: tokenData.symbol,
+        description: tokenData.description,
+        imageUrl,
+        twitterUrl: tokenData.twitterUrl || '',
+        telegramUrl: tokenData.telegramUrl || '',
+        websiteUrl: tokenData.websiteUrl || '',
+        referrer: tokenData.referrer || ethers.ZeroAddress,
+      };
 
       setDeployments(prev => {
         const updated = new Map(prev);
@@ -173,14 +183,7 @@ export function useMultiChainDeployment() {
       // Estimate gas
       const creationFee = await factoryContract.CREATION_FEE();
       const gasEstimate = await factoryContract.createToken.estimateGas(
-        tokenData.name,
-        tokenData.symbol,
-        tokenData.description,
-        imageUrl,
-        totalSupply,
-        basePrice,
-        slope,
-        curveType,
+        createParams,
         { value: creationFee }
       );
 
@@ -197,14 +200,7 @@ export function useMultiChainDeployment() {
 
       // Execute transaction
       const tx = await factoryContract.createToken(
-        tokenData.name,
-        tokenData.symbol,
-        tokenData.description,
-        imageUrl,
-        totalSupply,
-        basePrice,
-        slope,
-        curveType,
+        createParams,
         { gasLimit, value: creationFee }
       );
 

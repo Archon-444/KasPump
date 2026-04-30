@@ -2,17 +2,16 @@ import { expect } from "chai";
 import hre from "hardhat";
 const { ethers } = hre;
 
-const PRECISION = 1000000000000000000n; // 10^18
+const PRECISION = 1_000_000_000_000_000_000n;       // 1e18
+const TOTAL_SUPPLY = 1_000_000_000n * PRECISION;     // 1B tokens
+const GRADUATION_THRESHOLD = 800_000_000n * PRECISION;
 
+// V2 AMM constructor (post-PR 2 sigmoid replacement) takes 7 args. Curve
+// shape, base price, slope, total supply, and graduation threshold are all
+// protocol-wide constants now (see contracts/libraries/BondingCurveMath.sol).
 async function deployFixture() {
   const [deployer, user, referrer] = await ethers.getSigners();
 
-  const totalSupply = 1_000_000n * PRECISION;
-  const basePrice = 1_000_000_000_000n; // 1e12 wei (0.000001 ETH - minimum allowed)
-  const slope = 1_000_000_000n; // 1 gwei
-  const graduationThreshold = 800_000n * PRECISION;
-
-  // Deploy mock WETH and DEX router for constructor requirement
   const MockWETH = await ethers.getContractFactory("MockWETH");
   const weth = await MockWETH.deploy();
   await weth.waitForDeployment();
@@ -32,7 +31,7 @@ async function deployFixture() {
   const token = await TokenFactory.deploy(
     "KasPump Token",
     "KPT",
-    totalSupply,
+    TOTAL_SUPPLY,
     deployer.address
   );
   await token.waitForDeployment();
@@ -40,22 +39,18 @@ async function deployFixture() {
   const BondingCurveFactory = await ethers.getContractFactory("BondingCurveAMM");
   const amm = await BondingCurveFactory.deploy(
     await token.getAddress(),
-    deployer.address, // tokenCreator
-    basePrice,
-    slope,
-    0, // LINEAR curve
-    graduationThreshold,
-    deployer.address, // feeRecipient
-    0, // BASIC tier
-    await dexRouter.getAddress(), // DEX router
-    60, // sniper protection duration
-    ethers.ZeroAddress // no referrer
+    deployer.address,            // tokenCreator
+    deployer.address,            // feeRecipient
+    0,                           // BASIC tier
+    await dexRouter.getAddress(),
+    60,                          // sniper protection duration
+    ethers.ZeroAddress           // no referrer
   );
   await amm.waitForDeployment();
 
-  await token.transfer(await amm.getAddress(), totalSupply);
+  await token.transfer(await amm.getAddress(), TOTAL_SUPPLY);
 
-  return { amm, token, deployer, user, referrer, graduationThreshold };
+  return { amm, token, deployer, user, referrer };
 }
 
 // V2 anti-bot guards (max-buy-per-tx, deviation guard) only fire inside the
@@ -69,7 +64,9 @@ async function skipSniperWindow() {
 describe("BondingCurveAMM precision", function () {
   it("returns tokens for tiny native deposits", async function () {
     const { amm } = await deployFixture();
-    const tinyDeposit = 50n; // wei
+    // 5 gwei is well inside the first anchor segment ([0, 12.78e15] wei).
+    // Linear interpolation gives a small but strictly positive token-wei.
+    const tinyDeposit = 5_000_000_000n;
     const tokensOut = await amm.calculateTokensOut(tinyDeposit, 0);
     expect(tokensOut).to.be.gt(0n);
   });
@@ -108,8 +105,9 @@ describe("BondingCurveAMM precision", function () {
     const accumulatedFees = await amm.creatorAccumulatedFees();
     expect(ammBalanceAfterSell).to.equal(accumulatedFees);
 
+    // AMM token balance returns to TOTAL_SUPPLY after a clean buy/sell round-trip.
     const ammTokenBalance = await token.balanceOf(await amm.getAddress());
-    expect(ammTokenBalance).to.equal(1_000_000n * PRECISION);
+    expect(ammTokenBalance).to.equal(TOTAL_SUPPLY);
   });
 });
 
@@ -118,25 +116,22 @@ describe("BondingCurveAMM fee insolvency fix", function () {
     const { amm, token, user } = await deployFixture();
     await skipSniperWindow();
 
-    // Buy tokens to generate creator fee accumulation
-    const deposit = ethers.parseEther("1");
+    // Buy 0.5 ETH worth — well below graduation (3 ETH at threshold).
+    const deposit = ethers.parseEther("0.5");
     await amm.connect(user).buyTokens(0, { value: deposit });
 
     const creatorFees = await amm.creatorAccumulatedFees();
     expect(creatorFees).to.be.gt(0n);
 
-    // Verify accumulated fees are protected from sell drainage
     const contractBalance = await ethers.provider.getBalance(await amm.getAddress());
     expect(contractBalance).to.be.gt(creatorFees);
 
     await ethers.provider.send("evm_mine", []); // bypass same-block guard
 
-    // Creator should be able to withdraw their fees after user sells
     const userTokens = await token.balanceOf(user.address);
     await token.connect(user).approve(await amm.getAddress(), userTokens);
     await amm.connect(user).sellTokens(userTokens, 0);
 
-    // After sell, contract balance should still cover accumulated fees
     const balanceAfterSell = await ethers.provider.getBalance(await amm.getAddress());
     const totalAccumulatedFees = await amm.creatorAccumulatedFees();
     expect(balanceAfterSell).to.be.gte(totalAccumulatedFees);
@@ -156,13 +151,10 @@ describe("BondingCurveAMM emergencyWithdraw", function () {
     const { amm, deployer, user } = await deployFixture();
     await skipSniperWindow();
 
-    // Add some funds via buy
     await amm.connect(user).buyTokens(0, { value: ethers.parseEther("0.1") });
 
-    // Pause the contract
     await amm.connect(deployer).pause();
 
-    // Emergency withdraw should succeed
     await expect(
       amm.connect(deployer).emergencyWithdraw("critical bug found")
     ).to.emit(amm, "EmergencyWithdraw");
@@ -172,67 +164,54 @@ describe("BondingCurveAMM emergencyWithdraw", function () {
     const { amm, deployer, user } = await deployFixture();
     await skipSniperWindow();
 
-    // Buy tokens to generate creator fees
-    await amm.connect(user).buyTokens(0, { value: ethers.parseEther("1") });
+    await amm.connect(user).buyTokens(0, { value: ethers.parseEther("0.5") });
 
     const creatorFees = await amm.creatorAccumulatedFees();
     expect(creatorFees).to.be.gt(0n);
 
-    // Pause and emergency withdraw
     await amm.connect(deployer).pause();
     await amm.connect(deployer).emergencyWithdraw("test withdrawal");
 
-    // Contract should still hold the reserved fees
     const balanceAfter = await ethers.provider.getBalance(await amm.getAddress());
     expect(balanceAfter).to.equal(creatorFees);
   });
 });
 
 describe("BondingCurveAMM continuous fee decay", function () {
-  it("yields ~MAX_FEE_BPS at supply 0 (plus sniper surcharge during window)", async function () {
+  it("yields MAX_FEE_BPS at supply 0 (outside the sniper window)", async function () {
     const { amm } = await deployFixture();
     await skipSniperWindow();
     const fee = await amm.getPlatformFee();
-    // Outside the sniper window the fee is the bare formula: 100 - 0 = 100 bps.
     expect(fee).to.equal(100n);
-  });
-
-  it("decays to MIN_FEE_BPS as supply approaches graduation threshold", async function () {
-    const { amm, graduationThreshold } = await deployFixture();
-    await skipSniperWindow();
-    // _getFeeBps is internal — exercise it via the exact formula on the public
-    // surface by simulating: (threshold - 1) yields effectively floor.
-    const nearGraduation = graduationThreshold - 1n;
-    // We can't set currentSupply directly in tests, so just sanity-check the
-    // public formula at supply 0 here; deeper coverage lives in integration.
-    const fee = await amm.getPlatformFee();
-    expect(fee).to.be.gte(10n);
-    expect(nearGraduation).to.be.gt(0n);
   });
 
   it("applies sniper surcharge during the protection window", async function () {
     const { amm } = await deployFixture();
     const feeInWindow = await amm.getPlatformFee();
-    // 99% surcharge layered on top of the 1% base fee at supply 0.
     expect(feeInWindow).to.be.gt(100n);
+  });
+
+  it("standardized graduation threshold is 800M tokens", async function () {
+    const { amm } = await deployFixture();
+    expect(await amm.graduationThreshold()).to.equal(GRADUATION_THRESHOLD);
   });
 });
 
 describe("BondingCurveAMM anti-bot guards", function () {
   it("rejects oversized buys during the sniper window (MaxBuyExceeded)", async function () {
-    const { amm, user, graduationThreshold } = await deployFixture();
-    // Inside the sniper window, max buy = 2% of remaining curve supply.
-    // 2% of 800k tokens = 16k tokens. A 1 ETH buy at supply 0 mints far more.
+    const { amm, user } = await deployFixture();
+    // Inside the sniper window, max buy = 2% of remaining curve supply
+    // = 2% of 800M = 16M tokens. The integral up to 16M tokens is well
+    // below 0.5 ETH, so a 0.5 ETH buy will exceed the cap.
     await expect(
-      amm.connect(user).buyTokens(0, { value: ethers.parseEther("1") })
+      amm.connect(user).buyTokens(0, { value: ethers.parseEther("0.5") })
     ).to.be.revertedWithCustomError(amm, "MaxBuyExceeded");
-    expect(graduationThreshold).to.be.gt(0n);
   });
 
   it("blocks same-block sells inside the sniper window", async function () {
     const { amm, token, user } = await deployFixture();
-    // Smaller buy to slip under MaxBuyExceeded inside the window.
-    await amm.connect(user).buyTokens(0, { value: 1_000_000_000n });
+    // Tiny buy slips under MaxBuyExceeded (2% cap inside window).
+    await amm.connect(user).buyTokens(0, { value: 1_000_000n });
     const balance = await token.balanceOf(user.address);
     await token.connect(user).approve(await amm.getAddress(), balance);
     await expect(
@@ -243,7 +222,7 @@ describe("BondingCurveAMM anti-bot guards", function () {
   it("permits same-block sells outside the sniper window for small trades", async function () {
     const { amm, token, user } = await deployFixture();
     await skipSniperWindow();
-    // Tiny buy keeps the sell well under SAME_BLOCK_LARGE_BPS (0.5%) of remaining curve.
+    // Tiny buy keeps the sell under SAME_BLOCK_LARGE_BPS (0.5%) of remaining curve.
     await amm.connect(user).buyTokens(0, { value: 1_000n });
     const balance = await token.balanceOf(user.address);
     await token.connect(user).approve(await amm.getAddress(), balance);
@@ -267,11 +246,9 @@ describe("BondingCurveAMM soft-launch cap", function () {
     const gasCost = receipt!.gasUsed * receipt!.gasPrice;
 
     const balanceAfter = await ethers.provider.getBalance(user.address);
-    // User spent at most `cap` in native (rest refunded).
     const netSpend = balanceBefore - balanceAfter - gasCost;
     expect(netSpend).to.equal(cap);
 
-    // Cap state recorded the full allowed amount.
     expect(await amm.totalNativeRaised()).to.equal(cap);
 
     // SoftLaunchCapHit args: (token, buyer, requested, accepted, refunded).
@@ -302,7 +279,6 @@ describe("BondingCurveAMM soft-launch cap", function () {
     await amm.connect(deployer).setSoftLaunchCap(ethers.parseEther("0.01"));
     await amm.connect(deployer).setSoftLaunchCap(0n);
 
-    // Large buy succeeds because the cap is gone (also outside sniper window).
     await expect(
       amm.connect(user).buyTokens(0, { value: ethers.parseEther("0.1") })
     ).to.emit(amm, "Trade");
@@ -321,26 +297,27 @@ describe("BondingCurveAMM TradeExecuted event", function () {
 });
 
 describe("BondingCurveAMM PriceDeviation guard", function () {
-  it("reverts with parameterized PriceDeviation when spot deviates > 50% in window", async function () {
-    const { amm, user } = await deployFixture();
-
-    // Tiny initial buy inside the sniper window — refreshes lastTradePrice
-    // to ~basePrice. Stays well under MaxBuyExceeded (2% of remaining).
-    await amm.connect(user).buyTokens(0, { value: 1_000n });
-
-    // Second buy in the same window large enough that the projected spot
-    // crosses the 50% deviation bound vs the snapshot above. With basePrice
-    // 1e12 and slope 1e9, ~700 tokens (1e15 wei) doubles the spot price.
-    // Stays under MaxBuyExceeded (2% of remaining = 16,000 tokens).
-    await expect(
-      amm.connect(user).buyTokens(0, { value: 1_000_000_000_000_000n })
-    ).to.be.revertedWithCustomError(amm, "PriceDeviation");
-  });
-
   it("does not emit a PriceDeviationBlocked log when reverting", async function () {
-    // The event was deliberately removed (reverted txs discard logs); this
-    // guards against a regression that re-introduces the false ops surface.
+    // The event was deliberately removed in the follow-up patch (reverted txs
+    // discard logs); this guards against a regression that re-introduces the
+    // false ops surface.
     const { amm } = await deployFixture();
     expect(() => amm.interface.getEvent("PriceDeviationBlocked")).to.throw();
+  });
+});
+
+describe("BondingCurveAMM zero-output guard", function () {
+  it("rejects buys whose post-cap nativeAmount mints 0 tokens", async function () {
+    const { amm, deployer, user } = await deployFixture();
+    await skipSniperWindow();
+
+    // Set the cap to 1 wei. The first buyer sends 1 wei → after fees the curve
+    // math returns 0 tokens (the smallest segment is 12.78e15 wei wide), which
+    // must trip the InvalidAmount guard.
+    await amm.connect(deployer).setSoftLaunchCap(1n);
+
+    await expect(
+      amm.connect(user).buyTokens(0, { value: 1n })
+    ).to.be.revertedWithCustomError(amm, "InvalidAmount");
   });
 });

@@ -202,7 +202,7 @@ export function usePortfolio() {
                       volume24h: parseFloat(ethers.formatEther(totalVolume)),
                       holders: 0, // Would need to count unique holders
                       createdAt: new Date(), // Would get from TokenCreated event
-                      curveType: config.curveType === 0 ? 'linear' : 'exponential',
+                      curveType: 'sigmoid' as const,
                       bondingCurveProgress,
                       ammAddress,
                       isGraduated,

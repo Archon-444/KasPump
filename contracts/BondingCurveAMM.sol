@@ -5,10 +5,10 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IPancakeRouter.sol";
+import "./libraries/BondingCurveMath.sol";
 
 /**
  * @title BondingCurveAMM - PRODUCTION GRADE WITH DEX INTEGRATION
@@ -35,13 +35,13 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
 
     IERC20 public immutable token;
     address payable public immutable tokenCreator; // Address that created the token
-    uint256 public immutable basePrice;
-    uint256 public immutable slope;
-    uint8 public immutable curveType; // 0 = LINEAR, 1 = EXPONENTIAL
-    uint256 public immutable graduationThreshold;
     address payable public immutable feeRecipient;
     uint8 public immutable membershipTier; // For tiered fees
     IPancakeRouter public immutable dexRouter; // DEX router for liquidity provision
+
+    // V2: total supply, graduation threshold, and the curve shape itself are
+    // standardized across every token — see BondingCurveMath. Per-token curve
+    // parameters (basePrice / slope / curveType) are gone.
 
     // ========== ANTI-SNIPER PROTECTION ==========
 
@@ -105,12 +105,6 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     uint256 public constant MAX_BUY_PER_TX_BPS = 200;        // 2% of remaining curve supply
     uint256 public constant MAX_PRICE_DEVIATION_BPS = 5000;  // 50% spot-price deviation
     uint256 public constant SAME_BLOCK_LARGE_BPS = 50;       // 0.5% remaining-supply size threshold
-
-    // Safety limits
-    uint256 public constant MAX_TOTAL_SUPPLY = 1e12 * 1e18; // 1 trillion tokens max
-    uint256 public constant MIN_BASE_PRICE = 1e12; // Minimum 0.000001 ETH
-    uint256 public constant MAX_BASE_PRICE = 1e24; // Maximum 1,000,000 ETH
-    uint256 public constant MAX_SLOPE = 1e20; // Prevent extreme slopes
 
     // DEX Integration constants
     uint256 public constant LP_LOCK_DURATION = 180 days; // 6 months LP lock
@@ -249,7 +243,6 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     error SlippageTooHigh();
     error AlreadyGraduated();
     error NotGraduated();
-    error InvalidCurveType();
     error TransferFailed();
     error ZeroAddress();
     error InvalidParameter(string param);
@@ -284,13 +277,13 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     // ========== CONSTRUCTOR ==========
 
     /**
-     * @dev Constructor with comprehensive validation
+     * @dev Constructor — V2 sigmoid curve. Per-token curve params are gone:
+     * `BondingCurveMath.TOTAL_SUPPLY` and `BondingCurveMath.GRADUATION_THRESHOLD`
+     * are fixed protocol-wide and the spot price comes from the standardized
+     * 31-anchor sigmoid table.
+     *
      * @param _token Token address (cannot be zero)
      * @param _tokenCreator Address of token creator (receives graduation funds)
-     * @param _basePrice Initial price (must be within bounds)
-     * @param _slope Price increase per token (must be reasonable)
-     * @param _curveType 0 for linear, 1 for exponential
-     * @param _graduationThreshold Supply at which token graduates
      * @param _feeRecipient Address receiving platform fees (cannot be zero)
      * @param _membershipTier Tier level (0=Basic, 1=Premium, 2=Enterprise)
      * @param _dexRouter DEX router address for liquidity provision (cannot be zero)
@@ -298,10 +291,6 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     constructor(
         address _token,
         address payable _tokenCreator,
-        uint256 _basePrice,
-        uint256 _slope,
-        uint8 _curveType,
-        uint256 _graduationThreshold,
         address payable _feeRecipient,
         uint8 _membershipTier,
         address _dexRouter,
@@ -314,19 +303,6 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         if (_tokenCreator == address(0)) revert ZeroAddress();
         if (_feeRecipient == address(0)) revert ZeroAddress();
         if (_dexRouter == address(0)) revert ZeroAddress();
-        if (_curveType > 1) revert InvalidCurveType();
-
-        if (_basePrice < MIN_BASE_PRICE || _basePrice > MAX_BASE_PRICE) {
-            revert InvalidParameter("basePrice");
-        }
-
-        if (_slope > MAX_SLOPE) {
-            revert InvalidParameter("slope");
-        }
-
-        if (_graduationThreshold == 0 || _graduationThreshold > MAX_TOTAL_SUPPLY) {
-            revert InvalidParameter("graduationThreshold");
-        }
 
         if (_membershipTier > 2) {
             revert InvalidParameter("membershipTier");
@@ -335,10 +311,6 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Set immutable variables
         token = IERC20(_token);
         tokenCreator = _tokenCreator;
-        basePrice = _basePrice;
-        slope = _slope;
-        curveType = _curveType;
-        graduationThreshold = _graduationThreshold;
         feeRecipient = _feeRecipient;
         membershipTier = _membershipTier;
         dexRouter = IPancakeRouter(_dexRouter);
@@ -348,8 +320,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             : DEFAULT_SNIPER_DURATION;
         referrer = _referrer; // Can be address(0) if no referrer
 
-        // Seed deviation guard with the initial spot price.
-        lastTradePrice = _basePrice;
+        // Seed deviation guard with the spot price at supply 0.
+        lastTradePrice = BondingCurveMath.getPriceSigmoid(0);
     }
 
     // ========== EXTERNAL FUNCTIONS ==========
@@ -423,8 +395,9 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Anti-sniper guards (sniper window only).
         bool sniperActive = block.timestamp < launchTimestamp + sniperProtectionDuration;
         if (sniperActive) {
-            uint256 remainingCurve = graduationThreshold > supplyBefore
-                ? graduationThreshold - supplyBefore
+            uint256 threshold = BondingCurveMath.GRADUATION_THRESHOLD;
+            uint256 remainingCurve = threshold > supplyBefore
+                ? threshold - supplyBefore
                 : 0;
             uint256 maxBuy = (remainingCurve * MAX_BUY_PER_TX_BPS) / 10000;
             if (tokensOut > maxBuy) revert MaxBuyExceeded();
@@ -458,7 +431,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         }
 
         // Check for graduation
-        bool graduated = currentSupply >= graduationThreshold;
+        bool graduated = currentSupply >= BondingCurveMath.GRADUATION_THRESHOLD;
 
         // Refresh the deviation snapshot to the new post-trade spot price.
         uint256 priceAfter = getCurrentPrice();
@@ -557,8 +530,9 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // sell is large (> SAME_BLOCK_LARGE_BPS of remaining curve supply).
         if (lastBuyBlock[msg.sender] == block.number) {
             bool sniperActive = block.timestamp < launchTimestamp + sniperProtectionDuration;
-            uint256 remainingCurve = graduationThreshold > supplyBefore
-                ? graduationThreshold - supplyBefore
+            uint256 threshold = BondingCurveMath.GRADUATION_THRESHOLD;
+            uint256 remainingCurve = threshold > supplyBefore
+                ? threshold - supplyBefore
                 : 0;
             bool largeSell = remainingCurve > 0 &&
                 tokenAmount * 10000 > remainingCurve * SAME_BLOCK_LARGE_BPS;
@@ -719,51 +693,35 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     // ========== VIEW FUNCTIONS ==========
 
     /**
-     * @dev Calculate tokens received for given native amount
-     * SECURITY FIX: Improved precision handling
+     * @dev Calculate tokens received for given native amount.
+     * Pure pass-through to the standardized sigmoid library.
      */
-    function calculateTokensOut(uint256 nativeIn, uint256 supply) public view returns (uint256) {
+    function calculateTokensOut(uint256 nativeIn, uint256 supply) public pure returns (uint256) {
         if (nativeIn == 0) return 0;
-
-        if (curveType == 0) {
-            // Linear curve
-            return _calculateLinearTokensOut(nativeIn, supply);
-        } else {
-            // Exponential curve
-            return _calculateExponentialTokensOut(nativeIn, supply);
-        }
+        return BondingCurveMath.tokensForNative(nativeIn, supply);
     }
 
     /**
-     * @dev Calculate native currency received for given token amount
+     * @dev Calculate native currency received for given token amount.
      */
-    function calculateNativeOut(uint256 tokensIn, uint256 supply) public view returns (uint256) {
-        if (tokensIn == 0) return 0;
-
-        if (curveType == 0) {
-            return _calculateLinearNativeOut(tokensIn, supply);
-        } else {
-            return _calculateExponentialNativeOut(tokensIn, supply);
-        }
+    function calculateNativeOut(uint256 tokensIn, uint256 supply) public pure returns (uint256) {
+        if (tokensIn == 0 || tokensIn > supply) return 0;
+        return BondingCurveMath.proceedsFromSell(supply, supply - tokensIn);
     }
 
     /**
-     * @dev Get current price based on supply
+     * @dev Get current spot price (wei per full token) at the live supply.
      */
     function getCurrentPrice() public view returns (uint256) {
-        if (curveType == 0) {
-            // Linear: P = basePrice + (slope * supply / PRECISION)
-            return basePrice + (slope * currentSupply) / PRECISION;
-        } else {
-            // Exponential approximation
-            uint256 exponent = (slope * currentSupply) / PRECISION;
-            if (exponent > 5 * PRECISION) exponent = 5 * PRECISION;
+        return BondingCurveMath.getPriceSigmoid(currentSupply);
+    }
 
-            uint256 expValue = PRECISION + exponent +
-                              (exponent * exponent) / (2 * PRECISION);
-
-            return (basePrice * expValue) / PRECISION;
-        }
+    /**
+     * @dev Standardized graduation threshold exposed for read compat with
+     * older clients that read it off the AMM. Returns the library constant.
+     */
+    function graduationThreshold() public pure returns (uint256) {
+        return BondingCurveMath.GRADUATION_THRESHOLD;
     }
 
     /**
@@ -793,11 +751,12 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
      * pushing supply forward in the same trade. Includes the anti-sniper surcharge.
      */
     function _getFeeBps(uint256 preTradeSupply) internal view returns (uint256) {
+        uint256 threshold = BondingCurveMath.GRADUATION_THRESHOLD;
         uint256 baseFee;
-        if (preTradeSupply >= graduationThreshold) {
+        if (preTradeSupply >= threshold) {
             baseFee = MIN_FEE_BPS;
         } else {
-            uint256 decay = (FEE_DECAY_RANGE_BPS * preTradeSupply) / graduationThreshold;
+            uint256 decay = (FEE_DECAY_RANGE_BPS * preTradeSupply) / threshold;
             baseFee = decay >= FEE_DECAY_RANGE_BPS
                 ? MAX_FEE_BPS - FEE_DECAY_RANGE_BPS
                 : MAX_FEE_BPS - decay;
@@ -818,16 +777,9 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
 
     /**
      * @dev Spot price at a hypothetical supply, used by the deviation guard.
-     * Mirrors the curve branches in `getCurrentPrice` without mutating state.
      */
-    function _spotPriceAtSupply(uint256 supply) internal view returns (uint256) {
-        if (curveType == 0) {
-            return basePrice + (slope * supply) / PRECISION;
-        }
-        uint256 exponent = (slope * supply) / PRECISION;
-        if (exponent > 5 * PRECISION) exponent = 5 * PRECISION;
-        uint256 expValue = PRECISION + exponent + (exponent * exponent) / (2 * PRECISION);
-        return (basePrice * expValue) / PRECISION;
+    function _spotPriceAtSupply(uint256 supply) internal pure returns (uint256) {
+        return BondingCurveMath.getPriceSigmoid(supply);
     }
 
     /**
@@ -859,189 +811,36 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             currentSupply,
             getCurrentPrice(),
             totalVolume,
-            (currentSupply * 10000) / graduationThreshold,
+            (currentSupply * 10000) / BondingCurveMath.GRADUATION_THRESHOLD,
             isGraduated
         );
     }
 
     /**
-     * @dev Calculate price impact for a trade
+     * @dev Calculate price impact for a trade, in basis points.
      */
     function getPriceImpact(uint256 amount, bool isBuy) external view returns (uint256) {
         uint256 currentPrice = getCurrentPrice();
         if (currentPrice == 0) return 0;
 
+        uint256 newSupply;
         if (isBuy) {
             uint256 tokensOut = calculateTokensOut(amount, currentSupply);
-            uint256 newSupply = currentSupply + tokensOut;
-            uint256 newPrice;
-
-            if (curveType == 0) {
-                newPrice = basePrice + (slope * newSupply) / PRECISION;
-            } else {
-                uint256 exponent = (slope * newSupply) / PRECISION;
-                newPrice = (basePrice * (PRECISION + exponent)) / PRECISION;
-            }
-
-            return ((newPrice - currentPrice) * 10000) / currentPrice;
+            newSupply = currentSupply + tokensOut;
         } else {
             if (amount > currentSupply) return 10000; // 100% impact
-
-            uint256 newSupply = currentSupply - amount;
-            uint256 newPrice;
-
-            if (curveType == 0) {
-                newPrice = basePrice + (slope * newSupply) / PRECISION;
-            } else {
-                uint256 exponent = (slope * newSupply) / PRECISION;
-                newPrice = (basePrice * (PRECISION + exponent)) / PRECISION;
-            }
-
-            return ((currentPrice - newPrice) * 10000) / currentPrice;
+            newSupply = currentSupply - amount;
         }
-    }
+        uint256 newPrice = BondingCurveMath.getPriceSigmoid(newSupply);
 
-    // ========== INTERNAL FUNCTIONS ==========
-
-    /**
-     * @dev Linear curve integration with improved precision
-     * SECURITY FIX: Better precision handling, prevents loss
-     */
-    function _calculateLinearTokensOut(uint256 nativeIn, uint256 supply) internal view returns (uint256) {
-        uint256 availableLiquidity = token.balanceOf(address(this));
-        if (availableLiquidity == 0) {
-            return 0;
+        if (isBuy) {
+            return newPrice > currentPrice
+                ? ((newPrice - currentPrice) * 10000) / currentPrice
+                : 0;
         }
-
-        uint256 maxDelta = availableLiquidity;
-        if (supply + maxDelta > MAX_TOTAL_SUPPLY) {
-            maxDelta = MAX_TOTAL_SUPPLY - supply;
-        }
-
-        uint256 currentCost = _linearCumulativeCost(supply);
-        uint256 low = 0;
-        uint256 high = maxDelta;
-
-        while (low < high) {
-            uint256 mid = (low + high + 1) / 2;
-            uint256 targetCost = _linearCumulativeCost(supply + mid) - currentCost;
-
-            if (targetCost <= nativeIn) {
-                low = mid;
-            } else {
-                high = mid - 1;
-            }
-        }
-
-        return low;
-    }
-
-    function _calculateLinearNativeOut(uint256 tokensIn, uint256 supply) internal view returns (uint256) {
-        if (tokensIn > supply) {
-            return 0;
-        }
-
-        uint256 costAtSupply = _linearCumulativeCost(supply);
-        uint256 costAfter = _linearCumulativeCost(supply - tokensIn);
-
-        return costAtSupply - costAfter;
-    }
-
-    function _linearCumulativeCost(uint256 supply) internal view returns (uint256) {
-        if (supply == 0) {
-            return 0;
-        }
-
-        uint256 baseComponent = Math.mulDiv(basePrice, supply, PRECISION);
-        uint256 squaredSupply = Math.mulDiv(supply, supply, PRECISION);
-        uint256 slopeComponent = Math.mulDiv(slope, squaredSupply, 2 * PRECISION);
-
-        return baseComponent + slopeComponent;
-    }
-
-    /**
-     * @dev Exponential curve: Calculate tokens out for given native input
-     * Uses binary search with exponential cumulative cost
-     */
-    function _calculateExponentialTokensOut(uint256 nativeIn, uint256 supply) internal view returns (uint256) {
-        uint256 availableLiquidity = token.balanceOf(address(this));
-        if (availableLiquidity == 0) {
-            return 0;
-        }
-
-        uint256 maxDelta = availableLiquidity;
-        if (supply + maxDelta > MAX_TOTAL_SUPPLY) {
-            maxDelta = MAX_TOTAL_SUPPLY - supply;
-        }
-
-        uint256 currentCost = _exponentialCumulativeCost(supply);
-        uint256 low = 0;
-        uint256 high = maxDelta;
-
-        while (low < high) {
-            uint256 mid = (low + high + 1) / 2;
-            uint256 targetCost = _exponentialCumulativeCost(supply + mid) - currentCost;
-
-            if (targetCost <= nativeIn) {
-                low = mid;
-            } else {
-                high = mid - 1;
-            }
-        }
-
-        return low;
-    }
-
-    /**
-     * @dev Exponential curve: Calculate native out for given tokens
-     */
-    function _calculateExponentialNativeOut(uint256 tokensIn, uint256 supply) internal view returns (uint256) {
-        if (tokensIn > supply) {
-            return 0;
-        }
-
-        uint256 costAtSupply = _exponentialCumulativeCost(supply);
-        uint256 costAfter = _exponentialCumulativeCost(supply - tokensIn);
-
-        return costAtSupply - costAfter;
-    }
-
-    /**
-     * @dev Calculate cumulative cost for exponential curve
-     * Exponential formula: P(s) = basePrice * e^(slope * s / PRECISION)
-     * Integral: C(s) = (basePrice * PRECISION / slope) * (e^(slope * s / PRECISION) - 1)
-     * Using Taylor series approximation for e^x: 1 + x + x^2/2 + x^3/6 (safe for small x)
-     */
-    function _exponentialCumulativeCost(uint256 supply) internal view returns (uint256) {
-        if (supply == 0) {
-            return 0;
-        }
-
-        // Calculate exponent: slope * supply / PRECISION
-        uint256 exponent = Math.mulDiv(slope, supply, PRECISION);
-
-        // Cap exponent to prevent overflow (e^5 ≈ 148, which is reasonable)
-        if (exponent > 5 * PRECISION) {
-            exponent = 5 * PRECISION;
-        }
-
-        // Taylor series approximation: e^x ≈ 1 + x + x^2/2 + x^3/6
-        // For precision, multiply terms by PRECISION
-        uint256 x = exponent;
-        uint256 x2 = Math.mulDiv(x, x, PRECISION);
-        uint256 x3 = Math.mulDiv(x2, x, PRECISION);
-
-        // e^x - 1 ≈ x + x^2/2 + x^3/6
-        uint256 expMinusOne = x + x2 / 2 + x3 / 6;
-
-        // Cumulative cost: (basePrice * PRECISION / slope) * (e^x - 1)
-        // Rewritten to avoid division issues: (basePrice * expMinusOne) / slope
-        if (slope == 0) {
-            // If slope is 0, fall back to linear
-            return Math.mulDiv(basePrice, supply, PRECISION);
-        }
-
-        return Math.mulDiv(basePrice, expMinusOne, slope);
+        return currentPrice > newPrice
+            ? ((currentPrice - newPrice) * 10000) / currentPrice
+            : 0;
     }
 
     /**

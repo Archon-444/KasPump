@@ -162,27 +162,24 @@ export function useContracts() {
     
     try {
       const contract = getTokenFactoryContract();
-      
-      const totalSupply = ethers.parseEther(tokenData.totalSupply.toString());
-      const basePrice = ethers.parseEther(tokenData.basePrice.toString());
-      const slope = ethers.parseEther(tokenData.slope.toString());
-      const curveType = tokenData.curveType === 'linear' ? 0 : 1;
-      
+
       const imageUrlToUse = imageUrl || '';
       const creationFee = await contract.CREATION_FEE();
 
       // Check for referrer from URL params or passed data
       const referrerAddress = tokenData.referrer || ethers.ZeroAddress;
 
+      // V2: TokenFactory.CreateTokenParams was slimmed — total supply, base
+      // price, slope, and curve type are protocol-wide constants now (see
+      // contracts/libraries/BondingCurveMath.sol). The wizard form still
+      // collects those legacy fields locally; they're ignored at the
+      // contract boundary. The QuickLaunchForm rebuild (PR 4) drops them
+      // from the UI entirely.
       const createParams = {
         name: tokenData.name,
         symbol: tokenData.symbol,
         description: tokenData.description,
         imageUrl: imageUrlToUse,
-        totalSupply,
-        basePrice,
-        slope,
-        curveType,
         twitterUrl: tokenData.twitterUrl || '',
         telegramUrl: tokenData.telegramUrl || '',
         websiteUrl: tokenData.websiteUrl || '',
@@ -404,7 +401,7 @@ export function useContracts() {
         volume24h: parseFloat(ethers.formatEther(totalVolume)),
         holders: 0,
         createdAt: new Date(),
-        curveType: config.curveType === 0n ? 'linear' : 'exponential',
+        curveType: 'sigmoid' as const,
         bondingCurveProgress: parseFloat(ethers.formatUnits(graduation, 2)),
         ammAddress,
         isGraduated

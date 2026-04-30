@@ -14,7 +14,10 @@ export interface KasPumpToken {
   volume24h: number;
   holders: number;
   createdAt: Date;
-  curveType: 'linear' | 'exponential';
+  // V2: every token uses the standardized sigmoid curve. The legacy
+  // 'linear' / 'exponential' values are kept on the union for indexer
+  // backfills of pre-V2 tokens but new tokens always report 'sigmoid'.
+  curveType: 'sigmoid' | 'linear' | 'exponential';
   bondingCurveProgress: number; // 0-100, when it graduates to AMM
   ammAddress: string;
   isGraduated: boolean;
@@ -108,7 +111,7 @@ export interface TradingViewProps {
 export interface BondingCurveConfig {
   basePrice: number;
   slope: number;
-  curveType: 'linear' | 'exponential';
+  curveType: 'sigmoid' | 'linear' | 'exponential';
   graduationThreshold: number;
   currentSupply: number;
   totalVolume: number;
