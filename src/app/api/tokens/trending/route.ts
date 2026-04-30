@@ -18,7 +18,12 @@ interface ScoredToken {
   isGraduated: boolean;
   score: number;
   ammAddress: string;
+  createdAt: number; // unix seconds
 }
+
+const JUST_LAUNCHED_WINDOW_SECS = 10 * 60;       // last 10 minutes
+const FADING_AGE_SECS = 24 * 60 * 60;            // older than 24h
+const FADING_MAX_PROGRESS_BPS = 30;              // < 30% graduation progress
 
 export async function GET(request: NextRequest) {
   try {
@@ -74,6 +79,7 @@ export async function GET(request: NextRequest) {
             isGraduated,
             score,
             ammAddress,
+            createdAt: Number(config.createdAt),
           });
         } catch {
           // Skip tokens that fail
@@ -85,13 +91,39 @@ export async function GET(request: NextRequest) {
     const trending = scored.slice(0, limit);
     const kingOfTheHill = trending.length > 0 ? trending[0] : null;
 
+    const now = Math.floor(Date.now() / 1000);
+
+    // Just Launched: created in the last 10 minutes, sorted by recency with
+    // early-volume tiebreaker so a launch with traction outranks pure recency.
+    const justLaunched = scored
+      .filter(t => !t.isGraduated && now - t.createdAt <= JUST_LAUNCHED_WINDOW_SECS)
+      .sort((a, b) => {
+        if (b.createdAt !== a.createdAt) return b.createdAt - a.createdAt;
+        return b.totalVolume - a.totalVolume;
+      })
+      .slice(0, 5);
+
+    // Fading: older than 24h AND graduation progress < 30%. Without per-trade
+    // timestamps in the on-chain config we approximate "no recent activity" by
+    // age + low progress; a richer signal lands when trade indexing arrives.
+    const fading = scored
+      .filter(t =>
+        !t.isGraduated &&
+        now - t.createdAt >= FADING_AGE_SECS &&
+        t.graduationProgress < FADING_MAX_PROGRESS_BPS
+      )
+      .sort((a, b) => a.graduationProgress - b.graduationProgress)
+      .slice(0, 5);
+
     return NextResponse.json({
       trending,
       kingOfTheHill,
+      justLaunched,
       aboutToGraduate: scored
         .filter(t => !t.isGraduated && t.graduationProgress >= 75)
         .sort((a, b) => b.graduationProgress - a.graduationProgress)
         .slice(0, 5),
+      fading,
       totalTokens: allTokens.length,
     });
   } catch (error: any) {

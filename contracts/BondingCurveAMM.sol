@@ -73,30 +73,38 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     uint256 public lpTokensLocked; // Amount of LP tokens locked
     uint256 public lpUnlockTime; // Timestamp when LP can be unlocked (6 months)
 
+    // ========== ANTI-BOT + SOFT-LAUNCH STATE ==========
+
+    // Same-block trade tracking (anti-sandwich, anti-flip)
+    mapping(address => uint256) public lastBuyBlock;
+
+    // Snapshot of last successful trade's spot price for deviation guard
+    uint256 public lastTradePrice;
+
+    // Soft-launch cap: 0 = disabled. Owner-set, capped against gross native raised
+    // from buys. Partial-fill + refund applied on entry that would breach the cap.
+    uint256 public softLaunchCapNative;
+    uint256 public totalNativeRaised;
+
     // ========== CONSTANTS ==========
 
     uint256 public constant PRECISION = 1e18;
     uint256 public constant MAX_SLIPPAGE = 1000; // 10% maximum slippage
 
-    // Tiered platform fees (basis points) — used as floor for enterprise members
-    uint256 public constant BASIC_FEE = 100;      // 1.0%
-    uint256 public constant PREMIUM_FEE = 50;     // 0.5%
-    uint256 public constant ENTERPRISE_FEE = 25;  // 0.25%
+    // Continuous fee decay — pre-trade supply linked.
+    // fee = MAX_FEE_BPS - FEE_DECAY_RANGE_BPS * preTradeSupply / graduationThreshold,
+    // floor-clamped at MIN_FEE_BPS so post-graduation edge cases never go below 0.10%.
+    uint256 public constant MAX_FEE_BPS = 100;        // 1.00% at supply 0
+    uint256 public constant FEE_DECAY_RANGE_BPS = 90; // decays to MAX - 90 = 10 bps at threshold
+    uint256 public constant MIN_FEE_BPS = 10;         // 0.10% hard floor
 
     // Creator revenue sharing: 50% of platform fee goes to token creator on every trade
     uint256 public constant CREATOR_FEE_SHARE = 5000; // 50% of fee in basis points
 
-    // Dynamic fee schedule — market-cap-based (in native currency, e.g. BNB)
-    uint256 public constant MCAP_TIER_1 = 1 ether;    // < 1 BNB mcap → 1.00%
-    uint256 public constant MCAP_TIER_2 = 10 ether;   // 1-10 BNB    → 0.75%
-    uint256 public constant MCAP_TIER_3 = 50 ether;   // 10-50 BNB   → 0.50%
-    uint256 public constant MCAP_TIER_4 = 100 ether;  // 50-100 BNB  → 0.25%
-    // > 100 BNB mcap → 0.10%
-    uint256 public constant DYNAMIC_FEE_1 = 100;  // 1.00%
-    uint256 public constant DYNAMIC_FEE_2 = 75;   // 0.75%
-    uint256 public constant DYNAMIC_FEE_3 = 50;   // 0.50%
-    uint256 public constant DYNAMIC_FEE_4 = 25;   // 0.25%
-    uint256 public constant DYNAMIC_FEE_5 = 10;   // 0.10%
+    // Anti-bot guards (sniper window only, except same-block which has its own gating)
+    uint256 public constant MAX_BUY_PER_TX_BPS = 200;        // 2% of remaining curve supply
+    uint256 public constant MAX_PRICE_DEVIATION_BPS = 5000;  // 50% spot-price deviation
+    uint256 public constant SAME_BLOCK_LARGE_BPS = 50;       // 0.5% remaining-supply size threshold
 
     // Safety limits
     uint256 public constant MAX_TOTAL_SUPPLY = 1e12 * 1e18; // 1 trillion tokens max
@@ -194,6 +202,39 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         uint256 amount
     );
 
+    // Structured ops/safety event surface (V2 — see plan §10).
+    // Legacy `Trade` is preserved for indexer compatibility; consumers should
+    // migrate to TradeExecuted for richer trade context.
+    event TradeExecuted(
+        address indexed trader,
+        bool isBuy,
+        uint256 supplyBefore,
+        uint256 supplyAfter,
+        uint256 nativeAmount,
+        uint256 tokenAmount,
+        uint256 feeBps,
+        uint256 priceAfter
+    );
+
+    event PriceDeviationBlocked(
+        address indexed trader,
+        bool isBuy,
+        uint256 spotBefore,
+        uint256 spotProjected,
+        uint256 deviationBps
+    );
+
+    event SoftLaunchCapHit(
+        address indexed buyer,
+        uint256 allowedNative,
+        uint256 refundedNative
+    );
+
+    event SoftLaunchCapUpdated(
+        uint256 oldCap,
+        uint256 newCap
+    );
+
     // ========== CUSTOM ERRORS ==========
 
     error InvalidAmount();
@@ -209,6 +250,10 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     error LPTokensStillLocked();
     error NoLPTokensToWithdraw();
     error DEXLiquidityFailed();
+    error MaxBuyExceeded();
+    error SameBlockTrade();
+    error PriceDeviation();
+    error SoftLaunchCapReached();
 
     // ========== MODIFIERS ==========
 
@@ -288,6 +333,9 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             ? _sniperProtectionDuration
             : DEFAULT_SNIPER_DURATION;
         referrer = _referrer; // Can be address(0) if no referrer
+
+        // Seed deviation guard with the initial spot price.
+        lastTradePrice = _basePrice;
     }
 
     // ========== EXTERNAL FUNCTIONS ==========
@@ -314,10 +362,27 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
 
         if (msg.value == 0) revert InvalidAmount();
 
-        uint256 nativeAmount = msg.value;
+        // Snapshot pre-trade state. Fee derives from pre-trade supply only.
+        uint256 supplyBefore = currentSupply;
+        uint256 spotBefore = getCurrentPrice();
 
-        // Calculate fee based on dynamic market-cap tiers + membership floor
-        uint256 platformFee = getPlatformFee();
+        // Soft-launch cap: partial-fill + refund instead of hard revert, so an
+        // attacker cannot push the curve to one wei below the cap and grief
+        // every subsequent buy.
+        uint256 nativeAmount = msg.value;
+        uint256 refundAmount = 0;
+        uint256 cap = softLaunchCapNative;
+        if (cap > 0) {
+            if (totalNativeRaised >= cap) revert SoftLaunchCapReached();
+            uint256 capRemaining = cap - totalNativeRaised;
+            if (nativeAmount > capRemaining) {
+                refundAmount = nativeAmount - capRemaining;
+                nativeAmount = capRemaining;
+            }
+        }
+
+        // Continuous fee decay against pre-trade supply.
+        uint256 platformFee = _getFeeBps(supplyBefore);
         uint256 fee = (nativeAmount * platformFee) / 10000;
         uint256 nativeAfterFee = nativeAmount - fee;
 
@@ -327,7 +392,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         uint256 platformCut = fee - creatorCut - referrerCut;
 
         // Calculate tokens to mint based on curve
-        uint256 tokensOut = calculateTokensOut(nativeAfterFee, currentSupply);
+        uint256 tokensOut = calculateTokensOut(nativeAfterFee, supplyBefore);
 
         // Slippage protection
         if (tokensOut < minTokensOut) revert SlippageTooHigh();
@@ -336,11 +401,37 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         uint256 ammBalance = token.balanceOf(address(this));
         if (tokensOut > ammBalance) revert InsufficientBalance();
 
+        // Anti-sniper guards (sniper window only).
+        bool sniperActive = block.timestamp < launchTimestamp + sniperProtectionDuration;
+        if (sniperActive) {
+            uint256 remainingCurve = graduationThreshold > supplyBefore
+                ? graduationThreshold - supplyBefore
+                : 0;
+            uint256 maxBuy = (remainingCurve * MAX_BUY_PER_TX_BPS) / 10000;
+            if (tokensOut > maxBuy) revert MaxBuyExceeded();
+
+            // Deviation guard: any single trade moving spot price > 50% vs the
+            // last-trade snapshot is rejected during the sniper window.
+            uint256 supplyAfter = supplyBefore + tokensOut;
+            uint256 spotProjected = _spotPriceAtSupply(supplyAfter);
+            uint256 ref = lastTradePrice;
+            if (ref > 0) {
+                uint256 diff = spotProjected > ref ? spotProjected - ref : ref - spotProjected;
+                uint256 deviation = (diff * 10000) / ref;
+                if (deviation > MAX_PRICE_DEVIATION_BPS) {
+                    emit PriceDeviationBlocked(msg.sender, true, spotBefore, spotProjected, deviation);
+                    revert PriceDeviation();
+                }
+            }
+        }
+
         // ========== EFFECTS ==========
 
         // Update state BEFORE external calls (prevents reentrancy)
-        currentSupply += tokensOut;
+        currentSupply = supplyBefore + tokensOut;
         totalVolume += nativeAmount;
+        totalNativeRaised += nativeAmount;
+        lastBuyBlock[msg.sender] = block.number;
 
         // Accumulate creator and referrer fees (pull pattern — safe)
         creatorAccumulatedFees += creatorCut;
@@ -351,6 +442,10 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Check for graduation
         bool graduated = currentSupply >= graduationThreshold;
 
+        // Refresh the deviation snapshot to the new post-trade spot price.
+        uint256 priceAfter = getCurrentPrice();
+        lastTradePrice = priceAfter;
+
         // ========== INTERACTIONS ==========
 
         // Safe token transfer to buyer
@@ -359,6 +454,12 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Safe platform fee transfer (only platform's share)
         if (platformCut > 0) {
             feeRecipient.sendValue(platformCut);
+        }
+
+        // Soft-launch refund (after fee + token transfers, before graduation).
+        if (refundAmount > 0) {
+            payable(msg.sender).sendValue(refundAmount);
+            emit SoftLaunchCapHit(msg.sender, nativeAmount, refundAmount);
         }
 
         // Handle graduation
@@ -378,9 +479,20 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             true, // isBuy
             nativeAmount,
             tokensOut,
-            getCurrentPrice(),
+            priceAfter,
             fee,
             block.timestamp
+        );
+
+        emit TradeExecuted(
+            msg.sender,
+            true,
+            supplyBefore,
+            currentSupply,
+            nativeAmount,
+            tokensOut,
+            platformFee,
+            priceAfter
         );
     }
 
@@ -406,11 +518,28 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         if (tokenAmount == 0) revert InvalidAmount();
         if (tokenAmount > currentSupply) revert InvalidAmount();
 
-        // Calculate native currency to return
-        uint256 nativeOut = calculateNativeOut(tokenAmount, currentSupply);
+        // Snapshot pre-trade state. Fee derives from pre-trade supply only.
+        uint256 supplyBefore = currentSupply;
+        uint256 spotBefore = getCurrentPrice();
 
-        // Calculate fee based on dynamic market-cap tiers + membership floor
-        uint256 platformFee = getPlatformFee();
+        // Same-block anti-sandwich guard: only triggers when the same address
+        // bought in this block AND either the sniper window is active OR the
+        // sell is large (> SAME_BLOCK_LARGE_BPS of remaining curve supply).
+        if (lastBuyBlock[msg.sender] == block.number) {
+            bool sniperActive = block.timestamp < launchTimestamp + sniperProtectionDuration;
+            uint256 remainingCurve = graduationThreshold > supplyBefore
+                ? graduationThreshold - supplyBefore
+                : 0;
+            bool largeSell = remainingCurve > 0 &&
+                tokenAmount * 10000 > remainingCurve * SAME_BLOCK_LARGE_BPS;
+            if (sniperActive || largeSell) revert SameBlockTrade();
+        }
+
+        // Calculate native currency to return
+        uint256 nativeOut = calculateNativeOut(tokenAmount, supplyBefore);
+
+        // Continuous fee decay against pre-trade supply.
+        uint256 platformFee = _getFeeBps(supplyBefore);
         uint256 fee = (nativeOut * platformFee) / 10000;
         uint256 nativeAfterFee = nativeOut - fee;
 
@@ -427,10 +556,26 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         uint256 availableLiquidity = address(this).balance - reservedFees;
         if (nativeOut > availableLiquidity) revert InsufficientBalance();
 
+        // Deviation guard during sniper window (sells too).
+        bool sniperActiveSell = block.timestamp < launchTimestamp + sniperProtectionDuration;
+        if (sniperActiveSell) {
+            uint256 supplyAfter = supplyBefore - tokenAmount;
+            uint256 spotProjected = _spotPriceAtSupply(supplyAfter);
+            uint256 ref = lastTradePrice;
+            if (ref > 0) {
+                uint256 diff = spotProjected > ref ? spotProjected - ref : ref - spotProjected;
+                uint256 deviation = (diff * 10000) / ref;
+                if (deviation > MAX_PRICE_DEVIATION_BPS) {
+                    emit PriceDeviationBlocked(msg.sender, false, spotBefore, spotProjected, deviation);
+                    revert PriceDeviation();
+                }
+            }
+        }
+
         // ========== EFFECTS ==========
 
         // Update state BEFORE external calls
-        currentSupply -= tokenAmount;
+        currentSupply = supplyBefore - tokenAmount;
         totalVolume += nativeOut;
 
         // Accumulate creator and referrer fees (pull pattern — safe)
@@ -438,6 +583,9 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         if (referrerCut > 0) {
             referrerAccumulatedFees += referrerCut;
         }
+
+        uint256 priceAfter = getCurrentPrice();
+        lastTradePrice = priceAfter;
 
         // ========== INTERACTIONS ==========
 
@@ -464,9 +612,20 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             false, // isSell
             nativeAfterFee,
             tokenAmount,
-            getCurrentPrice(),
+            priceAfter,
             fee,
             block.timestamp
+        );
+
+        emit TradeExecuted(
+            msg.sender,
+            false,
+            supplyBefore,
+            currentSupply,
+            nativeAfterFee,
+            tokenAmount,
+            platformFee,
+            priceAfter
         );
     }
 
@@ -585,46 +744,58 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @dev Get platform fee based on dynamic market-cap tiers + membership floor + anti-sniper
+     * @dev Live trading fee in basis points, evaluated against current pre-trade supply.
      *
-     * Fee schedule (market-cap based):
-     *   < 1 BNB   → 1.00%
-     *   1-10 BNB  → 0.75%
-     *   10-50 BNB → 0.50%
-     *   50-100 BNB→ 0.25%
-     *   > 100 BNB → 0.10%
-     *
-     * Enterprise members get min(dynamicFee, ENTERPRISE_FEE) as a floor discount.
-     * Anti-sniper surcharge is added on top during protection window.
+     * Fee = MAX_FEE_BPS - FEE_DECAY_RANGE_BPS * preTradeSupply / graduationThreshold,
+     *       floor-clamped at MIN_FEE_BPS.
+     * Anti-sniper surcharge is added on top during the protection window.
      */
     function getPlatformFee() public view returns (uint256) {
-        // Dynamic fee based on market cap
-        uint256 marketCap = getMarketCap();
-        uint256 dynamicFee;
-        if (marketCap >= MCAP_TIER_4) dynamicFee = DYNAMIC_FEE_5;      // > 100 BNB → 0.10%
-        else if (marketCap >= MCAP_TIER_3) dynamicFee = DYNAMIC_FEE_4;  // 50-100 BNB → 0.25%
-        else if (marketCap >= MCAP_TIER_2) dynamicFee = DYNAMIC_FEE_3;  // 10-50 BNB → 0.50%
-        else if (marketCap >= MCAP_TIER_1) dynamicFee = DYNAMIC_FEE_2;  // 1-10 BNB → 0.75%
-        else dynamicFee = DYNAMIC_FEE_1;                                 // < 1 BNB → 1.00%
+        return _getFeeBps(currentSupply);
+    }
 
-        // Membership tier acts as a floor discount (enterprise users never overpay)
-        uint256 memberFloor;
-        if (membershipTier == 2) memberFloor = ENTERPRISE_FEE;
-        else if (membershipTier == 1) memberFloor = PREMIUM_FEE;
-        else memberFloor = BASIC_FEE;
+    /**
+     * @dev Internal continuous fee schedule, parameterized by an explicit pre-trade
+     * supply snapshot. Trade entry points snapshot supply before any state mutation
+     * and pass it here, which prevents a buyer from lowering their own fee by
+     * pushing supply forward in the same trade. Includes the anti-sniper surcharge.
+     */
+    function _getFeeBps(uint256 preTradeSupply) internal view returns (uint256) {
+        uint256 baseFee;
+        if (preTradeSupply >= graduationThreshold) {
+            baseFee = MIN_FEE_BPS;
+        } else {
+            uint256 decay = (FEE_DECAY_RANGE_BPS * preTradeSupply) / graduationThreshold;
+            baseFee = decay >= FEE_DECAY_RANGE_BPS
+                ? MAX_FEE_BPS - FEE_DECAY_RANGE_BPS
+                : MAX_FEE_BPS - decay;
+            if (baseFee < MIN_FEE_BPS) baseFee = MIN_FEE_BPS;
+        }
+        return _applySniperSurcharge(baseFee);
+    }
 
-        // Use the lower of dynamic fee and membership floor
-        uint256 baseFee = dynamicFee < memberFloor ? dynamicFee : memberFloor;
-
-        // Anti-sniper surcharge during protection window
+    function _applySniperSurcharge(uint256 baseFee) internal view returns (uint256) {
         uint256 elapsed = block.timestamp - launchTimestamp;
         if (elapsed >= sniperProtectionDuration) {
             return baseFee;
         }
-
         uint256 remaining = sniperProtectionDuration - elapsed;
         uint256 sniperSurcharge = ((MAX_SNIPER_FEE - baseFee) * remaining) / sniperProtectionDuration;
         return baseFee + sniperSurcharge;
+    }
+
+    /**
+     * @dev Spot price at a hypothetical supply, used by the deviation guard.
+     * Mirrors the curve branches in `getCurrentPrice` without mutating state.
+     */
+    function _spotPriceAtSupply(uint256 supply) internal view returns (uint256) {
+        if (curveType == 0) {
+            return basePrice + (slope * supply) / PRECISION;
+        }
+        uint256 exponent = (slope * supply) / PRECISION;
+        if (exponent > 5 * PRECISION) exponent = 5 * PRECISION;
+        uint256 expValue = PRECISION + exponent + (exponent * exponent) / (2 * PRECISION);
+        return (basePrice * expValue) / PRECISION;
     }
 
     /**
@@ -972,6 +1143,17 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     // ========== ADMIN FUNCTIONS ==========
+
+    /**
+     * @dev Set or clear the soft-launch cap on cumulative gross native raised.
+     * Cap = 0 disables the gate. Intended to be raised on mainnet day-one and
+     * cleared (set to 0) by ops after the 48h soft-launch window if no incidents.
+     */
+    function setSoftLaunchCap(uint256 newCap) external onlyOwner {
+        uint256 oldCap = softLaunchCapNative;
+        softLaunchCapNative = newCap;
+        emit SoftLaunchCapUpdated(oldCap, newCap);
+    }
 
     /**
      * @dev Emergency pause trading
