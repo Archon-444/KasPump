@@ -200,11 +200,14 @@ describe("BondingCurveAMM continuous fee decay", function () {
 describe("BondingCurveAMM anti-bot guards", function () {
   it("rejects oversized buys during the sniper window (MaxBuyExceeded)", async function () {
     const { amm, user } = await deployFixture();
-    // Inside the sniper window, max buy = 2% of remaining curve supply
-    // = 2% of 800M = 16M tokens. The integral up to 16M tokens is well
-    // below 0.5 ETH, so a 0.5 ETH buy will exceed the cap.
+    // Inside the sniper window the fee runs at ~99%, so only ~1% of
+    // msg.value ends up as nativeAfterFee. The 2% max-buy cap is ~16M
+    // tokens which costs ~6.4e15 wei net, i.e. ~0.64 ETH gross. Send
+    // 1 ETH to clear the cap with comfortable margin without tripping
+    // the PR 3 graduation overpayment clamp (estNet ≈ 0.01 ETH ≪
+    // requiredNet ≈ 3 ETH).
     await expect(
-      amm.connect(user).buyTokens(0, { value: ethers.parseEther("0.5") })
+      amm.connect(user).buyTokens(0, { value: ethers.parseEther("1") })
     ).to.be.revertedWithCustomError(amm, "MaxBuyExceeded");
   });
 

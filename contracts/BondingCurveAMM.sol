@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IPancakeRouter.sol";
 import "./libraries/BondingCurveMath.sol";
+import "./CreatorVesting.sol";
 
 /**
  * @title BondingCurveAMM - PRODUCTION GRADE WITH DEX INTEGRATION
@@ -85,6 +86,37 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     // from buys. Partial-fill + refund applied on entry that would breach the cap.
     uint256 public softLaunchCapNative;
     uint256 public totalNativeRaised;
+
+    // ========== EXPLICIT GRADUATION ACCOUNTING (PR 3) ==========
+    //
+    // Native that has flowed into the curve and not yet been redirected (sells,
+    // refunds, fee payouts, graduation distribution). Maintained explicitly so
+    // graduation accounting never reads `address(this).balance` blindly — that
+    // would conflate accumulated creator/referrer fees, in-flight refunds, and
+    // any stray native (selfdestruct beneficiary, etc.) with the curve's own
+    // proceeds.
+    //
+    // Invariant: address(this).balance ==
+    //     curveNativeBalance
+    //   + creatorAccumulatedFees + referrerAccumulatedFees
+    //   + totalGraduationFunds
+    // (any leftover beyond these buckets is ignored on purpose).
+    uint256 public curveNativeBalance;
+
+    // Address of the per-token CreatorVesting contract deployed at graduation.
+    // Zero until graduation; set inside `_graduateToken`.
+    address public creatorVesting;
+
+    // Block-based vesting duration. Phase 1 calibrated for Base mainnet
+    // (~2-second blocks; 180 days = 7,776,000 blocks). Set as a `public`
+    // constant so subgraphs / UIs can read it without a special call.
+    uint256 public constant VESTING_DURATION_BLOCKS = 7_776_000;
+
+    // Token allocation at graduation (of the 200M post-curve remainder).
+    // Mirrors the native split, see plan §5a.
+    uint256 public constant LP_TOKEN_BPS = 7000;        // 70%
+    uint256 public constant VESTING_TOKEN_BPS = 2000;   // 20%
+    // Treasury token allocation = remainder (10%) — implicit from the above.
 
     // ========== CONSTANTS ==========
 
@@ -237,6 +269,37 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         uint256 newCap
     );
 
+    // PR 3 — graduation correctness surface.
+    event GraduationTriggered(
+        address indexed token,
+        uint256 finalSupply,
+        uint256 finalPrice,
+        uint256 nativeForLP,
+        uint256 tokensForLP
+    );
+
+    event GraduationOverpaymentRefunded(
+        address indexed buyer,
+        uint256 requestedNative,
+        uint256 acceptedNative,
+        uint256 refundedNative
+    );
+
+    event CreatorVestingCreated(
+        address indexed token,
+        address indexed creator,
+        address indexed vestingContract,
+        uint256 totalAmount,
+        uint256 startBlock,
+        uint256 endBlock
+    );
+
+    event TreasuryAllocated(
+        address indexed recipient,
+        uint256 nativeAmount,
+        uint256 tokenAmount
+    );
+
     // ========== CUSTOM ERRORS ==========
 
     error InvalidAmount();
@@ -356,19 +419,52 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // attacker cannot push the curve to one wei below the cap and grief
         // every subsequent buy.
         uint256 nativeAmount = msg.value;
-        uint256 refundAmount = 0;
+        uint256 softLaunchRefund = 0;
+        uint256 graduationRefund = 0;
         uint256 cap = softLaunchCapNative;
         if (cap > 0) {
             if (totalNativeRaised >= cap) revert SoftLaunchCapReached();
             uint256 capRemaining = cap - totalNativeRaised;
             if (nativeAmount > capRemaining) {
-                refundAmount = nativeAmount - capRemaining;
+                softLaunchRefund = nativeAmount - capRemaining;
                 nativeAmount = capRemaining;
             }
         }
+        // After soft-launch clamp; before graduation clamp.
+        uint256 acceptedAfterSoftLaunch = nativeAmount;
 
         // Continuous fee decay against pre-trade supply.
         uint256 platformFee = _getFeeBps(supplyBefore);
+
+        // PR 3 — Graduation overpayment clamp. Plan §5b / acceptance criteria
+        // §1: a graduation buy consumes only the exact gross native needed to
+        // reach GRADUATION_THRESHOLD; any excess is refunded in the same tx.
+        // Without this clamp, leftover net would silently fold into the
+        // graduation funds split (LP / creator / treasury) and distort LP
+        // price continuity at the seam.
+        {
+            uint256 threshold = BondingCurveMath.GRADUATION_THRESHOLD;
+            if (threshold > supplyBefore) {
+                uint256 requiredNet = BondingCurveMath.costToBuy(supplyBefore, threshold);
+                uint256 estNet = nativeAmount - (nativeAmount * platformFee) / 10000;
+                if (estNet >= requiredNet) {
+                    // The buyer is paying for >= the full remaining curve.
+                    // Compute the exact gross required and refund the rest.
+                    uint256 denom = 10000 - platformFee;
+                    // Ceiling division: requiredGross * (10000 - feeBps) / 10000
+                    // is guaranteed >= requiredNet so post-fee net always
+                    // covers the full integral to threshold.
+                    uint256 requiredGross = denom == 0
+                        ? nativeAmount
+                        : (requiredNet * 10000 + denom - 1) / denom;
+                    if (nativeAmount > requiredGross) {
+                        graduationRefund = nativeAmount - requiredGross;
+                        nativeAmount = requiredGross;
+                    }
+                }
+            }
+        }
+
         uint256 fee = (nativeAmount * platformFee) / 10000;
         uint256 nativeAfterFee = nativeAmount - fee;
 
@@ -422,6 +518,9 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         currentSupply = supplyBefore + tokensOut;
         totalVolume += nativeAmount;
         totalNativeRaised += nativeAmount;
+        // PR 3 — explicit accounting. The buyer's net (post-fee) is the only
+        // native that belongs to the curve; fees go to their own buckets.
+        curveNativeBalance += nativeAfterFee;
         lastBuyBlock[msg.sender] = block.number;
 
         // Accumulate creator and referrer fees (pull pattern — safe)
@@ -447,19 +546,28 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             feeRecipient.sendValue(platformCut);
         }
 
-        // Soft-launch refund (after fee + token transfers, before graduation).
-        // Emitting `msg.value` (= requested) explicitly alongside the clamped
-        // `nativeAmount` (= accepted) makes ops dashboards' "real demand"
-        // queries trivial without reconstructing requested off-chain.
-        if (refundAmount > 0) {
-            payable(msg.sender).sendValue(refundAmount);
-            emit SoftLaunchCapHit(
-                address(token),
-                msg.sender,
-                msg.value,
-                nativeAmount,
-                refundAmount
-            );
+        // Combined refund (soft-launch overflow + graduation overpayment).
+        // Emit one event per refund cause so ops can distinguish them.
+        uint256 totalRefund = softLaunchRefund + graduationRefund;
+        if (totalRefund > 0) {
+            payable(msg.sender).sendValue(totalRefund);
+            if (softLaunchRefund > 0) {
+                emit SoftLaunchCapHit(
+                    address(token),
+                    msg.sender,
+                    msg.value,
+                    acceptedAfterSoftLaunch,
+                    softLaunchRefund
+                );
+            }
+            if (graduationRefund > 0) {
+                emit GraduationOverpaymentRefunded(
+                    msg.sender,
+                    acceptedAfterSoftLaunch,
+                    nativeAmount,
+                    graduationRefund
+                );
+            }
         }
 
         // Handle graduation
@@ -580,6 +688,10 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Update state BEFORE external calls
         currentSupply = supplyBefore - tokenAmount;
         totalVolume += nativeOut;
+        // PR 3 — explicit accounting: gross native leaves the curve on a sell.
+        // The fee on it is split into accumulator buckets / sent to platform
+        // by the interaction block below; the seller pockets nativeAfterFee.
+        curveNativeBalance -= nativeOut;
 
         // Accumulate creator and referrer fees (pull pattern — safe)
         creatorAccumulatedFees += creatorCut;
@@ -848,66 +960,167 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @dev Graduate token - Automatic DEX liquidity provision with LP locking
-     * @notice AUTOMATED DEX INTEGRATION:
-     *  - 70% of funds → DEX liquidity (LP tokens locked 6 months)
-     *  - 20% of funds → Creator (withdrawable)
-     *  - 10% of funds → Platform (immediate transfer)
+     * @dev Graduate token — PR 3 explicit-accounting rebuild.
+     *
+     * Invariants this function preserves (see plan §5 / PR 3 acceptance
+     * criteria):
+     *  1. The graduation buyer never overpays — guaranteed upstream by
+     *     the graduation overpayment clamp in `buyTokens`. Here we just
+     *     use the explicit `curveNativeBalance` instead of
+     *     `address(this).balance`, which would conflate accumulated
+     *     creator/referrer fee buckets and any stray native.
+     *  2. LP starts at the final sigmoid spot price within ≤0.1% — the
+     *     LP token / native ratio is computed from `finalPrice` directly,
+     *     not from a "70% of native" target that would float with how
+     *     much excess native happened to be in the contract.
+     *  3. Of the remaining 200M unsold tokens: 70% → LP, 20% → vesting,
+     *     10% → treasury. Tokens that can't be paired with native at
+     *     finalPrice spill into treasury (token side), never the native
+     *     side; we never fabricate native and never create a mismatched LP.
+     *  4. CreatorVesting drips linearly per block over 6 months, cliff at
+     *     graduation block.
+     *
+     * Fee buckets (creatorAccumulatedFees, referrerAccumulatedFees) are
+     * untouched here — those are pull-payment buckets settled separately.
      */
     function _graduateToken() internal {
         isGraduated = true;
 
-        // Exclude accumulated creator/referrer fees from graduation split
-        uint256 reservedFees = creatorAccumulatedFees + referrerAccumulatedFees;
-        uint256 contractBalance = address(this).balance - reservedFees;
+        uint256 nativeAvailable = curveNativeBalance;
+        uint256 finalPrice = BondingCurveMath.getPriceSigmoid(
+            BondingCurveMath.GRADUATION_THRESHOLD
+        );
+        uint256 remainingSupply = BondingCurveMath.TOTAL_SUPPLY -
+            BondingCurveMath.GRADUATION_THRESHOLD;
 
-        // ECONOMIC MODEL: Three-way split for automated DEX liquidity
-        uint256 liquidityAmount = (contractBalance * DEX_LIQUIDITY_PERCENT) / 100; // 70%
-        uint256 creatorShare = (contractBalance * CREATOR_PERCENT) / 100; // 20%
-        uint256 platformShare = (contractBalance * PLATFORM_PERCENT) / 100; // 10%
+        // Token allocation — 70% LP / 20% vesting / 10% treasury.
+        uint256 tokensForLPTarget = (remainingSupply * LP_TOKEN_BPS) / 10000;
+        uint256 tokensForVesting = (remainingSupply * VESTING_TOKEN_BPS) / 10000;
+        uint256 tokensForTreasury =
+            remainingSupply - tokensForLPTarget - tokensForVesting;
 
-        // Track creator-withdrawable amount
-        totalGraduationFunds = creatorShare;
-        withdrawableGraduationFunds[tokenCreator] = creatorShare;
+        // Price-continuous LP sizing. nativeForLP = tokensForLP × finalPrice
+        // (units: token × wei/token = wei). If we don't have enough native to
+        // pair the full 70% of tokens at finalPrice, we shrink tokens (never
+        // native) and roll the difference to the treasury allocation.
+        uint256 nativeForLPRequired = (tokensForLPTarget * finalPrice) / PRECISION;
 
-        // Transfer platform share immediately (safe, trusted recipient)
-        feeRecipient.sendValue(platformShare);
+        uint256 tokensForLP;
+        uint256 nativeForLP;
+        if (nativeForLPRequired <= nativeAvailable) {
+            tokensForLP = tokensForLPTarget;
+            nativeForLP = nativeForLPRequired;
+        } else {
+            // Native shortfall path: fit tokens to available native at finalPrice.
+            nativeForLP = nativeAvailable;
+            tokensForLP = (nativeForLP * PRECISION) / finalPrice;
+            tokensForTreasury += tokensForLPTarget - tokensForLP;
+        }
 
-        // AUTOMATED LIQUIDITY PROVISION to DEX
-        _addLiquidityToDEX(liquidityAmount);
+        uint256 nativeRemaining = nativeAvailable - nativeForLP;
+        // Mirror plan §5a's 20:10 native split. Anchored on the surplus that
+        // remained after the price-continuous LP draw, not on raw 70/20/10 of
+        // total raise — that decoupling is necessary because the LP draw is
+        // sized by curve geometry, not by a percentage of native.
+        uint256 creatorNative = (nativeRemaining * 2) / 3;
+        uint256 treasuryNative = nativeRemaining - creatorNative;
 
+        // ===== EFFECTS (state) =====
+        curveNativeBalance = 0;
+        totalGraduationFunds = creatorNative;
+        withdrawableGraduationFunds[tokenCreator] = creatorNative;
+
+        // ===== INTERACTIONS =====
+        // 1) Creator vesting — deploy + fund. CreatorVesting holds the
+        //    20%-of-remainder allocation and drips it linearly per block.
+        CreatorVesting vesting = new CreatorVesting(
+            address(token),
+            tokenCreator,
+            tokensForVesting,
+            block.number,
+            VESTING_DURATION_BLOCKS
+        );
+        creatorVesting = address(vesting);
+        if (tokensForVesting > 0) {
+            token.safeTransfer(address(vesting), tokensForVesting);
+        }
+        emit CreatorVestingCreated(
+            address(token),
+            tokenCreator,
+            address(vesting),
+            tokensForVesting,
+            block.number,
+            block.number + VESTING_DURATION_BLOCKS
+        );
+
+        // 2) Treasury token allocation. PR 3 minimal: feeRecipient acts as
+        //    the treasury sink; a dedicated Treasury vault contract gets
+        //    plugged in here in a later PR without further AMM changes.
+        if (tokensForTreasury > 0) {
+            token.safeTransfer(feeRecipient, tokensForTreasury);
+        }
+
+        // 3) DEX liquidity. Wrapped so a DEX hiccup doesn't brick graduation.
+        //    On failure the LP-earmarked tokens + native roll into treasury.
+        bool lpAdded;
+        uint256 lpNativeRefund;
+        (lpAdded, lpNativeRefund) = _addLiquidityToDEX(nativeForLP, tokensForLP);
+        if (!lpAdded) {
+            treasuryNative += nativeForLP;
+            if (tokensForLP > 0) {
+                token.safeTransfer(feeRecipient, tokensForLP);
+            }
+        } else if (lpNativeRefund > 0) {
+            // DEX consumed less than offered (slippage / ratio rebalance);
+            // unused native goes to treasury, never silently leaks.
+            treasuryNative += lpNativeRefund;
+        }
+
+        // 4) Treasury native push.
+        if (treasuryNative > 0) {
+            feeRecipient.sendValue(treasuryNative);
+        }
+        emit TreasuryAllocated(feeRecipient, treasuryNative, tokensForTreasury);
+
+        // Legacy events kept for indexer compat.
         emit GraduationFundsSplit(
-            creatorShare,
-            platformShare,
+            creatorNative,
+            treasuryNative,
             tokenCreator,
             feeRecipient
         );
+        emit Graduated(currentSupply, nativeAvailable, block.timestamp);
 
-        emit Graduated(
+        // V2 structured event with the values the LP price-continuity
+        // invariant test pins.
+        emit GraduationTriggered(
+            address(token),
             currentSupply,
-            contractBalance,
-            block.timestamp
+            finalPrice,
+            nativeForLP,
+            tokensForLP
         );
     }
 
     /**
-     * @dev Add liquidity to DEX and lock LP tokens
-     * @param nativeAmount Amount of native currency to add
-     * SECURITY: Uses try/catch to prevent graduation DoS on DEX failure
+     * @dev Add liquidity to the DEX with explicit token + native amounts.
+     * Returns (success, nativeRefund) where nativeRefund is the portion of
+     * the offered native the DEX did not consume (handled by the caller —
+     * PR 3 routes it to the treasury, never leaves it untracked).
+     * SECURITY: try/catch prevents a DEX failure from bricking graduation.
      */
-    function _addLiquidityToDEX(uint256 nativeAmount) internal {
-        // Get all remaining tokens in AMM
-        uint256 tokenAmount = token.balanceOf(address(this));
-
+    function _addLiquidityToDEX(uint256 nativeAmount, uint256 tokenAmount)
+        internal
+        returns (bool success, uint256 nativeRefund)
+    {
         if (tokenAmount == 0 || nativeAmount == 0) {
-            // If no tokens/native, skip DEX integration (shouldn't happen in normal flow)
-            return;
+            // Nothing to LP. Caller's `if (!lpAdded)` branch then folds the
+            // earmarked native + tokens into treasury, so signaling false
+            // keeps accounting honest even in the degenerate case.
+            return (false, 0);
         }
 
-        // Approve router to spend tokens
         token.safeIncreaseAllowance(address(dexRouter), tokenAmount);
-
-        // Calculate minimum amounts (5% slippage tolerance)
         uint256 minTokenAmount = (tokenAmount * (100 - DEX_SLIPPAGE_TOLERANCE)) / 100;
         uint256 minNativeAmount = (nativeAmount * (100 - DEX_SLIPPAGE_TOLERANCE)) / 100;
 
@@ -916,37 +1129,24 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             tokenAmount,
             minTokenAmount,
             minNativeAmount,
-            address(this), // LP tokens sent to this contract (will be locked)
-            block.timestamp + 300 // 5 minute deadline
+            address(this),
+            block.timestamp + 300
         ) returns (uint256 amountToken, uint256 amountETH, uint256 liquidity) {
-            // Get LP token address from factory
             address weth = dexRouter.WETH();
             address factory = dexRouter.factory();
             address lpToken = IPancakeFactory(factory).getPair(address(token), weth);
 
-            // Store LP token info
             lpTokenAddress = lpToken;
             lpTokensLocked = liquidity;
-            lpUnlockTime = block.timestamp + LP_LOCK_DURATION; // 6 months from now
+            lpUnlockTime = block.timestamp + LP_LOCK_DURATION;
 
-            emit LiquidityAdded(
-                amountToken,
-                amountETH,
-                liquidity,
-                lpToken,
-                lpToken
-            );
+            emit LiquidityAdded(amountToken, amountETH, liquidity, lpToken, lpToken);
+            emit LPTokensLocked(liquidity, lpUnlockTime, lpToken);
 
-            emit LPTokensLocked(
-                liquidity,
-                lpUnlockTime,
-                lpToken
-            );
+            return (true, nativeAmount - amountETH);
         } catch {
-            // If DEX liquidity fails, don't revert graduation
-            // Funds remain in contract for emergency withdrawal
-            // This prevents DoS attacks on graduation
             emit LiquidityProvisionFailed(nativeAmount, block.timestamp);
+            return (false, 0);
         }
     }
 
