@@ -98,11 +98,21 @@ export function handleTokenCreated(event: TokenCreatedEvent): void {
   token.totalSupply = event.params.totalSupply
   token.currentSupply = ZERO_BI // Starts at 0, increases with buys
 
-  // Load bonding curve parameters from AMM contract
+  // Load bonding curve parameters from AMM contract.
+  // V2 (issue #68): the AMM exposes legacy compatibility getters
+  // `basePrice()` / `slope()` / `curveType()` so this read keeps working.
+  // Curve-type ladder: 0 → LINEAR, 1 → EXPONENTIAL, 2 (or any other) → SIGMOID.
   let ammContract = BondingCurveAMM.bind(ammAddress)
   token.basePrice = ammContract.basePrice()
   token.slope = ammContract.slope()
-  token.curveType = ammContract.curveType() == 0 ? "LINEAR" : "EXPONENTIAL"
+  let curveTypeId = ammContract.curveType()
+  if (curveTypeId == 0) {
+    token.curveType = "LINEAR"
+  } else if (curveTypeId == 1) {
+    token.curveType = "EXPONENTIAL"
+  } else {
+    token.curveType = "SIGMOID"
+  }
   token.currentPrice = ammContract.getCurrentPrice()
 
   // Creator info

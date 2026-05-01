@@ -110,7 +110,11 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     // Block-based vesting duration. Phase 1 calibrated for Base mainnet
     // (~2-second blocks; 180 days = 7,776,000 blocks). Set as a `public`
     // constant so subgraphs / UIs can read it without a special call.
-    uint256 public constant VESTING_DURATION_BLOCKS = 7_776_000;
+    // Timestamp-based vesting duration. 180 days expressed in seconds so the
+    // intended wall-clock vesting period is identical on every chain
+    // regardless of block time (Base ~2s, BSC ~3s, Arbitrum variable).
+    // Switched from block-based per issue #68.
+    uint256 public constant VESTING_DURATION_SECONDS = 180 days;
 
     // Token allocation at graduation (of the 200M post-curve remainder).
     // Mirrors the native split, see plan §5a.
@@ -304,8 +308,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         address indexed creator,
         address indexed vestingContract,
         uint256 totalAmount,
-        uint256 startBlock,
-        uint256 endBlock
+        uint256 startTime,
+        uint256 endTime
     );
 
     event TreasuryAllocated(
@@ -854,6 +858,37 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         return BondingCurveMath.GRADUATION_THRESHOLD;
     }
 
+    // ============================================================
+    // Legacy compatibility getters (issue #68)
+    // ============================================================
+    //
+    // The V2 AMM dropped the per-token `basePrice` / `slope` / `curveType`
+    // immutables when the curve became standardized in PR 2. The subgraph
+    // (and any older indexer / dashboard pulling tokens off-chain) still
+    // calls those selectors during token creation, so V2 token indexing
+    // would revert without these shims. They are read-only, return values
+    // that make sense in the V2 model, and never mutate state.
+    //
+    // - basePrice() = spot price at supply 0 (= the actual entry price).
+    // - slope()     = 0 (sigmoid is non-linear; the legacy "slope" concept
+    //                 doesn't map onto it).
+    // - curveType() = 2, the new SIGMOID enum value. The subgraph mapping
+    //                 ladder is `0 → LINEAR`, `1 → EXPONENTIAL`,
+    //                 `2 (or default) → SIGMOID` — see
+    //                 subgraph/src/token-factory.ts.
+
+    function basePrice() external pure returns (uint256) {
+        return BondingCurveMath.getPriceSigmoid(0);
+    }
+
+    function slope() external pure returns (uint256) {
+        return 0;
+    }
+
+    function curveType() external pure returns (uint8) {
+        return 2; // V2 sigmoid
+    }
+
     /**
      * @dev Get market cap in native currency (BNB/ETH)
      * @return Market cap as currentSupply * currentPrice / PRECISION
@@ -1050,13 +1085,15 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
 
         // ===== INTERACTIONS =====
         // 1) Creator vesting — deploy + fund. CreatorVesting holds the
-        //    20%-of-remainder allocation and drips it linearly per block.
+        //    20%-of-remainder allocation and drips it linearly over time.
+        //    Timestamp-based per issue #68 so the duration is wall-clock
+        //    correct on every chain.
         CreatorVesting vesting = new CreatorVesting(
             address(token),
             tokenCreator,
             tokensForVesting,
-            block.number,
-            VESTING_DURATION_BLOCKS
+            block.timestamp,
+            VESTING_DURATION_SECONDS
         );
         creatorVesting = address(vesting);
         if (tokensForVesting > 0) {
@@ -1067,8 +1104,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             tokenCreator,
             address(vesting),
             tokensForVesting,
-            block.number,
-            block.number + VESTING_DURATION_BLOCKS
+            block.timestamp,
+            block.timestamp + VESTING_DURATION_SECONDS
         );
 
         // 2) Treasury token allocation. PR 3 minimal: feeRecipient acts as
