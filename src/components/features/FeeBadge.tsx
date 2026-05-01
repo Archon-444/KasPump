@@ -39,15 +39,23 @@ export const FeeBadge: React.FC<FeeBadgeProps> = ({
   const contracts = useContracts();
   const [feeBps, setFeeBps] = useState<bigint | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!ammAddress) return;
+    if (!ammAddress) {
+      setLoading(false);
+      setError(false);
+      setFeeBps(null);
+      return;
+    }
+    setLoading(true);
+    setError(false);
     try {
       const amm = contracts.getBondingCurveContract(ammAddress);
       const bps = await amm.getPlatformFee();
       setFeeBps(BigInt(bps.toString()));
     } catch (err) {
-      // Don't blow up the trading panel if the read transiently fails.
+      setError(true);
       console.warn('FeeBadge: getPlatformFee read failed', err);
     } finally {
       setLoading(false);
@@ -74,9 +82,11 @@ export const FeeBadge: React.FC<FeeBadgeProps> = ({
       </div>
       <div className="text-right">
         <div className="text-sm font-mono tabular-nums text-white">
-          {loading || feePct == null ? '—' : `${feePct.toFixed(2)}%`}
+          {loading ? 'Loading fee…' : error ? 'Fee unavailable' : feePct == null ? '—' : `${feePct.toFixed(2)}%`}
         </div>
-        <div className="text-[10px] text-gray-500">decreases as token grows</div>
+        <div className="text-[10px] text-gray-500">
+          {!ammAddress ? 'No AMM address' : 'decreases as token grows'}
+        </div>
       </div>
       {feePct != null && feePct > 5 && (
         <Badge variant="warning" className="ml-2 text-[10px]">

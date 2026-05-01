@@ -26,7 +26,7 @@ export interface SubgraphToken {
   currentSupply: string
   basePrice: string
   slope: string
-  curveType: 'LINEAR' | 'EXPONENTIAL'
+  curveType: 'LINEAR' | 'EXPONENTIAL' | 'SIGMOID'
   currentPrice: string
   creator: {
     id: string

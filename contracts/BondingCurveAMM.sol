@@ -107,10 +107,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     // Zero until graduation; set inside `_graduateToken`.
     address public creatorVesting;
 
-    // Block-based vesting duration. Phase 1 calibrated for Base mainnet
-    // (~2-second blocks; 180 days = 7,776,000 blocks). Set as a `public`
-    // constant so subgraphs / UIs can read it without a special call.
-    uint256 public constant VESTING_DURATION_BLOCKS = 7_776_000;
+    // Timestamp-based vesting duration for the creator's allocation.
+    uint256 public constant VESTING_DURATION_SECONDS = 180 days;
 
     // Token allocation at graduation (of the 200M post-curve remainder).
     // Mirrors the native split, see plan §5a.
@@ -304,8 +302,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         address indexed creator,
         address indexed vestingContract,
         uint256 totalAmount,
-        uint256 startBlock,
-        uint256 endBlock
+        uint256 startTime,
+        uint256 endTime
     );
 
     event TreasuryAllocated(
@@ -1055,8 +1053,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             address(token),
             tokenCreator,
             tokensForVesting,
-            block.number,
-            VESTING_DURATION_BLOCKS
+            block.timestamp,
+            VESTING_DURATION_SECONDS
         );
         creatorVesting = address(vesting);
         if (tokensForVesting > 0) {
@@ -1067,8 +1065,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             tokenCreator,
             address(vesting),
             tokensForVesting,
-            block.number,
-            block.number + VESTING_DURATION_BLOCKS
+            block.timestamp,
+            block.timestamp + VESTING_DURATION_SECONDS
         );
 
         // 2) Treasury token allocation. PR 3 minimal: feeRecipient acts as
@@ -1299,3 +1297,16 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
      */
     receive() external payable {}
 }
+    // ========== LEGACY COMPATIBILITY GETTERS ==========
+    // Preserved for subgraph/indexer compatibility with V1 surfaces.
+    function basePrice() external pure returns (uint256) {
+        return BondingCurveMath.getPriceSigmoid(0);
+    }
+
+    function slope() external pure returns (uint256) {
+        return 0;
+    }
+
+    function curveType() external pure returns (uint8) {
+        return 2; // V2 sigmoid
+    }

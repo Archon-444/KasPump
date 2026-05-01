@@ -234,8 +234,8 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
           </div>
           
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium text-gray-500 bg-white/[0.04] px-2 py-0.5 rounded-md capitalize">
-              {token.curveType}
+            <span className="text-[10px] font-medium text-gray-500 bg-white/[0.04] px-2 py-0.5 rounded-md">
+              Standard sigmoid curve
             </span>
             <HealthIcon size={12} className={cn(
               health.overall === 'excellent' ? 'text-green-400' :

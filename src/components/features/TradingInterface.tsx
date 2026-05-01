@@ -54,6 +54,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   // `getPlatformFee()` against the new post-trade supply. No interval polling.
   const [lastTradeAt, setLastTradeAt] = useState<number>(0);
   const [feeBps, setFeeBps] = useState<number>(0);
+  const [sniperProtectionRemaining, setSniperProtectionRemaining] = useState<number>(0);
 
   const slippagePresets = [0.1, 0.5, 1.0, 3.0];
   const amountPresets = [25, 50, 75, 100];
@@ -182,15 +183,38 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
     return `${tradeType === 'buy' ? 'Buy' : 'Sell'} ${token.symbol}`;
   };
 
-  const sniperProtectionActive = (() => {
-    if (!token.createdAt) return false;
-    const elapsed = (Date.now() - token.createdAt.getTime()) / 1000;
-    return elapsed < 60;
-  })();
+  useEffect(() => {
+    let cancelled = false;
+    if (!token.ammAddress) {
+      setSniperProtectionRemaining(0);
+      return;
+    }
+    (async () => {
+      try {
+        const amm = contracts.getBondingCurveContract(token.ammAddress);
+        const [active, remaining] = await Promise.all([
+          amm.isSniperProtectionActive(),
+          amm.sniperProtectionRemaining(),
+        ]);
+        if (!cancelled) {
+          setSniperProtectionRemaining(
+            active ? Number(remaining.toString()) : 0
+          );
+        }
+      } catch (error) {
+        // TODO(PR7): replace heuristic fallback with contract read once universally exposed.
+        if (!token.createdAt || cancelled) return;
+        const elapsed = (Date.now() - token.createdAt.getTime()) / 1000;
+        setSniperProtectionRemaining(Math.max(0, Math.ceil(60 - elapsed)));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [contracts, token.ammAddress, token.createdAt, lastTradeAt]);
 
-  const sniperSecondsLeft = sniperProtectionActive
-    ? Math.max(0, Math.ceil(60 - (Date.now() - token.createdAt.getTime()) / 1000))
-    : 0;
+  const sniperProtectionActive = sniperProtectionRemaining > 0;
+  const sniperSecondsLeft = sniperProtectionRemaining;
 
   return (
     <Card className={cn('p-5 space-y-5', className)}>
