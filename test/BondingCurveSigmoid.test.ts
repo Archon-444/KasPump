@@ -82,8 +82,69 @@ async function deployFixture() {
   return { amm, token, deployer };
 }
 
+// Anchor schedule duplicated from the generator so the test is the single
+// source of truth for "what supplies do the 31 anchors live at?"
+const ANCHOR_PCTS = [
+  0, 4, 8, 12, 16, 20,
+  23, 26, 29, 32, 35, 38, 41, 44, 47,
+  50, 53, 56, 59, 62, 65, 68, 71, 74, 77,
+  80, 84, 88, 92, 96, 100,
+];
+
+describe("BondingCurveMath generator-vs-table parity", function () {
+  // Strict regression guard against the class of bug where the on-chain
+  // anchor table drifts from what scripts/generate-sigmoid-anchors.js
+  // emits. The PR-2-follow-up landed because the integral column was
+  // generator-fresh but the price column had been mis-transcribed
+  // (off-by-one shift starting at idx 10), and the original accuracy test
+  // only checked integrals so the drift slipped past CI. Now we pin every
+  // row of both columns at every anchor supply.
+  it("on-chain spot price at every anchor supply matches the generator exactly", async function () {
+    const { amm } = await deployFixture();
+    for (let i = 0; i < ANCHOR_PCTS.length; i++) {
+      const pct = ANCHOR_PCTS[i];
+      const supply = (GRADUATION_THRESHOLD * BigInt(pct)) / 100n;
+      const onChain = await amm.spotPriceAtSupply(supply);
+      const truth = trueSigmoidPrice(supply);
+      expect(onChain).to.equal(
+        truth,
+        `anchor #${i} (${pct}% of threshold): on-chain=${onChain} generator=${truth}`
+      );
+    }
+  });
+
+  it("on-chain cumulative integral at every anchor supply matches the generator exactly", async function () {
+    const { amm } = await deployFixture();
+    for (let i = 0; i < ANCHOR_PCTS.length; i++) {
+      const pct = ANCHOR_PCTS[i];
+      const supply = (GRADUATION_THRESHOLD * BigInt(pct)) / 100n;
+      // proceedsFromSell(supply, 0) === integral(supply) by definition.
+      const onChain = supply === 0n
+        ? 0n
+        : await amm.calculateNativeOut(supply, supply);
+      const truth = trueSigmoidIntegral(supply);
+      expect(onChain).to.equal(
+        truth,
+        `anchor #${i} (${pct}% of threshold): on-chain=${onChain} generator=${truth}`
+      );
+    }
+  });
+
+  it("the last two anchor prices are NOT identical (rules out the off-by-one regression)", async function () {
+    // Specific regression guard against the duplicated-tail symptom that
+    // first surfaced this drift: idx 29 and idx 30 must differ because the
+    // sigmoid is still climbing between 96% and 100% of threshold.
+    const { amm } = await deployFixture();
+    const supply29 = (GRADUATION_THRESHOLD * 96n) / 100n;
+    const supply30 = GRADUATION_THRESHOLD;
+    const p29 = await amm.spotPriceAtSupply(supply29);
+    const p30 = await amm.spotPriceAtSupply(supply30);
+    expect(p30).to.be.gt(p29);
+  });
+});
+
 describe("BondingCurveMath sigmoid accuracy", function () {
-  it("anchor table matches the true sigmoid price within 0.5% across the curve", async function () {
+  it("anchor table matches the true sigmoid integral within 0.5% across the curve", async function () {
     const { amm } = await deployFixture();
     // 100 sample supplies spanning [0, GRADUATION_THRESHOLD]. Skip very near
     // 0 where the absolute price is tiny and rounding dominates the relative
@@ -102,6 +163,22 @@ describe("BondingCurveMath sigmoid accuracy", function () {
     }
     // Stash for visibility — well under the 0.1-0.3% target stated in the plan.
     expect(maxBpsError).to.be.lt(50);
+  });
+
+  it("anchor table matches the true sigmoid spot price within 0.5% across the curve", async function () {
+    const { amm } = await deployFixture();
+    // Sweep 100 supplies. For each, compare the on-chain interpolated spot
+    // price against the JS-computed true sigmoid. Skip supply 0 to keep the
+    // relative-error metric meaningful at low absolute prices.
+    const samples = 100;
+    for (let i = 1; i <= samples; i++) {
+      const supply = (GRADUATION_THRESHOLD * BigInt(i)) / BigInt(samples);
+      const onChain = await amm.spotPriceAtSupply(supply);
+      const truth = trueSigmoidPrice(supply);
+      const diff = onChain > truth ? onChain - truth : truth - onChain;
+      const bps = (diff * 10000n) / truth;
+      expect(bps).to.be.lt(50n, `spot-price error at ${i}% of threshold = ${bps} bps`);
+    }
   });
 
   it("spot price grows monotonically across the full curve", async function () {

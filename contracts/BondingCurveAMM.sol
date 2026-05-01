@@ -405,7 +405,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             // Deviation guard: any single trade moving spot price > 50% vs the
             // last-trade snapshot is rejected during the sniper window.
             uint256 supplyAfter = supplyBefore + tokensOut;
-            uint256 spotProjected = _spotPriceAtSupply(supplyAfter);
+            uint256 spotProjected = spotPriceAtSupply(supplyAfter);
             uint256 ref = lastTradePrice;
             if (ref > 0) {
                 uint256 diff = spotProjected > ref ? spotProjected - ref : ref - spotProjected;
@@ -564,7 +564,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         bool sniperActiveSell = block.timestamp < launchTimestamp + sniperProtectionDuration;
         if (sniperActiveSell) {
             uint256 supplyAfter = supplyBefore - tokenAmount;
-            uint256 spotProjected = _spotPriceAtSupply(supplyAfter);
+            uint256 spotProjected = spotPriceAtSupply(supplyAfter);
             uint256 ref = lastTradePrice;
             if (ref > 0) {
                 uint256 diff = spotProjected > ref ? spotProjected - ref : ref - spotProjected;
@@ -776,9 +776,13 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @dev Spot price at a hypothetical supply, used by the deviation guard.
+     * @dev Spot price at a hypothetical supply. Used by the deviation guard
+     * internally and exposed externally as a pure diagnostic so UIs and
+     * indexers can render "what would the price be at X supply?" without
+     * mutating state, and so anchor-table regression tests can pin every
+     * row of the table from outside the contract.
      */
-    function _spotPriceAtSupply(uint256 supply) internal pure returns (uint256) {
+    function spotPriceAtSupply(uint256 supply) public pure returns (uint256) {
         return BondingCurveMath.getPriceSigmoid(supply);
     }
 

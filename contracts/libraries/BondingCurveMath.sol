@@ -78,9 +78,17 @@ library BondingCurveMath {
         return _integralAt(sFrom) - _integralAt(sTo);
     }
 
-    /// Inverse: how many token-wei can a buyer mint by depositing `nativeIn`
-    /// wei when the curve is currently at `currentSupply`. Returns 0 if the
-    /// trade would graduate; caller is responsible for clamping.
+    /// Inverse: how many token-wei a buyer mints by depositing `nativeIn`
+    /// wei when the curve is at `currentSupply`.
+    ///
+    /// Clamp behavior: if `nativeIn` exceeds the cost of buying every
+    /// remaining token to graduation, returns `GRADUATION_THRESHOLD -
+    /// currentSupply` so the caller sees a graduation-ending mint. The
+    /// caller is responsible for refunding any excess native — this
+    /// function does not see `msg.value` and cannot refund itself. PR 3
+    /// (graduation correctness) wires that refund into the AMM.
+    ///
+    /// Reverts if `currentSupply` is already at or past graduation.
     ///
     /// Within our piecewise-linear approximation the integral is exact-linear
     /// inside a segment, so a single linear inversion per crossed segment is
@@ -232,26 +240,26 @@ library BondingCurveMath {
         if (idx == 7)  return 1436590114;
         if (idx == 8)  return 1657304192;
         if (idx == 9)  return 1901295125;
-        if (idx == 10) return 2168751291;
-        if (idx == 11) return 2458618028;
-        if (idx == 12) return 2768349064;
-        if (idx == 13) return 3094711574;
-        if (idx == 14) return 3433717537;
-        if (idx == 15) return 3780617345;
-        if (idx == 16) return 4130032012;
-        if (idx == 17) return 4476237717;
-        if (idx == 18) return 4813548876;
-        if (idx == 19) return 5136809396;
-        if (idx == 20) return 5440963474;
-        if (idx == 21) return 5721632688;
-        if (idx == 22) return 5975710722;
-        if (idx == 23) return 6201810822;
-        if (idx == 24) return 6400636771;
-        if (idx == 25) return 6573817013;
-        if (idx == 26) return 6804052852;
-        if (idx == 27) return 6941490411;
-        if (idx == 28) return 7053567255;
-        if (idx == 29) return 7144305951;
+        if (idx == 10) return 2167878730;
+        if (idx == 11) return 2455447372;
+        if (idx == 12) return 2761406867;
+        if (idx == 13) return 3082196745;
+        if (idx == 14) return 3413408307;
+        if (idx == 15) return 3750000000;
+        if (idx == 16) return 4086591693;
+        if (idx == 17) return 4417803255;
+        if (idx == 18) return 4738593133;
+        if (idx == 19) return 5044552628;
+        if (idx == 20) return 5332121270;
+        if (idx == 21) return 5598704875;
+        if (idx == 22) return 5842695808;
+        if (idx == 23) return 6063409886;
+        if (idx == 24) return 6260963474;
+        if (idx == 25) return 6436117013;
+        if (idx == 26) return 6636999510;
+        if (idx == 27) return 6804052852;
+        if (idx == 28) return 6941490411;
+        if (idx == 29) return 7053567255;
         if (idx == 30) return 7144305951;
         revert SupplyOutOfRange();
     }
