@@ -39,7 +39,7 @@ export async function GET() {
             chainId: { type: 'number', optional: true },
             limit: { type: 'number', optional: true, default: 10, max: 50 },
           },
-          response: '{ trending: ScoredToken[], kingOfTheHill: ScoredToken | null, aboutToGraduate: ScoredToken[], totalTokens: number }',
+          response: '{ trending: ScoredToken[], kingOfTheHill: ScoredToken | null, justLaunched: ScoredToken[], aboutToGraduate: ScoredToken[], fading: ScoredToken[], totalTokens: number }',
         },
       },
       trades: {

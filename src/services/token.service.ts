@@ -14,9 +14,13 @@ export interface TokenDetails {
   currentSupply: number;
   currentPrice: number;
   marketCap: number;
+  // V2: per-token curve params are gone — curve shape is standardized
+  // (BondingCurveMath sigmoid). The fields stay on this DTO so legacy UI
+  // and indexer consumers keep working; they're populated from defaults
+  // for V2 tokens.
   basePrice: number;
   slope: number;
-  curveType: 'linear' | 'exponential';
+  curveType: 'sigmoid' | 'linear' | 'exponential';
   graduationThreshold: number;
   graduationProgress: number;
   volume24h: number;
@@ -138,10 +142,10 @@ export class TokenService {
       }
 
       const currentSupply = tradingData?.currentSupply || 0;
-      const currentPrice = tradingData?.currentPrice || parseFloat(ethers.formatEther(config.basePrice));
-      
-      // Handle BigInt properly by converting to string/number explicitly
-      const curveTypeVal = Number(config.curveType);
+      // V2: spot price comes from the AMM's live sigmoid evaluation. There is
+      // no per-token basePrice on the config any more; fall back to the live
+      // spot price when tradingData is missing.
+      const currentPrice = tradingData?.currentPrice || 0;
 
       return {
         address: tokenAddress,
@@ -154,9 +158,10 @@ export class TokenService {
         currentSupply,
         currentPrice,
         marketCap: currentSupply * currentPrice,
-        basePrice: parseFloat(ethers.formatEther(config.basePrice)),
-        slope: parseFloat(ethers.formatEther(config.slope)),
-        curveType: curveTypeVal === 0 ? 'linear' : 'exponential',
+        // V2: legacy fields surface defaults so older UI keeps rendering.
+        basePrice: 0,
+        slope: 0,
+        curveType: 'sigmoid',
         graduationThreshold: parseFloat(ethers.formatEther(config.graduationThreshold)),
         graduationProgress: tradingData?.graduation || 0,
         volume24h: tradingData?.totalVolume || 0,

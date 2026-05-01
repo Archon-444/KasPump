@@ -10,11 +10,18 @@ const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '';
 // Check if project ID is valid (not a placeholder)
 const hasValidProjectId = projectId && projectId !== 'your_walletconnect_project_id_here' && projectId.length > 0;
 
-// Helper to get chains - only imports when called
-// Includes mainnet + testnet coverage for BSC, Arbitrum, and Base
+// Helper to get chains - only imports when called.
+// Phase 1 rollout (V2): Base only. BSC + Arbitrum re-enabled in Phase 2/3
+// after >=2 weeks of clean Base mainnet activity. Re-enable by uncommenting
+// the relevant entries in the returned array.
 async function getChains() {
-  const { bsc, bscTestnet, arbitrum, arbitrumSepolia, base, baseSepolia } = await import('wagmi/chains');
-  return [bsc, arbitrum, base, bscTestnet, arbitrumSepolia, baseSepolia] as const;
+  const { /* bsc, bscTestnet, arbitrum, arbitrumSepolia, */ base, baseSepolia } = await import('wagmi/chains');
+  return [
+    base,
+    baseSepolia,
+    // Phase 2 — BSC: bsc, bscTestnet,
+    // Phase 3 — Arbitrum: arbitrum, arbitrumSepolia,
+  ] as const;
 }
 
 // Helper to safely get origin (only on client)
@@ -140,31 +147,19 @@ async function createWagmiConfig(): Promise<any> {
     const connectors = await createConnectors();
     const defaultRpcUrls = getDefaultRpcUrls();
 
-    const transports = chains.reduce<Record<number, ReturnType<typeof http>>>((acc, chain) => {
-      let envUrl: string | undefined;
-      switch (chain.id) {
-        case 56:
-          envUrl = process.env.NEXT_PUBLIC_BSC_RPC_URL;
-          break;
-        case 97:
-          envUrl = process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL;
-          break;
-        case 42161:
-          envUrl = process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL;
-          break;
-        case 421614:
-          envUrl = process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL;
-          break;
-        case 8453:
-          envUrl = process.env.NEXT_PUBLIC_BASE_RPC_URL;
-          break;
-        case 84532:
-          envUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL;
-          break;
-        default:
-          envUrl = undefined;
-      }
+    // Env var lookup keyed by chain id. BSC + Arbitrum entries stay so re-enabling
+    // those chains in `getChains` Just Works.
+    const envUrlByChainId: Record<number, string | undefined> = {
+      56: process.env.NEXT_PUBLIC_BSC_RPC_URL,
+      97: process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL,
+      42161: process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL,
+      421614: process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL,
+      8453: process.env.NEXT_PUBLIC_BASE_RPC_URL,
+      84532: process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL,
+    };
 
+    const transports = chains.reduce<Record<number, ReturnType<typeof http>>>((acc, chain) => {
+      const envUrl = envUrlByChainId[chain.id];
       const rpcUrl = envUrl || defaultRpcUrls[chain.id];
       if (rpcUrl) {
         acc[chain.id] = http(rpcUrl);
@@ -200,10 +195,10 @@ async function createWagmiConfig(): Promise<any> {
 
       if (fallbackConnectors.length > 0) {
         return createConfig({
-          chains: [chains[0]], // Default to first supported chain (BSC)
+          chains: [chains[0]], // Default to first supported chain (Base in Phase 1)
           connectors: fallbackConnectors,
           transports: {
-            [chains[0].id]: http(defaultRpcUrls[chains[0].id] || defaultRpcUrls[56]),
+            [chains[0].id]: http(defaultRpcUrls[chains[0].id]),
           },
         });
       } else {
@@ -212,7 +207,7 @@ async function createWagmiConfig(): Promise<any> {
           chains: [chains[0]],
           connectors: [],
           transports: {
-            [chains[0].id]: http(defaultRpcUrls[chains[0].id] || defaultRpcUrls[56]),
+            [chains[0].id]: http(defaultRpcUrls[chains[0].id]),
           },
         });
       }
@@ -224,10 +219,10 @@ async function createWagmiConfig(): Promise<any> {
         const chains = await getChains();
         const defaultRpcUrls = getDefaultRpcUrls();
         return createConfig({
-          chains: [chains[0]], // BSC Mainnet only
+          chains: [chains[0]], // Phase 1 default: Base
           connectors: [],
           transports: {
-            [chains[0].id]: http(defaultRpcUrls[56]),
+            [chains[0].id]: http(defaultRpcUrls[chains[0].id]),
           },
         });
       } catch {

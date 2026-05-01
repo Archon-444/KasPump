@@ -216,7 +216,7 @@ export function useCreatorTokens() {
                 volume24h: volumeNumber, // Simplified - would calculate 24h volume
                 holders: holderCount,
                 createdAt: new Date(Number(config.createdAt) * 1000),
-                curveType: config.curveType === 0 ? 'linear' : 'exponential',
+                curveType: 'sigmoid' as const,
                 bondingCurveProgress: parseFloat(ethers.formatUnits(graduation, 2)),
                 ammAddress,
                 isGraduated,

@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./BondingCurveAMM.sol";
+import "./libraries/BondingCurveMath.sol";
 import "./interfaces/IDexRouterRegistry.sol";
 
 /**
@@ -26,31 +27,26 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
 
     // ========== STRUCTS ==========
 
+    // V2: total supply, curve type, basePrice, slope, graduationThreshold are
+    // standardized at the protocol level — see BondingCurveMath. The struct
+    // keeps the same field names for indexer/subgraph compat but populates
+    // the now-fixed values from the library constants at create time.
     struct TokenConfig {
         string name;
         string symbol;
         string description;
         string imageUrl;
-        uint256 totalSupply;
-        uint256 basePrice;
-        uint256 slope;
-        CurveType curveType;
-        uint256 graduationThreshold;
+        uint256 totalSupply;          // = BondingCurveMath.TOTAL_SUPPLY
+        uint256 graduationThreshold;  // = BondingCurveMath.GRADUATION_THRESHOLD
         address creator;
         uint256 createdAt;
     }
-
-    enum CurveType { LINEAR, EXPONENTIAL }
 
     struct CreateTokenParams {
         string name;
         string symbol;
         string description;
         string imageUrl;
-        uint256 totalSupply;
-        uint256 basePrice;
-        uint256 slope;
-        CurveType curveType;
         string twitterUrl;
         string telegramUrl;
         string websiteUrl;
@@ -94,8 +90,6 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     uint256 public constant MAX_NAME_LENGTH = 50;
     uint256 public constant MAX_SYMBOL_LENGTH = 10;
     uint256 public constant MAX_DESCRIPTION_LENGTH = 500;
-    uint256 public constant MIN_TOTAL_SUPPLY = 1e18; // 1 token minimum
-    uint256 public constant MAX_TOTAL_SUPPLY = 1e12 * 1e18; // 1 trillion max
 
     // ========== EVENTS ==========
 
@@ -193,17 +187,14 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         if (bytes(p.description).length > MAX_DESCRIPTION_LENGTH) {
             revert InvalidInput("description");
         }
-        if (p.totalSupply < MIN_TOTAL_SUPPLY || p.totalSupply > MAX_TOTAL_SUPPLY) {
-            revert InvalidInput("totalSupply");
-        }
-        if (p.basePrice == 0) {
-            revert InvalidInput("basePrice");
-        }
         if (address(dexRouterRegistry) == address(0)) {
             revert DexRouterRegistryNotSet();
         }
 
-        tokenAddress = deployToken(p.name, p.symbol, p.totalSupply);
+        // V2: every token mints the standardized BondingCurveMath.TOTAL_SUPPLY.
+        uint256 standardSupply = BondingCurveMath.TOTAL_SUPPLY;
+
+        tokenAddress = deployToken(p.name, p.symbol, standardSupply);
 
         // Validate referrer: cannot refer yourself
         address validReferrer = (p.referrer != address(0) && p.referrer != msg.sender)
@@ -213,11 +204,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         ammAddress = deployAMM(
             tokenAddress,
             payable(msg.sender),
-            p.basePrice,
-            p.slope,
-            p.curveType,
-            p.totalSupply * 80 / 100,
-            0,
+            0, // membership tier — kept on AMM constructor for fee gating
             payable(validReferrer)
         );
 
@@ -226,11 +213,8 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
             symbol: p.symbol,
             description: p.description,
             imageUrl: p.imageUrl,
-            totalSupply: p.totalSupply,
-            basePrice: p.basePrice,
-            slope: p.slope,
-            curveType: p.curveType,
-            graduationThreshold: p.totalSupply * 80 / 100,
+            totalSupply: standardSupply,
+            graduationThreshold: BondingCurveMath.GRADUATION_THRESHOLD,
             creator: msg.sender,
             createdAt: block.timestamp
         });
@@ -257,7 +241,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         // ========== TOKEN TRANSFER ==========
 
         // Transfer initial supply to AMM
-        KRC20Token(tokenAddress).transfer(ammAddress, p.totalSupply);
+        KRC20Token(tokenAddress).transfer(ammAddress, standardSupply);
 
         // ========== CREATION FEE SPLIT ==========
 
@@ -289,7 +273,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
             msg.sender,
             p.name,
             p.symbol,
-            p.totalSupply,
+            standardSupply,
             block.timestamp
         );
 
@@ -339,20 +323,14 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
      * @dev Internal function to deploy AMM contract with DEX integration
      * @param _tokenAddress Address of the token to create AMM for
      * @param _creator Address of token creator (receives graduation funds)
-     * @param _basePrice Initial price for bonding curve
-     * @param _slope Slope parameter for bonding curve
-     * @param _curveType Type of bonding curve (linear/exponential)
-     * @param _graduationThreshold Supply threshold for graduation
      * @param _tier Membership tier for fees
-     * @notice Uses registry-configured router for the current chain
+     * @notice Uses registry-configured router for the current chain. Curve
+     * shape is now standardized — see BondingCurveMath — so the AMM
+     * constructor no longer takes per-token curve params.
      */
     function deployAMM(
         address _tokenAddress,
         address payable _creator,
-        uint256 _basePrice,
-        uint256 _slope,
-        CurveType _curveType,
-        uint256 _graduationThreshold,
         uint8 _tier,
         address payable _referrer
     ) internal returns (address) {
@@ -363,10 +341,6 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         BondingCurveAMM amm = new BondingCurveAMM(
             _tokenAddress,
             _creator,
-            _basePrice,
-            _slope,
-            uint8(_curveType),
-            _graduationThreshold,
             feeRecipient,
             _tier,
             routerConfig.router,

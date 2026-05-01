@@ -10,7 +10,6 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { WalletRequired } from '../../components/features/WalletConnectButton';
 import { CreatorStatsCard } from '../../components/features/CreatorStatsCard';
 import { CreatorTokenCard } from '../../components/features/CreatorTokenCard';
-import { TokenCreationModal } from '../../components/features/TokenCreationModal';
 import { Button, Card, Input } from '../../components/ui';
 import { cn } from '../../utils';
 import { MobileNavigation } from '../../components/mobile';
@@ -23,7 +22,6 @@ export default function CreatorDashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBy, setFilterBy] = useState<'all' | 'active' | 'graduated'>('all');
   const [sortBy, setSortBy] = useState<'volume' | 'marketCap' | 'earnings' | 'created'>('volume');
-  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Filter and sort tokens
   const filteredTokens = React.useMemo(() => {
@@ -65,21 +63,12 @@ export default function CreatorDashboardPage() {
     return filtered;
   }, [tokens, searchQuery, filterBy, sortBy]);
 
+  // V2 (PR 4): the multi-step token creation modal is gone. /creator's
+  // "Create Token" CTA now routes to /launch where the 3-field
+  // QuickLaunchForm lives. The WalletRequired wrapper on /launch handles
+  // the wallet-connected gate.
   const handleCreateToken = () => {
-    // Validate wallet is connected before opening modal
-    if (!wallet.connected) {
-      console.warn('Wallet not connected. Please connect your wallet first.');
-      // The WalletRequired component should handle this, but we'll add a check anyway
-      return;
-    }
-    
-    // Check if contracts are available
-    try {
-      setShowCreateModal(true);
-    } catch (error) {
-      console.error('Failed to open token creation modal:', error);
-      alert('Unable to open token creation. Please ensure your wallet is connected and try again.');
-    }
+    router.push('/launch');
   };
 
   return (
@@ -282,18 +271,6 @@ export default function CreatorDashboardPage() {
           )}
         </WalletRequired>
       </main>
-
-      {/* Token Creation Modal */}
-      <TokenCreationModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSuccess={(tokenData) => {
-          console.log('Token created successfully:', tokenData);
-          setShowCreateModal(false);
-          // Refresh the token list to show the new token
-          refresh();
-        }}
-      />
 
       {/* Mobile Navigation */}
       {isMobile && (

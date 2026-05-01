@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Crown, TrendingUp, Zap, Target } from 'lucide-react';
+import { Crown, TrendingUp, Target, Flame, Hourglass } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { cn, formatCurrency } from '../../utils';
@@ -22,7 +22,9 @@ interface TrendingToken {
 
 interface TrendingResponse {
   kingOfTheHill: TrendingToken | null;
+  justLaunched: TrendingToken[];
   aboutToGraduate: TrendingToken[];
+  fading: TrendingToken[];
   totalTokens: number;
 }
 
@@ -41,7 +43,9 @@ export const KingOfTheHill: React.FC<{ className?: string }> = ({ className }) =
   });
 
   const king = data?.kingOfTheHill;
+  const justLaunched = data?.justLaunched || [];
   const graduating = data?.aboutToGraduate || [];
+  const fading = data?.fading || [];
 
   if (isLoading || !king) return null;
 
@@ -96,6 +100,28 @@ export const KingOfTheHill: React.FC<{ className?: string }> = ({ className }) =
         </div>
       </motion.div>
 
+      {/* Just Launched Ribbon — last 10 minutes, sorted by recency × early volume */}
+      {justLaunched.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+          {justLaunched.map((token) => (
+            <motion.button
+              key={token.address}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={() => router.push(`/token/${token.address}`)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-orange-500/15 bg-orange-500/[0.04] hover:bg-orange-500/[0.08] transition-all flex-shrink-0"
+              title="Just Launched"
+            >
+              <Flame size={12} className="text-orange-400" />
+              <span className="text-xs font-medium text-white whitespace-nowrap">{token.symbol}</span>
+              <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">
+                New
+              </span>
+            </motion.button>
+          ))}
+        </div>
+      )}
+
       {/* About to Graduate Ribbon */}
       {graduating.length > 0 && (
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
@@ -106,11 +132,34 @@ export const KingOfTheHill: React.FC<{ className?: string }> = ({ className }) =
               animate={{ opacity: 1, scale: 1 }}
               onClick={() => router.push(`/token/${token.address}`)}
               className="flex items-center gap-2 px-3 py-2 rounded-xl border border-green-500/15 bg-green-500/[0.04] hover:bg-green-500/[0.08] transition-all flex-shrink-0"
+              title="About to Graduate"
             >
               <Target size={12} className="text-green-400" />
               <span className="text-xs font-medium text-white whitespace-nowrap">{token.symbol}</span>
               <span className="text-[10px] font-bold text-green-400 tabular-nums">
                 {token.graduationProgress.toFixed(0)}%
+              </span>
+            </motion.button>
+          ))}
+        </div>
+      )}
+
+      {/* Fading Ribbon — softer framing than "Dying": low recent activity, could be a comeback play */}
+      {fading.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+          {fading.map((token) => (
+            <motion.button
+              key={token.address}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={() => router.push(`/token/${token.address}`)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-500/15 bg-gray-500/[0.04] hover:bg-gray-500/[0.08] transition-all flex-shrink-0"
+              title="Low recent activity — could be a comeback play."
+            >
+              <Hourglass size={12} className="text-gray-400" />
+              <span className="text-xs font-medium text-white whitespace-nowrap">{token.symbol}</span>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                Fading
               </span>
             </motion.button>
           ))}

@@ -23,11 +23,11 @@ import { FavoriteButton } from './FavoriteButton';
 import { RecentTradesFeed } from './RecentTradesFeed';
 import { TokenCommentThread } from './TokenCommentThread';
 import { HolderList } from './HolderList';
-import { BondingCurveSimulator } from './BondingCurveSimulator';
 import { RiskIndicators } from './RiskIndicators';
-import { LimitOrderForm } from '../trading/LimitOrderForm';
+import { GraduationHUD } from './GraduationHUD';
+import { CreatorVestingPanel } from './CreatorVestingPanel';
 import { MobileTradingInterface } from '../mobile';
-import { Card, Button, Badge, Progress } from '../ui';
+import { Card, Button } from '../ui';
 import { KasPumpToken, TradeData } from '../../types';
 import { useMultichainWallet } from '../../hooks/useMultichainWallet';
 import { useContracts } from '../../hooks/useContracts';
@@ -54,7 +54,6 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
   const { showError, showSuccess } = useToast();
 
   const [timeframe, setTimeframe] = useState('1h');
-  const [tradingMode, setTradingMode] = useState<'swap' | 'limit'>('swap');
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(token.holders || 0);
   const [userBalance, setUserBalance] = useState(0);
@@ -293,9 +292,15 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
             className={cn(
+              'space-y-3',
               isMobile ? 'order-1' : 'lg:col-span-2'
             )}
           >
+            {/* PR 5 — graduation HUD lives in the buy/sell row, not in the
+                right-side info card. Pre-graduation: progress + native left.
+                Post-graduation: "Graduated — LP active" + DEX pair link. */}
+            <GraduationHUD token={token} />
+
             <TradingChart
               token={token}
               height={isMobile ? 300 : 500}
@@ -312,47 +317,12 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
             transition={{ delay: 0.3 }}
             className={cn(isMobile ? 'order-2' : '')}
           >
-            {/* Trading Mode Tabs */}
-            {!isMobile && (
-              <div className="flex items-center gap-0.5 bg-white/[0.03] rounded-xl p-0.5 border border-white/[0.06] mb-3">
-                <button
-                  onClick={() => setTradingMode('swap')}
-                  className={cn(
-                    'flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
-                    tradingMode === 'swap'
-                      ? 'bg-yellow-500/15 text-yellow-400'
-                      : 'text-gray-500 hover:text-gray-300'
-                  )}
-                >
-                  Swap
-                </button>
-                <button
-                  onClick={() => setTradingMode('limit')}
-                  className={cn(
-                    'flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
-                    tradingMode === 'limit'
-                      ? 'bg-yellow-500/15 text-yellow-400'
-                      : 'text-gray-500 hover:text-gray-300'
-                  )}
-                >
-                  Limit Order
-                </button>
-              </div>
-            )}
-
             {isMobile ? (
               <MobileTradingInterface
                 token={token}
                 onTrade={handleTrade}
                 userBalance={userBalance}
                 userTokenBalance={userTokenBalance}
-              />
-            ) : tradingMode === 'limit' ? (
-              <LimitOrderForm
-                tokenAddress={token.address}
-                tokenSymbol={token.symbol}
-                currentPrice={String(Math.floor(token.price * 1e18))}
-                orderBookAddress={process.env.NEXT_PUBLIC_LIMIT_ORDER_BOOK || ''}
               />
             ) : (
               <TradingInterface
@@ -364,27 +334,6 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
             )}
           </motion.div>
         </div>
-
-        {/* Bonding Curve Simulator */}
-        {!token.isGraduated && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            className="mb-6"
-          >
-            <BondingCurveSimulator
-              currentPrice={token.price}
-              basePrice={token.price * 0.1}
-              slope={token.curveType === 'exponential' ? 0.0001 : 0.00000001}
-              curveType={token.curveType as 'linear' | 'exponential'}
-              totalSupply={token.totalSupply}
-              currentSupply={token.currentSupply}
-              currencySymbol="BNB"
-              compact={false}
-            />
-          </motion.div>
-        )}
 
         {/* Token Details Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -464,44 +413,30 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-sm text-gray-400">Curve Type</label>
-                  <Badge variant="default" className="mt-1">
-                    {token.curveType}
-                  </Badge>
-                </div>
-
-                {/* Bonding Curve Progress */}
-                {!token.isGraduated && (
-                  <div>
-                    <div className="flex items-center justify-between text-sm mb-2">
-                      <label className="text-gray-400">Graduation Progress</label>
-                      <span className="text-white font-medium">{token.bondingCurveProgress.toFixed(1)}%</span>
-                    </div>
-                    <Progress 
-                      value={token.bondingCurveProgress} 
-                      className="h-3"
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
-                      {(100 - token.bondingCurveProgress).toFixed(1)}% remaining until AMM graduation
-                    </p>
-                  </div>
-                )}
-
-                {token.isGraduated && (
-                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <TrendingUp className="text-green-400" size={16} />
-                      <span className="text-green-400 font-medium">Graduated to AMM</span>
-                    </div>
-                    <p className="text-sm text-gray-400 mt-1">
-                      This token has successfully completed its bonding curve and is now trading on the AMM.
-                    </p>
-                  </div>
-                )}
+                {/* PR 5: Curve Type badge removed — every V2 token uses
+                    the standardized sigmoid, so the user-facing curve
+                    choice is gone. The duplicate "Graduation Progress" +
+                    "Graduated to AMM" blocks that lived here have been
+                    promoted into <GraduationHUD />, which now sits next
+                    to the chart at the top of the page. Keeping a single
+                    surface avoids confusing dual-state UIs. */}
               </div>
             </Card>
           </motion.div>
+
+          {/* PR 5 — creator vesting drip surface. Mounted unconditionally;
+              the panel hides itself pre-graduation (creatorVesting === 0x0)
+              and renders a disabled Claim button with the "Only the creator
+              can claim vested tokens." sub-line for non-beneficiary viewers. */}
+          {token.isGraduated && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+            >
+              <CreatorVestingPanel token={token} />
+            </motion.div>
+          )}
 
           {/* Recent Trades Feed */}
           <motion.div

@@ -14,7 +14,10 @@ export interface KasPumpToken {
   volume24h: number;
   holders: number;
   createdAt: Date;
-  curveType: 'linear' | 'exponential';
+  // V2: every token uses the standardized sigmoid curve. The legacy
+  // 'linear' / 'exponential' values are kept on the union for indexer
+  // backfills of pre-V2 tokens but new tokens always report 'sigmoid'.
+  curveType: 'sigmoid' | 'linear' | 'exponential';
   bondingCurveProgress: number; // 0-100, when it graduates to AMM
   ammAddress: string;
   isGraduated: boolean;
@@ -73,15 +76,16 @@ export interface ContractConfig {
   rpcUrl: string;
 }
 
+// V2: TokenCreationForm is the user-facing form payload. Curve type, total
+// supply, base price and slope are protocol-wide constants now (see
+// contracts/libraries/BondingCurveMath.sol) so they're no longer part of
+// the form. The on-chain CreateTokenParams struct was slimmed to match in
+// PR 2; PR 4 brings the UI in line.
 export interface TokenCreationForm {
   name: string;
   symbol: string;
   description: string;
   image: File | null;
-  totalSupply: number;
-  curveType: 'linear' | 'exponential';
-  basePrice: number;
-  slope: number;
   twitterUrl: string;
   telegramUrl: string;
   websiteUrl: string;
@@ -108,7 +112,7 @@ export interface TradingViewProps {
 export interface BondingCurveConfig {
   basePrice: number;
   slope: number;
-  curveType: 'linear' | 'exponential';
+  curveType: 'sigmoid' | 'linear' | 'exponential';
   graduationThreshold: number;
   currentSupply: number;
   totalVolume: number;
@@ -352,22 +356,11 @@ export interface SingleChainCreationResult {
   txHash: string;
 }
 
-export interface MultiChainDeploymentResult {
-  chainId: number;
-  chainName: string;
-  success: boolean;
-  tokenAddress?: string;
-  ammAddress?: string;
-  txHash?: string;
-  error?: string;
-}
-
-export interface MultiChainCreationResult {
-  multiChain: true;
-  results: Map<number, MultiChainDeploymentResult>;
-}
-
-export type TokenCreationResult = SingleChainCreationResult | MultiChainCreationResult;
+// V2 PR 4: multi-chain deployment is gone (chain follows wallet, Phase 1 is
+// Base only). The union TokenCreationResult collapses to the single-chain
+// shape; downstream consumers can read .tokenAddress / .ammAddress / .txHash
+// without a discriminator narrow.
+export type TokenCreationResult = SingleChainCreationResult;
 
 // Utility Types
 export type CurveType = keyof typeof CURVE_TYPES;
