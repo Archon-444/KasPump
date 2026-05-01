@@ -322,9 +322,9 @@ const LaunchPad: React.FC<LaunchPadProps> = ({
             </div>
 
             <div className="flex justify-between items-center pb-3 border-b border-gray-700/50">
-              <span className="text-gray-400">Curve Type</span>
-              <Badge variant="secondary" className="capitalize">
-                {token.curveType}
+              <span className="text-gray-400">Curve Model</span>
+              <Badge variant="secondary">
+                Standard sigmoid
               </Badge>
             </div>
 

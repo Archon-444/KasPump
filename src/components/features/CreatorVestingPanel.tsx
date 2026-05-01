@@ -43,8 +43,8 @@ interface CreatorVestingContract {
   vested(): Promise<bigint>;
   claimable(): Promise<bigint>;
   claimed(): Promise<bigint>;
-  startBlock(): Promise<bigint>;
-  endBlock(): Promise<bigint>;
+  startTime(): Promise<bigint>;
+  endTime(): Promise<bigint>;
   claim(): Promise<{ wait(): Promise<unknown> }>;
 }
 
@@ -60,8 +60,8 @@ interface VestingState {
   vested: bigint;
   claimable: bigint;
   claimed: bigint;
-  startBlock: bigint;
-  endBlock: bigint;
+  startTime: bigint;
+  endTime: bigint;
 }
 
 export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
@@ -73,8 +73,10 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
 
   const [state, setState] = useState<VestingState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [readError, setReadError] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string>('');
+  const [claimSuccess, setClaimSuccess] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!token.ammAddress) {
@@ -82,6 +84,7 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
       return;
     }
     try {
+      setReadError(false);
       const amm = contracts.getBondingCurveContract(token.ammAddress) as unknown as AmmWithVesting;
       const vestingAddress: string = await amm.creatorVesting();
       if (!vestingAddress || vestingAddress === ethers.ZeroAddress) {
@@ -102,16 +105,16 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
         vested,
         claimable,
         claimed,
-        startBlock,
-        endBlock,
+        startTime,
+        endTime,
       ] = await Promise.all([
         vesting.beneficiary(),
         vesting.totalAmount(),
         vesting.vested(),
         vesting.claimable(),
         vesting.claimed(),
-        vesting.startBlock(),
-        vesting.endBlock(),
+        vesting.startTime(),
+        vesting.endTime(),
       ]);
       setState({
         vestingAddress,
@@ -120,10 +123,11 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
         vested: BigInt(vested.toString()),
         claimable: BigInt(claimable.toString()),
         claimed: BigInt(claimed.toString()),
-        startBlock: BigInt(startBlock.toString()),
-        endBlock: BigInt(endBlock.toString()),
+        startTime: BigInt(startTime.toString()),
+        endTime: BigInt(endTime.toString()),
       });
     } catch (err) {
+      setReadError(true);
       console.warn('CreatorVestingPanel: refresh failed', err);
     } finally {
       setLoading(false);
@@ -138,6 +142,7 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
     if (!state || !contracts.signer) return;
     setClaiming(true);
     setClaimError('');
+    setClaimSuccess(false);
     try {
       const vesting = new ethers.Contract(
         state.vestingAddress,
@@ -146,6 +151,7 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
       ) as unknown as CreatorVestingContract;
       const tx = await vesting.claim();
       await tx.wait();
+      setClaimSuccess(true);
       await refresh();
     } catch (err: unknown) {
       const message =
@@ -161,6 +167,14 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
       <Card className={cn('p-4 flex items-center gap-2 text-sm text-gray-500', className)}>
         <Loader size={14} className="animate-spin" />
         <span>Loading creator vesting…</span>
+      </Card>
+    );
+  }
+
+  if (readError) {
+    return (
+      <Card className={cn('p-4 text-sm text-red-300 border border-red-500/20 bg-red-500/[0.04]', className)}>
+        Vesting data unavailable
       </Card>
     );
   }
@@ -195,7 +209,7 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
           <div>
             <div className="text-sm font-semibold text-white">Creator vesting</div>
             <div className="text-xs text-gray-400">
-              Linear drip over 6 months · cliff at graduation block
+              Linear drip over 180 days · starts at graduation time
             </div>
           </div>
         </div>
@@ -252,6 +266,11 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
         {claimError && (
           <p className="text-[11px] text-red-400 mt-2 text-center break-all">
             {claimError}
+          </p>
+        )}
+        {claimSuccess && !claimError && (
+          <p className="text-[11px] text-green-400 mt-2 text-center">
+            Claim successful.
           </p>
         )}
       </div>

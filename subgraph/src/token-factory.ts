@@ -102,7 +102,14 @@ export function handleTokenCreated(event: TokenCreatedEvent): void {
   let ammContract = BondingCurveAMM.bind(ammAddress)
   token.basePrice = ammContract.basePrice()
   token.slope = ammContract.slope()
-  token.curveType = ammContract.curveType() == 0 ? "LINEAR" : "EXPONENTIAL"
+  let curveType = ammContract.curveType()
+  if (curveType == 0) {
+    token.curveType = "LINEAR"
+  } else if (curveType == 1) {
+    token.curveType = "EXPONENTIAL"
+  } else {
+    token.curveType = "SIGMOID"
+  }
   token.currentPrice = ammContract.getCurrentPrice()
 
   // Creator info

@@ -23,7 +23,7 @@ type Token @entity {
   # Pricing
   basePrice: BigInt! # Base price from bonding curve
   slope: BigInt! # Slope parameter
-  curveType: CurveType! # Linear or Exponential
+  curveType: CurveType! # Linear, Exponential, or Sigmoid
   currentPrice: BigInt! # Current price (calculated)
 
   # Creator info
@@ -331,6 +331,7 @@ type TokenGraduatedEvent @entity {
 enum CurveType {
   LINEAR
   EXPONENTIAL
+  SIGMOID
 }
 
 enum TradeType {

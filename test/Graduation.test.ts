@@ -197,7 +197,7 @@ describe("PR 3 — graduation correctness", function () {
   });
 
   describe("CreatorVesting drip", function () {
-    it("releases zero tokens at startBlock and full tokens at endBlock", async function () {
+    it("releases zero tokens at startTime and full tokens at endTime", async function () {
       const { amm, token, deployer, buyer } = await deployFixture();
       await amm.connect(buyer).buyTokens(0, { value: ethers.parseEther("100") });
 
@@ -208,16 +208,17 @@ describe("PR 3 — graduation correctness", function () {
       const expectedTotal = ((TOTAL_SUPPLY - GRADUATION_THRESHOLD) * 2000n) / 10000n;
       expect(totalAmount).to.equal(expectedTotal);
 
-      // At graduation block, vested == 0 (block.number == startBlock).
+      // At graduation time, vested == 0 (timestamp == startTime).
       expect(await vesting.vested()).to.equal(0n);
       expect(await vesting.claimable()).to.equal(0n);
 
-      // Fast-forward past endBlock.
-      const endBlock = await vesting.endBlock();
-      const currentBlock = BigInt(await ethers.provider.getBlockNumber());
-      const toAdvance = Number(endBlock - currentBlock + 1n);
-      // hardhat_mine takes hex string for block count.
-      await ethers.provider.send("hardhat_mine", ["0x" + toAdvance.toString(16)]);
+      // Fast-forward past endTime.
+      const endTime = await vesting.endTime();
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const currentTime = BigInt(latestBlock!.timestamp);
+      const toAdvance = Number(endTime - currentTime + 1n);
+      await ethers.provider.send("evm_increaseTime", [toAdvance]);
+      await ethers.provider.send("evm_mine", []);
 
       expect(await vesting.vested()).to.equal(totalAmount);
       expect(await vesting.claimable()).to.equal(totalAmount);
@@ -237,16 +238,18 @@ describe("PR 3 — graduation correctness", function () {
         .to.be.revertedWithCustomError(vesting, "NotBeneficiary");
     });
 
-    it("vested amount grows monotonically with block number", async function () {
+    it("vested amount grows monotonically with time", async function () {
       const { amm, buyer } = await deployFixture();
       await amm.connect(buyer).buyTokens(0, { value: ethers.parseEther("100") });
       const vestingAddr = await amm.creatorVesting();
       const vesting = await ethers.getContractAt("CreatorVesting", vestingAddr);
 
       const v0 = await vesting.vested();
-      await ethers.provider.send("hardhat_mine", ["0x1000"]); // 4096 blocks
+      await ethers.provider.send("evm_increaseTime", [3600]);
+      await ethers.provider.send("evm_mine", []);
       const v1 = await vesting.vested();
-      await ethers.provider.send("hardhat_mine", ["0x10000"]); // 65k blocks
+      await ethers.provider.send("evm_increaseTime", [86_400]);
+      await ethers.provider.send("evm_mine", []);
       const v2 = await vesting.vested();
 
       expect(v1).to.be.gte(v0);

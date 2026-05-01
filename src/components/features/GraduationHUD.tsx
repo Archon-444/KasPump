@@ -38,6 +38,7 @@ export const GraduationHUD: React.FC<GraduationHUDProps> = ({
 
   const [nativeLeftToGraduate, setNativeLeftToGraduate] = useState<bigint | null>(null);
   const [lpPair, setLpPair] = useState<string>('');
+  const [loading, setLoading] = useState(true);
 
   // Pre-graduation: read cumulative-cost integrals at threshold and at the
   // current supply, derive the gap. The naming mirrors the plan's spec
@@ -46,6 +47,7 @@ export const GraduationHUD: React.FC<GraduationHUDProps> = ({
     if (!token.ammAddress || token.isGraduated) return;
     let cancelled = false;
     (async () => {
+      setLoading(true);
       try {
         const amm = contracts.getBondingCurveContract(token.ammAddress);
         const [graduationThreshold, currentSupply] = await Promise.all([
@@ -61,7 +63,10 @@ export const GraduationHUD: React.FC<GraduationHUDProps> = ({
           BigInt(cumulativeCostAtCurrentSupply.toString());
         if (!cancelled) setNativeLeftToGraduate(remaining);
       } catch (err) {
+        if (!cancelled) setNativeLeftToGraduate(null);
         console.warn('GraduationHUD: native-left read failed', err);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => {
@@ -74,18 +79,30 @@ export const GraduationHUD: React.FC<GraduationHUDProps> = ({
     if (!token.ammAddress || !token.isGraduated) return;
     let cancelled = false;
     (async () => {
+      setLoading(true);
       try {
         const amm = contracts.getBondingCurveContract(token.ammAddress);
         const pair = await amm.lpTokenAddress();
         if (!cancelled) setLpPair(pair);
       } catch (err) {
+        if (!cancelled) setLpPair('');
         console.warn('GraduationHUD: lpTokenAddress read failed', err);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [contracts, token.ammAddress, token.isGraduated]);
+
+  if (!token.ammAddress) {
+    return (
+      <Card className={cn('p-4 border-white/[0.08] bg-white/[0.02] text-xs text-gray-400', className)}>
+        AMM data unavailable.
+      </Card>
+    );
+  }
 
   if (token.isGraduated) {
     const explorerUrl =
@@ -98,7 +115,9 @@ export const GraduationHUD: React.FC<GraduationHUDProps> = ({
               <Rocket size={16} className="text-green-400" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-white">Graduated — LP active</div>
+              <div className="text-sm font-semibold text-white">
+                {lpPair ? 'Graduated — LP active' : 'Graduated — LP status pending'}
+              </div>
               <div className="text-xs text-gray-400">
                 Liquidity is paired at the curve&apos;s final price and LP tokens are
                 locked for 6 months.
@@ -116,9 +135,9 @@ export const GraduationHUD: React.FC<GraduationHUDProps> = ({
               <ExternalLink size={12} />
             </a>
           )}
-        </div>
-      </Card>
-    );
+      </div>
+    </Card>
+  );
   }
 
   // Pre-graduation HUD.
@@ -145,7 +164,8 @@ export const GraduationHUD: React.FC<GraduationHUDProps> = ({
       <Progress value={progressPct} className="h-2.5" />
       <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
         <span>{remainingPct.toFixed(1)}% sold left until graduation</span>
-        {nativeLeftFmt != null && (
+        {loading && <span className="text-gray-400">Loading graduation data…</span>}
+        {!loading && nativeLeftFmt != null && (
           <span className="text-gray-300">
             ~{formatCurrency(nativeLeftFmt, 'BNB', 4)} to go
           </span>
