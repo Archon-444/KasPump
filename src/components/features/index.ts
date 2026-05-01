@@ -2,19 +2,19 @@
 export { WalletConnectButton, WalletStatus, WalletRequired } from './WalletConnectButton';
 export { WalletSelectModal } from './WalletSelectModal';
 export { TokenCard, TokenCardSkeleton, TokenList } from './TokenCard';
-export { TokenCreationModal } from './TokenCreationModal';
+// V2 PR 4: TokenCreationModal + TokenCreationWizard + MultiChainDeployment
+// removed. The 30-second QuickLaunchForm is the only token-launch surface.
+export { QuickLaunchForm } from './QuickLaunchForm';
 export { TradingChart, MiniTradingChart } from './TradingChart';
 export { TradingInterface } from './TradingInterface';
 export { TokenTradingPage } from './TokenTradingPage';
 export { PortfolioStatsCard } from './PortfolioStatsCard';
 export { ChainBalanceCard } from './ChainBalanceCard';
 export { PortfolioTokenList } from './PortfolioTokenList';
-export { WizardProgress, WizardStep1, WizardStep2, WizardStep3 } from './TokenCreationWizard';
 export { PlatformStatsCard } from './PlatformStatsCard';
 export { ChainComparisonChart } from './ChainComparisonChart';
 export { GrowthChart } from './GrowthChart';
 export { LeaderboardTable } from './LeaderboardTable';
-export { MultiChainDeployment } from './MultiChainDeployment';
 export { CreatorTokenCard } from './CreatorTokenCard';
 export { CreatorStatsCard } from './CreatorStatsCard';
 export { TokenSearchFilters } from './TokenSearchFilters';

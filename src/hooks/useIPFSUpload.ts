@@ -1,8 +1,7 @@
 /**
  * useIPFSUpload Hook
- * Manages IPFS image upload state and operations for token creation
- *
- * Extracted from TokenCreationModal to separate IPFS upload concerns
+ * Manages IPFS image upload state and operations for token creation.
+ * Used by the QuickLaunchForm for the optional token-image upload.
  *
  * @example
  * ```typescript
