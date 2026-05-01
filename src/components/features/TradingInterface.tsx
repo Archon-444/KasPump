@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Card, Button, Badge, Progress } from '../ui';
 import { TransactionPreviewModal } from './TransactionPreviewModal';
+import { FeeBadge } from './FeeBadge';
 import { KasPumpToken, TradeData } from '../../types';
 import { useContracts } from '../../hooks/useContracts';
 import { formatCurrency, formatPercentage, cn } from '../../utils';
@@ -49,6 +50,10 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const [loading, setLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  // PR 5 — bumped on every successful trade so <FeeBadge /> re-reads
+  // `getPlatformFee()` against the new post-trade supply. No interval polling.
+  const [lastTradeAt, setLastTradeAt] = useState<number>(0);
+  const [feeBps, setFeeBps] = useState<number>(0);
 
   const slippagePresets = [0.1, 0.5, 1.0, 3.0];
   const amountPresets = [25, 50, 75, 100];
@@ -75,16 +80,13 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
       setPriceImpact(quote.priceImpact);
       setMinimumReceived(quote.minimumOutput);
 
-      // Dynamic fee based on market cap (matches contract logic)
-      // Fee schedule: <1 BNB mcap = 1%, 1-10 = 0.75%, 10-50 = 0.5%, 50-100 = 0.25%, >100 = 0.1%
-      const mcap = token.marketCap || 0;
-      let feeRate = 0.01; // default 1%
-      if (mcap > 100) feeRate = 0.001;
-      else if (mcap > 50) feeRate = 0.0025;
-      else if (mcap > 10) feeRate = 0.005;
-      else if (mcap > 1) feeRate = 0.0075;
-      const totalFee = inputAmount * feeRate;
-      setFees(totalFee);
+      // PR 5: live fee from the AMM. The hardcoded MCAP-tier fallback that
+      // used to live here mirrored the pre-V2 fee model; the V2 contract
+      // exposes the continuous-decay value directly via getPlatformFee()
+      // (basis points), and the FeeBadge already displays it. Here we just
+      // mirror it onto the trade-preview "Total fee" cell.
+      const feeRate = feeBps / 10000;
+      setFees(inputAmount * feeRate);
       setGasFee(quote.gasFee);
     } catch (error) {
       console.error('Failed to get swap quote:', error);
@@ -97,7 +99,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
     } finally {
       setQuoteLoading(false);
     }
-  }, [amount, tradeType, token.address, getSwapQuote, slippage]);
+  }, [amount, tradeType, token.address, getSwapQuote, slippage, feeBps]);
 
   // Calculate trade details when amount or trade type changes
   useEffect(() => {
@@ -107,6 +109,27 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
 
     return () => clearTimeout(timeoutId);
   }, [calculateTradeDetails]);
+
+  // PR 5 — keep `feeBps` in sync with the AMM's live continuous-decay
+  // fee. Re-reads on mount and after every successful trade (lastTradeAt
+  // bump). The on-chain value is the single source of truth; the
+  // FeeBadge above renders the same value via its own read.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!token.ammAddress) return;
+        const amm = contracts.getBondingCurveContract(token.ammAddress);
+        const bps = await amm.getPlatformFee();
+        if (!cancelled) setFeeBps(Number(bps.toString()));
+      } catch (err) {
+        console.warn('TradingInterface: getPlatformFee read failed', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [contracts, token.ammAddress, lastTradeAt]);
 
   const handleQuickAmount = (percentage: number) => {
     const maxAmount = tradeType === 'buy' ? userBalance : userTokenBalance;
@@ -136,6 +159,9 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
       };
 
       await onTrade?.(tradePayload);
+      // PR 5 — bump on success so FeeBadge + the local feeBps mirror
+      // re-read against post-trade supply.
+      setLastTradeAt(Date.now());
     } catch (error) {
       console.error('Trade error:', error);
     } finally {
@@ -168,6 +194,14 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
 
   return (
     <Card className={cn('p-5 space-y-5', className)}>
+      {/* PR 5 — Live fee badge. Reads getPlatformFee() from the AMM on
+          mount and on every successful-trade trigger (lastTradeAt bump).
+          Visually attached to the anti-sniper banner so the surcharge
+          during the window reads as connected to its source. */}
+      {token.ammAddress && (
+        <FeeBadge ammAddress={token.ammAddress} refreshTrigger={lastTradeAt} />
+      )}
+
       {/* Anti-sniper protection banner */}
       {sniperProtectionActive && (
         <div className="flex items-center gap-2 px-3 py-2.5 bg-yellow-500/[0.08] border border-yellow-500/[0.15] rounded-xl">

@@ -11,7 +11,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const contractsDir = path.join(root, 'contracts');
 
-const TARGETS = ['BondingCurveAMM', 'TokenFactory'];
+const TARGETS = ['BondingCurveAMM', 'TokenFactory', 'CreatorVesting'];
 const OUT_DIRS = ['src/abis', 'server/src/abis'].map((d) => path.join(root, d));
 
 function listSolFiles(dir) {
