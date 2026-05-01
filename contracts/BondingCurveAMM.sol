@@ -270,13 +270,27 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     );
 
     // PR 3 — graduation correctness surface.
+    //
+    // `nativeUsedForLP` and `tokensUsedForLP` are the amounts the DEX
+    // actually consumed (not the planned earmarks). `lpAdded == false`
+    // means LP was skipped (pair pre-polluted, DEX failure, or zero
+    // amounts) and the earmarked native + tokens were routed to treasury.
     event GraduationTriggered(
         address indexed token,
         uint256 finalSupply,
         uint256 finalPrice,
-        uint256 nativeForLP,
-        uint256 tokensForLP
+        bool lpAdded,
+        uint256 nativeTargetForLP,
+        uint256 tokensTargetForLP,
+        uint256 nativeUsedForLP,
+        uint256 tokensUsedForLP
     );
+
+    // Emitted when graduation finds a pre-existing token/WETH pair that
+    // already has non-zero reserves. The AMM refuses to add liquidity to a
+    // polluted pool; the LP earmark instead rolls into treasury. Front-end
+    // and ops can show this distinctively.
+    event LiquidityPairPrePolluted(address indexed pair);
 
     event GraduationOverpaymentRefunded(
         address indexed buyer,
@@ -663,10 +677,14 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Slippage protection
         if (nativeAfterFee < minNativeOut) revert SlippageTooHigh();
 
-        // Ensure contract has enough native currency (exclude reserved creator/referrer fees)
-        uint256 reservedFees = creatorAccumulatedFees + referrerAccumulatedFees;
-        uint256 availableLiquidity = address(this).balance - reservedFees;
-        if (nativeOut > availableLiquidity) revert InsufficientBalance();
+        // PR 3 — sell-side liquidity check is anchored on `curveNativeBalance`
+        // (the explicit accounting var) rather than `address(this).balance`
+        // minus fee buckets. That's safer because stray ETH (selfdestruct
+        // beneficiary, etc.) cannot make the looser check pass and then
+        // trigger an arithmetic panic when `curveNativeBalance -= nativeOut`
+        // runs in the effects block. With the explicit var, the user-facing
+        // error is `InsufficientBalance` exactly as intended.
+        if (nativeOut > curveNativeBalance) revert InsufficientBalance();
 
         // Deviation guard during sniper window (sells too).
         bool sniperActiveSell = block.timestamp < launchTimestamp + sniperProtectionDuration;
@@ -1061,26 +1079,42 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         }
 
         // 3) DEX liquidity. Wrapped so a DEX hiccup doesn't brick graduation.
-        //    On failure the LP-earmarked tokens + native roll into treasury.
-        bool lpAdded;
-        uint256 lpNativeRefund;
-        (lpAdded, lpNativeRefund) = _addLiquidityToDEX(nativeForLP, tokensForLP);
+        //    On failure (DEX revert, polluted pre-existing pair, or zero
+        //    earmarks), the LP-earmarked native + tokens roll into treasury.
+        //    On partial consumption (router used less than offered), the
+        //    leftover native + tokens also roll into treasury — never left
+        //    untracked in the AMM.
+        (
+            bool lpAdded,
+            uint256 lpNativeUsed,
+            uint256 lpTokenUsed,
+            uint256 lpNativeRefund,
+            uint256 lpTokenRefund
+        ) = _addLiquidityToDEX(nativeForLP, tokensForLP);
+
         if (!lpAdded) {
             treasuryNative += nativeForLP;
             if (tokensForLP > 0) {
                 token.safeTransfer(feeRecipient, tokensForLP);
             }
-        } else if (lpNativeRefund > 0) {
-            // DEX consumed less than offered (slippage / ratio rebalance);
-            // unused native goes to treasury, never silently leaks.
-            treasuryNative += lpNativeRefund;
+        } else {
+            if (lpNativeRefund > 0) {
+                treasuryNative += lpNativeRefund;
+            }
+            if (lpTokenRefund > 0) {
+                token.safeTransfer(feeRecipient, lpTokenRefund);
+            }
         }
 
         // 4) Treasury native push.
         if (treasuryNative > 0) {
             feeRecipient.sendValue(treasuryNative);
         }
-        emit TreasuryAllocated(feeRecipient, treasuryNative, tokensForTreasury);
+        emit TreasuryAllocated(
+            feeRecipient,
+            treasuryNative,
+            tokensForTreasury + (lpAdded ? lpTokenRefund : tokensForLP)
+        );
 
         // Legacy events kept for indexer compat.
         emit GraduationFundsSplit(
@@ -1091,14 +1125,18 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         );
         emit Graduated(currentSupply, nativeAvailable, block.timestamp);
 
-        // V2 structured event with the values the LP price-continuity
-        // invariant test pins.
+        // V2 structured event. Carries both target (planned) and actual
+        // (router-consumed) amounts so dashboards can show whether
+        // graduation truly produced liquidity.
         emit GraduationTriggered(
             address(token),
             currentSupply,
             finalPrice,
+            lpAdded,
             nativeForLP,
-            tokensForLP
+            tokensForLP,
+            lpNativeUsed,
+            lpTokenUsed
         );
     }
 
@@ -1111,13 +1149,35 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
      */
     function _addLiquidityToDEX(uint256 nativeAmount, uint256 tokenAmount)
         internal
-        returns (bool success, uint256 nativeRefund)
+        returns (
+            bool success,
+            uint256 nativeUsed,
+            uint256 tokenUsed,
+            uint256 nativeRefund,
+            uint256 tokenRefund
+        )
     {
         if (tokenAmount == 0 || nativeAmount == 0) {
             // Nothing to LP. Caller's `if (!lpAdded)` branch then folds the
             // earmarked native + tokens into treasury, so signaling false
             // keeps accounting honest even in the degenerate case.
-            return (false, 0);
+            return (false, 0, 0, 0, 0);
+        }
+
+        // Pre-seeded pair defense. If the token/WETH pair already exists
+        // with non-zero reserves (someone front-ran with dust), refuse to
+        // pair our LP against an arbitrary external ratio. The earmarked
+        // native + tokens roll to treasury via the caller's failure branch.
+        // V1 policy: empty pair required for clean migration.
+        address weth = dexRouter.WETH();
+        address factoryAddr = dexRouter.factory();
+        address existingPair = IPancakeFactory(factoryAddr).getPair(address(token), weth);
+        if (existingPair != address(0)) {
+            (uint112 r0, uint112 r1, ) = IPancakePair(existingPair).getReserves();
+            if (r0 != 0 || r1 != 0) {
+                emit LiquidityPairPrePolluted(existingPair);
+                return (false, 0, 0, 0, 0);
+            }
         }
 
         token.safeIncreaseAllowance(address(dexRouter), tokenAmount);
@@ -1132,9 +1192,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             address(this),
             block.timestamp + 300
         ) returns (uint256 amountToken, uint256 amountETH, uint256 liquidity) {
-            address weth = dexRouter.WETH();
-            address factory = dexRouter.factory();
-            address lpToken = IPancakeFactory(factory).getPair(address(token), weth);
+            address lpToken = IPancakeFactory(factoryAddr).getPair(address(token), weth);
 
             lpTokenAddress = lpToken;
             lpTokensLocked = liquidity;
@@ -1143,11 +1201,25 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             emit LiquidityAdded(amountToken, amountETH, liquidity, lpToken, lpToken);
             emit LPTokensLocked(liquidity, lpUnlockTime, lpToken);
 
-            return (true, nativeAmount - amountETH);
+            success = true;
+            nativeUsed = amountETH;
+            tokenUsed = amountToken;
+            nativeRefund = nativeAmount - amountETH;
+            tokenRefund = tokenAmount - amountToken;
         } catch {
             emit LiquidityProvisionFailed(nativeAmount, block.timestamp);
-            return (false, 0);
+            // Default zero return values already signal "nothing used,
+            // nothing refunded by the router" — caller routes the full
+            // earmark to treasury.
         }
+
+        // Reset router allowance whether the call succeeded or failed. If
+        // the router consumed less than approved (partial fill or revert),
+        // leftover allowance is unnecessary attack surface — even against a
+        // trusted router, post-graduation the AMM should hold no live
+        // approvals. forceApprove handles non-zero->zero safely on tokens
+        // that require zero-then-set approve sequencing (USDT, etc.).
+        token.forceApprove(address(dexRouter), 0);
     }
 
     /**

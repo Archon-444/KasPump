@@ -473,14 +473,32 @@
         },
         {
           "indexed": false,
+          "internalType": "bool",
+          "name": "lpAdded",
+          "type": "bool"
+        },
+        {
+          "indexed": false,
           "internalType": "uint256",
-          "name": "nativeForLP",
+          "name": "nativeTargetForLP",
           "type": "uint256"
         },
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "tokensForLP",
+          "name": "tokensTargetForLP",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "nativeUsedForLP",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "tokensUsedForLP",
           "type": "uint256"
         }
       ],
@@ -572,6 +590,19 @@
         }
       ],
       "name": "LiquidityAdded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "pair",
+          "type": "address"
+        }
+      ],
+      "name": "LiquidityPairPrePolluted",
       "type": "event"
     },
     {

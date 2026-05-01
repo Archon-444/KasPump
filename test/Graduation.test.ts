@@ -267,4 +267,123 @@ describe("PR 3 — graduation correctness", function () {
       expect(creatorShare).to.be.gt(0n);
     });
   });
+
+  describe("Follow-up patch — DEX refund + pre-seeded pair", function () {
+    it("routes partial-DEX-consumption refunds (native + token) to treasury", async function () {
+      const { amm, token, dexRouter, treasury, buyer } = await deployFixture();
+
+      // Force the mock router to consume only 60% of what's offered.
+      // The remaining 40% must roll into treasury, not stay in the AMM
+      // and not silently leak. Tests both halves of the new return tuple.
+      await dexRouter.setConsumptionBps(6000);
+
+      const treasuryNativeBefore = await ethers.provider.getBalance(treasury.address);
+      const treasuryTokenBefore = await token.balanceOf(treasury.address);
+
+      const tx = await amm
+        .connect(buyer)
+        .buyTokens(0, { value: ethers.parseEther("100") });
+      await tx.wait();
+
+      // GraduationTriggered now carries (target, actual). Actual = 60% of target.
+      const remaining = TOTAL_SUPPLY - GRADUATION_THRESHOLD;
+      const tokensTarget = (remaining * 7000n) / 10000n;          // 140M
+      const tokensActual = (tokensTarget * 6000n) / 10000n;       // 84M
+
+      // LP record matches the actual (consumed) values, not the targets.
+      const recordsCount = await dexRouter.getLiquidityRecordsCount();
+      expect(recordsCount).to.equal(1n);
+      const record = await dexRouter.getLiquidityRecord(0);
+      expect(record[1]).to.equal(tokensActual);
+
+      // Token refund: target - actual = 56M tokens go to treasury, on top of
+      // the standard 20M treasury allocation. So treasury holds 76M.
+      const expectedTreasuryToken =
+        ((remaining * 1000n) / 10000n) + (tokensTarget - tokensActual);
+      const treasuryTokenAfter = await token.balanceOf(treasury.address);
+      expect(treasuryTokenAfter - treasuryTokenBefore).to.equal(expectedTreasuryToken);
+
+      // Native refund also flows to treasury. Without pinning exact wei, just
+      // confirm treasury got strictly more than zero in native.
+      const treasuryNativeAfter = await ethers.provider.getBalance(treasury.address);
+      expect(treasuryNativeAfter).to.be.gt(treasuryNativeBefore);
+
+      // No untracked native sits in the AMM beyond the accounted buckets.
+      const ammBalance = await ethers.provider.getBalance(await amm.getAddress());
+      const creatorFees = await amm.creatorAccumulatedFees();
+      const referrerFees = await amm.referrerAccumulatedFees();
+      const totalGrad = await amm.totalGraduationFunds();
+      expect(ammBalance).to.equal(creatorFees + referrerFees + totalGrad);
+
+      // No untracked tokens sit in the AMM either.
+      expect(await token.balanceOf(await amm.getAddress())).to.equal(0n);
+    });
+
+    it("skips LP and routes earmarks to treasury when the pair is pre-seeded with reserves", async function () {
+      const { amm, token, dexRouter, treasury, buyer } = await deployFixture();
+
+      // Pre-create the pair with non-zero reserves so the AMM's pre-seeded
+      // pair defense fires at graduation. We pull the factory off the
+      // router, deploy a pair, and pin its reserves to a noisy ratio.
+      const factoryAddr = await dexRouter.factory();
+      const factory = await ethers.getContractAt("MockDEXFactory", factoryAddr);
+      const wethAddr = await dexRouter.WETH();
+      await factory.createPair(await token.getAddress(), wethAddr);
+      const pairAddr = await factory.getPair(await token.getAddress(), wethAddr);
+      const pair = await ethers.getContractAt("MockLPToken", pairAddr);
+      // Arbitrary non-zero reserves — anything non-zero must trigger the
+      // pre-seed defense.
+      await pair.setReserves(1, 1);
+
+      const treasuryTokenBefore = await token.balanceOf(treasury.address);
+
+      const tx = await amm
+        .connect(buyer)
+        .buyTokens(0, { value: ethers.parseEther("100") });
+
+      // The defense fires the LiquidityPairPrePolluted event with the
+      // pair address.
+      await expect(tx)
+        .to.emit(amm, "LiquidityPairPrePolluted")
+        .withArgs(pairAddr);
+
+      // GraduationTriggered carries lpAdded=false, used=0/0.
+      await expect(tx)
+        .to.emit(amm, "GraduationTriggered");
+      // No LP record was created on the router.
+      expect(await dexRouter.getLiquidityRecordsCount()).to.equal(0n);
+
+      // Both LP-earmarked tokens (140M) AND the standard treasury (20M)
+      // landed at the treasury → 160M total token transfer.
+      const remaining = TOTAL_SUPPLY - GRADUATION_THRESHOLD;
+      const expectedTreasuryToken =
+        ((remaining * 1000n) / 10000n) + ((remaining * 7000n) / 10000n);
+      const treasuryTokenAfter = await token.balanceOf(treasury.address);
+      expect(treasuryTokenAfter - treasuryTokenBefore).to.equal(expectedTreasuryToken);
+
+      // Accounting closure: no untracked native or tokens in the AMM.
+      const ammBalance = await ethers.provider.getBalance(await amm.getAddress());
+      const creatorFees = await amm.creatorAccumulatedFees();
+      const referrerFees = await amm.referrerAccumulatedFees();
+      const totalGrad = await amm.totalGraduationFunds();
+      expect(ammBalance).to.equal(creatorFees + referrerFees + totalGrad);
+      expect(await token.balanceOf(await amm.getAddress())).to.equal(0n);
+    });
+
+    it("clears the router allowance after the LP add", async function () {
+      const { amm, token, dexRouter, buyer } = await deployFixture();
+
+      // Force partial consumption so the AMM's approve > router.transferFrom
+      // path is exercised. Without forceApprove(0), residual allowance
+      // would remain.
+      await dexRouter.setConsumptionBps(7000);
+      await amm.connect(buyer).buyTokens(0, { value: ethers.parseEther("100") });
+
+      const allowance = await token.allowance(
+        await amm.getAddress(),
+        await dexRouter.getAddress()
+      );
+      expect(allowance).to.equal(0n);
+    });
+  });
 });

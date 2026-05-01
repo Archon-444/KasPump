@@ -71,6 +71,21 @@ interface IPancakeFactory {
 }
 
 /**
+ * @title IPancakePair
+ * @dev Minimal Uniswap V2 / Pancake V2 pair interface, just enough for the
+ *      pre-seeded pair defense at graduation. Pairs may exist on the factory
+ *      with non-zero reserves before our migration runs (someone front-ran
+ *      the pair creation and dropped dust into it). The AMM checks
+ *      `getReserves()` and refuses to add liquidity to a polluted pair.
+ */
+interface IPancakePair {
+    function getReserves()
+        external
+        view
+        returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+}
+
+/**
  * @title IERC20Minimal
  * @dev Minimal ERC20 interface for LP tokens
  */

@@ -22,9 +22,21 @@ contract MockDEXRouter {
     LiquidityRecord[] public liquidityRecords;
     bool public shouldRevert = false;
 
+    // PR-3 follow-up: simulate partial DEX consumption. Tests set
+    // `consumptionBps` to a value < 10000 to force the router to use only
+    // a fraction of the offered token / native, forcing the AMM's refund
+    // accounting to kick in. Default 10000 = consume everything (legacy
+    // behavior, used by all pre-existing tests).
+    uint256 public consumptionBps = 10000;
+
     constructor(address _weth, address _factory) {
         WETH = _weth;
         factory = _factory;
+    }
+
+    function setConsumptionBps(uint256 _bps) external {
+        require(_bps <= 10000, "MockDEXRouter: BPS > 10000");
+        consumptionBps = _bps;
     }
 
     /**
@@ -50,15 +62,26 @@ contract MockDEXRouter {
         require(block.timestamp <= deadline, "MockDEXRouter: EXPIRED");
         require(msg.value >= amountETHMin, "MockDEXRouter: INSUFFICIENT_ETH");
 
-        // Transfer tokens from sender
-        IERC20(token).transferFrom(msg.sender, address(this), amountTokenDesired);
+        // Apply consumption ratio (defaults to 10000 = consume everything).
+        amountToken = (amountTokenDesired * consumptionBps) / 10000;
+        amountETH = (msg.value * consumptionBps) / 10000;
+        require(amountToken >= amountTokenMin, "MockDEXRouter: TOKEN_BELOW_MIN");
+        require(amountETH >= amountETHMin, "MockDEXRouter: ETH_BELOW_MIN");
 
-        // Return values
-        amountToken = amountTokenDesired;
-        amountETH = msg.value;
+        // Pull only the consumed token amount from the caller (mirroring real
+        // V2 router behavior where the unused amount stays with the caller).
+        IERC20(token).transferFrom(msg.sender, address(this), amountToken);
+
+        // Refund the unused native to the caller.
+        uint256 nativeRefund = msg.value - amountETH;
+        if (nativeRefund > 0) {
+            (bool ok, ) = payable(msg.sender).call{value: nativeRefund}("");
+            require(ok, "MockDEXRouter: native refund failed");
+        }
+
         liquidity = (amountToken * amountETH) / 1e18; // Simple formula for testing
 
-        // Record the liquidity addition
+        // Record the liquidity addition (records the actual amounts used).
         liquidityRecords.push(LiquidityRecord({
             token: token,
             tokenAmount: amountToken,
@@ -147,12 +170,33 @@ contract MockLPToken {
     address public token0;
     address public token1;
 
+    // PR-3 follow-up: settable reserves for the pre-seeded pair defense
+    // test. Real V2 pairs expose `getReserves()` from internal accounting;
+    // this mock just lets tests pin arbitrary values.
+    uint112 private _reserve0;
+    uint112 private _reserve1;
+    uint32 private _blockTimestampLast;
+
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
 
     constructor(address _token0, address _token1) {
         token0 = _token0;
         token1 = _token1;
+    }
+
+    function getReserves()
+        external
+        view
+        returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)
+    {
+        return (_reserve0, _reserve1, _blockTimestampLast);
+    }
+
+    function setReserves(uint112 r0, uint112 r1) external {
+        _reserve0 = r0;
+        _reserve1 = r1;
+        _blockTimestampLast = uint32(block.timestamp);
     }
 
     function mint(address to, uint256 amount) external {
