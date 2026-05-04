@@ -6,28 +6,24 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
- * @title CreatorVesting — per-block linear drip for the post-graduation creator
+ * @title CreatorVesting — linear drip for the post-graduation creator
  *         token allocation.
  *
  * Plan reference: §5c of /root/.claude/plans/alright-here-s-the-glowing-wind.md.
+ * Issue #68: switched from block-based to timestamp-based vesting so the
+ * intended duration is wall-clock-correct on every chain (Base ~2s blocks,
+ * BSC ~3s, Arbitrum variable). Block-based vesting calibrated for one chain
+ * stretches/shortens on others — timestamp avoids that whole class of bug.
  *
  * Behavior
  * --------
  * - Total vesting amount is fixed at construction (the 20%-of-remainder token
  *   slice from graduation).
- * - Vesting accrues linearly **per block** between `startBlock` and `endBlock`
- *   so claims drip continuously. There is no cliff in the traditional sense
- *   beyond `startBlock = graduation block`, which is the cliff the plan calls
- *   for: nothing is claimable before graduation completes.
+ * - Vesting accrues linearly between `startTime` and `endTime`. There is no
+ *   cliff in the traditional sense beyond `startTime = graduation timestamp`,
+ *   which is the cliff the plan calls for: nothing is claimable before
+ *   graduation completes.
  * - `claim()` is creator-only; pulled, not pushed. Re-entrancy guarded.
- *
- * Cross-chain note
- * ----------------
- * `durationBlocks` is parameterized at construction so the deploying AMM can
- * pass a chain-appropriate value. Phase 1 (Base, 2-second blocks):
- *   180 days · 86400 s/day / 2 s/block = 7_776_000 blocks.
- * Phase 2/3 chains (BSC ~3s, Arbitrum variable) get their own values when
- * those chains are enabled in `wagmi.ts`.
  */
 contract CreatorVesting is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -35,8 +31,8 @@ contract CreatorVesting is ReentrancyGuard {
     IERC20 public immutable token;
     address public immutable beneficiary;
     uint256 public immutable totalAmount;
-    uint256 public immutable startBlock;
-    uint256 public immutable endBlock;
+    uint256 public immutable startTime;
+    uint256 public immutable endTime;
 
     uint256 public claimed;
 
@@ -51,27 +47,27 @@ contract CreatorVesting is ReentrancyGuard {
         address _token,
         address _beneficiary,
         uint256 _totalAmount,
-        uint256 _startBlock,
-        uint256 _durationBlocks
+        uint256 _startTime,
+        uint256 _durationSeconds
     ) {
         if (_token == address(0) || _beneficiary == address(0)) revert ZeroAddress();
-        if (_durationBlocks == 0) revert InvalidDuration();
+        if (_durationSeconds == 0) revert InvalidDuration();
         if (_totalAmount == 0) revert InvalidAmount();
 
         token = IERC20(_token);
         beneficiary = _beneficiary;
         totalAmount = _totalAmount;
-        startBlock = _startBlock;
-        endBlock = _startBlock + _durationBlocks;
+        startTime = _startTime;
+        endTime = _startTime + _durationSeconds;
     }
 
-    /// Total amount vested so far. Linear in block number between
-    /// startBlock and endBlock; zero before, totalAmount after.
+    /// Total amount vested so far. Linear in `block.timestamp` between
+    /// startTime and endTime; zero before, totalAmount after.
     function vested() public view returns (uint256) {
-        if (block.number <= startBlock) return 0;
-        if (block.number >= endBlock) return totalAmount;
-        // Safe: endBlock > startBlock by constructor invariant.
-        return (totalAmount * (block.number - startBlock)) / (endBlock - startBlock);
+        if (block.timestamp <= startTime) return 0;
+        if (block.timestamp >= endTime) return totalAmount;
+        // Safe: endTime > startTime by constructor invariant.
+        return (totalAmount * (block.timestamp - startTime)) / (endTime - startTime);
     }
 
     /// Currently claimable (vested minus already-claimed).

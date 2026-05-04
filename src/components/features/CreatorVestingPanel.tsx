@@ -43,8 +43,8 @@ interface CreatorVestingContract {
   vested(): Promise<bigint>;
   claimable(): Promise<bigint>;
   claimed(): Promise<bigint>;
-  startBlock(): Promise<bigint>;
-  endBlock(): Promise<bigint>;
+  startTime(): Promise<bigint>;
+  endTime(): Promise<bigint>;
   claim(): Promise<{ wait(): Promise<unknown> }>;
 }
 
@@ -60,8 +60,8 @@ interface VestingState {
   vested: bigint;
   claimable: bigint;
   claimed: bigint;
-  startBlock: bigint;
-  endBlock: bigint;
+  startTime: bigint;
+  endTime: bigint;
 }
 
 export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
@@ -102,16 +102,16 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
         vested,
         claimable,
         claimed,
-        startBlock,
-        endBlock,
+        startTime,
+        endTime,
       ] = await Promise.all([
         vesting.beneficiary(),
         vesting.totalAmount(),
         vesting.vested(),
         vesting.claimable(),
         vesting.claimed(),
-        vesting.startBlock(),
-        vesting.endBlock(),
+        vesting.startTime(),
+        vesting.endTime(),
       ]);
       setState({
         vestingAddress,
@@ -120,8 +120,8 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
         vested: BigInt(vested.toString()),
         claimable: BigInt(claimable.toString()),
         claimed: BigInt(claimed.toString()),
-        startBlock: BigInt(startBlock.toString()),
-        endBlock: BigInt(endBlock.toString()),
+        startTime: BigInt(startTime.toString()),
+        endTime: BigInt(endTime.toString()),
       });
     } catch (err) {
       console.warn('CreatorVestingPanel: refresh failed', err);
@@ -195,7 +195,7 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
           <div>
             <div className="text-sm font-semibold text-white">Creator vesting</div>
             <div className="text-xs text-gray-400">
-              Linear drip over 6 months · cliff at graduation block
+              Linear drip over 6 months · cliff at graduation
             </div>
           </div>
         </div>

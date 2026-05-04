@@ -306,13 +306,13 @@
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "startBlock",
+          "name": "startTime",
           "type": "uint256"
         },
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "endBlock",
+          "name": "endTime",
           "type": "uint256"
         }
       ],
@@ -1152,7 +1152,7 @@
     },
     {
       "inputs": [],
-      "name": "VESTING_DURATION_BLOCKS",
+      "name": "VESTING_DURATION_SECONDS",
       "outputs": [
         {
           "internalType": "uint256",
@@ -1174,6 +1174,19 @@
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "basePrice",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
       "type": "function"
     },
     {
@@ -1287,6 +1300,19 @@
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "curveType",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "pure",
       "type": "function"
     },
     {
@@ -1655,6 +1681,19 @@
       "name": "setSoftLaunchCap",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "slope",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
       "type": "function"
     },
     {

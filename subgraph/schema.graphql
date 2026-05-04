@@ -331,6 +331,7 @@ type TokenGraduatedEvent @entity {
 enum CurveType {
   LINEAR
   EXPONENTIAL
+  SIGMOID
 }
 
 enum TradeType {

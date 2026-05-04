@@ -19,12 +19,12 @@
         },
         {
           "internalType": "uint256",
-          "name": "_startBlock",
+          "name": "_startTime",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "_durationBlocks",
+          "name": "_durationSeconds",
           "type": "uint256"
         }
       ],
@@ -140,7 +140,7 @@
     },
     {
       "inputs": [],
-      "name": "endBlock",
+      "name": "endTime",
       "outputs": [
         {
           "internalType": "uint256",
@@ -153,7 +153,7 @@
     },
     {
       "inputs": [],
-      "name": "startBlock",
+      "name": "startTime",
       "outputs": [
         {
           "internalType": "uint256",
