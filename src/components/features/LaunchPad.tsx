@@ -20,7 +20,7 @@ import {
   Check,
 } from 'lucide-react';
 import { Card, Badge, Button, Input, Progress } from '../ui';
-import { formatCurrency, cn } from '../../utils';
+import { formatCurrency, cn, curveTypeLabel } from '../../utils';
 
 interface PreLaunchToken {
   name: string;
@@ -323,8 +323,8 @@ const LaunchPad: React.FC<LaunchPadProps> = ({
 
             <div className="flex justify-between items-center pb-3 border-b border-gray-700/50">
               <span className="text-gray-400">Curve Type</span>
-              <Badge variant="secondary" className="capitalize">
-                {token.curveType}
+              <Badge variant="secondary">
+                {curveTypeLabel(token.curveType)}
               </Badge>
             </div>
 

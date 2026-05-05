@@ -65,6 +65,19 @@ export function formatCurrency(amount: number, symbol = 'BNB', decimals = 6): st
   return `${formatted} ${symbol}`;
 }
 
+/**
+ * Map a curve-type enum value to a user-facing label. V2 standardized on
+ * sigmoid; the legacy `linear` / `exponential` values still flow through
+ * the indexer for pre-V2 token backfills, so we mark them as legacy so
+ * users don't get confused about what they're trading.
+ */
+export function curveTypeLabel(curveType: string | undefined): string {
+  if (!curveType || curveType === 'sigmoid') return 'Standard sigmoid';
+  if (curveType === 'linear') return 'Linear (legacy)';
+  if (curveType === 'exponential') return 'Exponential (legacy)';
+  return curveType;
+}
+
 // Format percentage
 export function formatPercentage(value: number, decimals = 2): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(decimals)}%`;

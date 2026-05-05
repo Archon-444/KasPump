@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Share2,
   Heart,
-  MessageCircle,
   Users,
   TrendingUp,
   Clock,

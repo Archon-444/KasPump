@@ -182,15 +182,86 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
     return `${tradeType === 'buy' ? 'Buy' : 'Sell'} ${token.symbol}`;
   };
 
-  const sniperProtectionActive = (() => {
+  // Lane 2 (PR 6): live AMM read for the anti-sniper banner. Polls
+  // `isSniperProtectionActive()` + `sniperProtectionRemaining()` every 1s
+  // while the window is active and stops as soon as the contract reports
+  // inactive — avoids permanent background polling. The time-based
+  // heuristic (`Date.now() - token.createdAt < 60s`) is kept as
+  // defense-in-depth: if the contract read fails or hasn't loaded yet,
+  // we fall back to it so the banner doesn't disappear silently.
+  // TODO(PR7): drop the heuristic fallback once the live read has
+  // soaked on testnet and proven reliable.
+  const heuristicActive = (() => {
     if (!token.createdAt) return false;
     const elapsed = (Date.now() - token.createdAt.getTime()) / 1000;
     return elapsed < 60;
   })();
-
-  const sniperSecondsLeft = sniperProtectionActive
+  const heuristicSecondsLeft = heuristicActive
     ? Math.max(0, Math.ceil(60 - (Date.now() - token.createdAt.getTime()) / 1000))
     : 0;
+
+  const [liveSniperActive, setLiveSniperActive] = useState<boolean | null>(null);
+  const [liveSniperSecondsLeft, setLiveSniperSecondsLeft] = useState<number>(0);
+
+  useEffect(() => {
+    if (!token.ammAddress || token.isGraduated) {
+      setLiveSniperActive(false);
+      return;
+    }
+
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    // Local typing shim — the typechain `BondingCurveAMM` type predates
+    // the V2 `isSniperProtectionActive` / `sniperProtectionRemaining` view
+    // additions; cast through this minimal interface so the rest of the
+    // hook stays statically checked. When typechain regen runs, this can
+    // be deleted in favor of the generated method types.
+    interface AmmWithSniperViews {
+      isSniperProtectionActive(): Promise<boolean>;
+      sniperProtectionRemaining(): Promise<bigint>;
+    }
+
+    const refreshSniperState = async () => {
+      try {
+        const amm = contracts.getBondingCurveContract(
+          token.ammAddress
+        ) as unknown as AmmWithSniperViews;
+        const [active, remaining] = await Promise.all([
+          amm.isSniperProtectionActive(),
+          amm.sniperProtectionRemaining(),
+        ]);
+        if (cancelled) return;
+        const remainingNum = Number(remaining.toString());
+        setLiveSniperActive(active);
+        setLiveSniperSecondsLeft(remainingNum);
+        if (!active || remainingNum === 0) {
+          if (interval) clearInterval(interval);
+          interval = null;
+        }
+      } catch (err) {
+        // Network blip or stale ABI — keep the heuristic fallback below.
+        console.warn('TradingInterface: sniper state read failed', err);
+      }
+    };
+
+    void refreshSniperState();
+    interval = setInterval(() => {
+      void refreshSniperState();
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
+  }, [contracts, token.ammAddress, token.isGraduated]);
+
+  // Live read wins when present; otherwise fall back to the heuristic so
+  // the banner still shows during initial load / contract-read failure.
+  const sniperProtectionActive =
+    liveSniperActive == null ? heuristicActive : liveSniperActive;
+  const sniperSecondsLeft =
+    liveSniperActive == null ? heuristicSecondsLeft : liveSniperSecondsLeft;
 
   return (
     <Card className={cn('p-5 space-y-5', className)}>
