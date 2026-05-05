@@ -151,6 +151,30 @@ async function main() {
     console.log("   Fee Recipient:", feeRecipient);
     console.log("   Paused:", isPaused);
 
+    // Lane 1A.5 — V2 sanity log. Prints the createToken selector +
+    // expected slim-struct field count (8: name, symbol, description,
+    // imageUrl, twitterUrl, telegramUrl, websiteUrl, referrer). Any
+    // future drift between TokenFactory.CreateTokenParams and the
+    // subgraph / frontend assumption shows up here at deploy time
+    // instead of as an indexer revert later.
+    try {
+      const createTokenFragment = TokenFactory.interface.getFunction("createToken");
+      const paramTuple = createTokenFragment.inputs[0];
+      const fieldCount = (paramTuple as any).components?.length ?? 0;
+      console.log(
+        `   createToken selector: ${createTokenFragment.selector} ` +
+          `(struct fields: ${fieldCount}, V2 expected: 8)`
+      );
+      if (fieldCount !== 8) {
+        console.warn(
+          "⚠️  CreateTokenParams field count drifted from V2 expectation (8). " +
+            "Subgraph + frontend assume the slim 8-field shape; investigate before deploying."
+        );
+      }
+    } catch (err) {
+      console.warn("   Could not introspect createToken signature:", err);
+    }
+
     // DEX Integration info
     console.log("\n🔄 DEX Integration:");
     console.log(`✅ Chain: ${chainConfig.name} (Chain ID: ${chainConfig.chainId})`);

@@ -1,0 +1,20 @@
+{
+  "chapel": {
+    "TokenFactory": {
+      "address": "0x7Af627Bf902549543701C58366d424eE59A4ee08",
+      "startBlock": 70735503
+    }
+  },
+  "base-sepolia": {
+    "TokenFactory": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    }
+  },
+  "base": {
+    "TokenFactory": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    }
+  }
+}

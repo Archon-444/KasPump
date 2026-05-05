@@ -172,7 +172,15 @@ library DexConfig {
             });
         }
 
-        // Base Sepolia - no established V2 router, disabled by default
+        // Base Sepolia - no established V2 router, disabled by default.
+        //
+        // Smoke environments override this at the registry level via
+        // scripts/deploy-mock-router-sepolia.ts (Lane 1B), which deploys
+        // MockDEXRouter / MockDEXFactory / MockWETH and calls
+        // dexRouterRegistry.setRouterConfig(...) directly. We deliberately
+        // do not hardcode a guessed router address here — when a verified
+        // Base Sepolia V2 deployment is available, swap the helper for a
+        // one-line patch (set `router` + flip `enabled: true`).
         if (chainId == 84532) {
             return IDexRouterRegistry.RouterConfig({
                 routerType: IDexRouterRegistry.RouterType.V2,
