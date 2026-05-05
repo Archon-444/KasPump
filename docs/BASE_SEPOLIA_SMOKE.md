@@ -130,7 +130,9 @@ manifest disagree — re-run `node scripts/local-build-abis.js` first.
 
 ---
 
-## 6. Launch a token via the UI
+## 6. Launch a token via the UI (or seed via Lane 3 script)
+
+### Option A — UI flow
 
 Start the frontend against Base Sepolia:
 
@@ -145,10 +147,23 @@ Then in a wallet connected to chain 84532:
 3. Confirm the wallet tx.
 4. On success, the form redirects to `/token/<address>`.
 
-Verify on the token detail page:
+### Option B — Lane 3 seed script (preferred for repeatable smoke)
+
+```bash
+npx hardhat run scripts/sepolia-smoke-seed.ts --network baseSepolia
+```
+
+Reads the V2 deploy from `deployments.json[84532]`, calls
+`createToken` with a unique name + symbol so re-runs don't collide,
+performs a 0.001 ETH buy, and writes the new token + AMM addresses
+back into `deployments.json[84532].smokeTokens[]`. Output ends with
+the `TOKEN_ADDRESS=…` invocation line for step 8.
+
+### Verify on the token detail page
+
 - `<FeeBadge />` shows a percentage (likely high — sniper-window
   surcharge active for the first 60 s).
-- `<GraduationHUD />` renders 0% with native-left ≈ 3 ETH.
+- `<GraduationHUD />` renders `<1%` with native-left ≈ 3 ETH.
 - "Trading fee" sub-line reads `decreases as token grows`.
 - No "Curve Type" badge (PR 5 removed it). The TokenCard back on `/`
   shows `Standard sigmoid`.
@@ -174,23 +189,30 @@ Use the UI:
 
 ## 8. Push to graduation
 
-> Lane 3 placeholder — to be added:
-> - `scripts/sepolia-smoke-seed.ts` — deploy + create + small buy.
-> - `scripts/sepolia-graduate.ts` — push a token to graduation, assert
->   the four invariants.
+```bash
+# Default: push the latest smoke token from deployments.json[84532].smokeTokens[]
+npx hardhat run scripts/sepolia-graduate.ts --network baseSepolia
 
-Until the script lands, push to graduation manually with a sequence of
-larger buys (the AMM clamps the final overpaying buy automatically and
-refunds the excess — that's invariant 1).
+# Or pin a specific token:
+TOKEN_ADDRESS=0x... npx hardhat run scripts/sepolia-graduate.ts --network baseSepolia
+```
 
-After the graduation tx, verify on-chain:
-- `BondingCurveAMM.isGraduated()` → `true`.
-- `BondingCurveAMM.creatorVesting()` → non-zero address.
-- `MockDEXRouter.getLiquidityRecordsCount()` → `1`.
-- The LP record's reserve ratio ≈ `spotPriceAtSupply(GRADUATION_THRESHOLD)`
-  within 0.1 % (invariant 2).
-- AMM balance ≈ `creatorAccumulatedFees + referrerAccumulatedFees +
-  totalGraduationFunds` (invariant 4).
+The script sends a single overpaying buy (default 5 ETH gross; the
+sigmoid integral at threshold is ~3 ETH so the V2 overpayment clamp
+engages), then asserts the four V2 invariants:
+
+```
+✅ 1. overpayment refund         GraduationOverpaymentRefunded fired,
+                                 refundedNative > 0, netSpend < grossSend
+✅ 2. LP price continuity        observed LP ratio matches
+                                 spotPriceAtSupply(threshold) within 10 bps
+✅ 3. 70/20/10 allocation        vesting holds 40 M, treasury holds ≥ 20 M
+✅ 4. accounting closure         residualBalance == creatorFees +
+                                 referrerFees + totalGraduationFunds
+```
+
+Exit code is non-zero if any invariant fails — that's the gate for
+opening a PR 7 finding.
 
 In the UI:
 - `<GraduationHUD />` swaps to "Graduated — LP active" with a "View

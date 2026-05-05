@@ -47,8 +47,10 @@ const { ethers, network } = hre;
  */
 
 const BASE_SEPOLIA_CHAIN_ID = 84532n;
-// Base Sepolia WETH (canonical 0x4200... predeploy).
-const BASE_SEPOLIA_WETH = "0x4200000000000000000000000000000000000006";
+// Base Sepolia WETH predeploy (0x4200000000000000000000000000000000000006) is
+// referenced in DexConfig.sol's `wrappedNative` field but the smoke flow
+// uses our own MockWETH so the registry's `wrappedNative` points at the
+// freshly deployed mock — keeps the smoke env internally consistent.
 const ROUTER_TYPE_V2 = 0; // matches IDexRouterRegistry.RouterType.V2
 
 async function main() {
