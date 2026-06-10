@@ -33,9 +33,9 @@ import { useMultichainWallet } from '../../hooks/useMultichainWallet';
 import { useContracts } from '../../hooks/useContracts';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useToast } from '../../contexts/ToastContext';
-import { formatCurrency, formatPercentage, formatTimeAgo, cn } from '../../utils';
+import { formatCurrency, formatPercentage, formatTimeAgo, cn, copyToClipboard } from '../../utils';
 import { getExplorerUrl } from '../../config/chains';
-import { Bell } from 'lucide-react';
+import { Bell, Copy, Check } from 'lucide-react';
 
 export interface TokenTradingPageProps {
   token: KasPumpToken;
@@ -60,6 +60,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
   const [userTokenBalance, setUserTokenBalance] = useState(0);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
   const [showSocialShare, setShowSocialShare] = useState(false);
+  const [addressCopied, setAddressCopied] = useState(false);
   const fetchBalances = useCallback(async () => {
     if (!wallet.address) {
       setUserBalance(0);
@@ -399,9 +400,22 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm text-gray-400">Contract Address</label>
-                    <div className="text-sm text-yellow-400 mt-1 font-mono break-all">
+                    <button
+                      onClick={async () => {
+                        const ok = await copyToClipboard(token.address);
+                        if (ok) {
+                          setAddressCopied(true);
+                          setTimeout(() => setAddressCopied(false), 2000);
+                        } else {
+                          showError(new Error('Failed to copy address. Check clipboard permissions.'));
+                        }
+                      }}
+                      className="flex items-center gap-1.5 text-sm text-yellow-400 mt-1 font-mono hover:text-yellow-300 transition-colors cursor-pointer"
+                      title="Click to copy"
+                    >
                       {token.address.slice(0, 8)}...{token.address.slice(-8)}
-                    </div>
+                      {addressCopied ? <Check size={12} className="text-green-400" /> : <Copy size={12} className="opacity-50" />}
+                    </button>
                   </div>
 
                   <div>

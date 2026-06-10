@@ -2,7 +2,7 @@
 
 import React, { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Users, Clock, Flame, Shield, Zap, Target, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, Clock, Flame, Shield, Zap, Target, Activity, Share2 } from 'lucide-react';
 import { KasPumpToken, TokenCardProps } from '../../types';
 import { Card, Badge, Progress } from '../ui';
 import { FavoriteButton } from './FavoriteButton';
@@ -144,6 +144,17 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const text = `Check out $${token.symbol} on KasPump!\n\nPrice: ${formatCurrency(token.price, 'BNB', 8)}\nMCap: ${formatCurrency(token.marketCap, 'BNB')}\n\n${typeof window !== 'undefined' ? `${window.location.origin}/token/${token.address}` : ''}`;
+                window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'width=550,height=420');
+              }}
+              className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-400 hover:text-white transition-colors"
+              title="Share on X"
+            >
+              <Share2 size={13} />
+            </button>
             <FavoriteButton
               tokenAddress={token.address}
               chainId={(token as any).chainId}

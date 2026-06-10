@@ -100,17 +100,28 @@ export async function POST(request: NextRequest) {
       isCreator: !!isCreator,
     };
 
-    const comments = await readComments(tokenAddress);
-
-    const recentByWallet = comments.filter(
-      c => c.walletAddress === walletAddress.toLowerCase() && Date.now() - c.timestamp < 10000
-    );
-    if (recentByWallet.length >= 3) {
-      return NextResponse.json({ error: 'Rate limited. Wait a moment.' }, { status: 429 });
+    // Short-lived lock prevents concurrent read-modify-write races
+    const lockKey = `lock:${commentKey(tokenAddress)}`;
+    const acquired = await kv.set(lockKey, '1', { nx: true, ex: 5 });
+    if (!acquired) {
+      return NextResponse.json({ error: 'Please try again in a moment.' }, { status: 409 });
     }
 
-    comments.push(comment);
-    await writeComments(tokenAddress, comments);
+    try {
+      const comments = await readComments(tokenAddress);
+
+      const recentByWallet = comments.filter(
+        c => c.walletAddress === walletAddress.toLowerCase() && Date.now() - c.timestamp < 10000
+      );
+      if (recentByWallet.length >= 3) {
+        return NextResponse.json({ error: 'Rate limited. Wait a moment.' }, { status: 429 });
+      }
+
+      comments.push(comment);
+      await writeComments(tokenAddress, comments);
+    } finally {
+      await kv.del(lockKey);
+    }
 
     return NextResponse.json({ comment }, { status: 201 });
   } catch (error: any) {
