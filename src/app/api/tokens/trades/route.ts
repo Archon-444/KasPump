@@ -26,44 +26,24 @@ export async function GET(request: NextRequest) {
     }
 
     const amm = BlockchainService.getAMM(ammAddress, chainId);
+    const provider = BlockchainService.getProvider(chainId);
 
-    const buyFilter = amm.filters.TokensPurchased();
-    const sellFilter = amm.filters.TokensSold();
-
-    const currentBlock = await amm.runner?.provider?.getBlockNumber() || 0;
+    const currentBlock = await provider.getBlockNumber();
     const fromBlock = Math.max(0, currentBlock - 10000);
 
-    const [buyEvents, sellEvents] = await Promise.all([
-      amm.queryFilter(buyFilter, fromBlock).catch(() => []),
-      amm.queryFilter(sellFilter, fromBlock).catch(() => []),
-    ]);
+    const tradeFilter = amm.filters.Trade();
+    const events = await amm.queryFilter(tradeFilter, fromBlock).catch(() => []);
 
-    const provider = amm.runner?.provider;
-    const allEvents = [
-      ...buyEvents.map(e => ({ e, type: 'buy' as const, trader: (e as any).args?.buyer || '' })),
-      ...sellEvents.map(e => ({ e, type: 'sell' as const, trader: (e as any).args?.seller || '' })),
-    ]
-      .sort((a, b) => b.e.blockNumber - a.e.blockNumber)
-      .slice(0, limit);
+    const sorted = [...events].sort((a, b) => b.blockNumber - a.blockNumber).slice(0, limit);
 
-    const uniqueBlocks = [...new Set(allEvents.map(t => t.e.blockNumber))];
-    const blockTimestamps = new Map<number, number>();
-
-    if (provider) {
-      await Promise.all(
-        uniqueBlocks.slice(0, 50).map(async (bn) => {
-          const block = await provider.getBlock(bn).catch(() => null);
-          if (block) blockTimestamps.set(bn, block.timestamp);
-        })
-      );
-    }
-
-    const trades = allEvents.map(({ e, type, trader }) => ({
-      type,
-      trader,
-      nativeAmount: ethers.formatEther((e as any).args?.nativeAmount || 0),
-      tokenAmount: ethers.formatEther((e as any).args?.tokenAmount || 0),
-      timestamp: (blockTimestamps.get(e.blockNumber) || 0) * 1000,
+    const trades = sorted.map(e => ({
+      type: e.args.isBuy ? 'buy' as const : 'sell' as const,
+      trader: e.args.trader,
+      nativeAmount: ethers.formatEther(e.args.nativeAmount),
+      tokenAmount: ethers.formatEther(e.args.tokenAmount),
+      price: ethers.formatEther(e.args.newPrice),
+      fee: ethers.formatEther(e.args.fee),
+      timestamp: Number(e.args.timestamp) * 1000,
       txHash: e.transactionHash,
       blockNumber: e.blockNumber,
     }));
