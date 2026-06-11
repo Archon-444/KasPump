@@ -144,6 +144,17 @@ export const GraduationHUD: React.FC<GraduationHUDProps> = ({
       ? null
       : parseFloat(ethers.formatEther(nativeLeftToGraduate));
 
+  // Rough pace estimate from the 24h buy volume. Only shown when there is
+  // real volume and the projection lands inside a meaningful window.
+  const etaLabel = (() => {
+    if (nativeLeftFmt == null || token.volume24h <= 0) return null;
+    const hoursLeft = nativeLeftFmt / (token.volume24h / 24);
+    if (!Number.isFinite(hoursLeft) || hoursLeft > 24 * 7) return null;
+    if (hoursLeft < 1) return `~${Math.max(1, Math.round(hoursLeft * 60))} min at 24h pace`;
+    if (hoursLeft < 24) return `~${Math.round(hoursLeft)}h at 24h pace`;
+    return `~${Math.round(hoursLeft / 24)}d at 24h pace`;
+  })();
+
   return (
     <Card className={cn('p-4', className)}>
       <div className="flex items-center justify-between mb-2">
@@ -166,11 +177,14 @@ export const GraduationHUD: React.FC<GraduationHUDProps> = ({
       )}
       <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
         <span>{remainingPct.toFixed(1)}% sold left until graduation</span>
-        {nativeLeftFmt != null && (
-          <span className="text-gray-300">
-            ~{formatCurrency(nativeLeftFmt, 'BNB', 4)} to go
-          </span>
-        )}
+        <span className="flex items-center gap-2">
+          {etaLabel && <span className="text-yellow-400/70">{etaLabel}</span>}
+          {nativeLeftFmt != null && (
+            <span className="text-gray-300">
+              ~{formatCurrency(nativeLeftFmt, 'BNB', 4)} to go
+            </span>
+          )}
+        </span>
       </div>
     </Card>
   );

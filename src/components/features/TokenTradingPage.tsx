@@ -63,6 +63,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
   const [showSocialShare, setShowSocialShare] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
   const [confettiTrigger, setConfettiTrigger] = useState(false);
+  const [detailTab, setDetailTab] = useState<'overview' | 'trades' | 'holders' | 'thread'>('overview');
   const fetchBalances = useCallback(async () => {
     if (!wallet.address) {
       setUserBalance(0);
@@ -369,7 +370,31 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
           </motion.div>
         </div>
 
-        {/* Token Details Section */}
+        {/* Detail Tabs — replaces the old 5-section scroll stack */}
+        <div className="flex items-center gap-1 mb-4 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06] w-fit">
+          {([
+            ['overview', 'Overview'],
+            ['trades', 'Trades'],
+            ['holders', 'Holders'],
+            ['thread', 'Thread'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setDetailTab(key)}
+              className={cn(
+                'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                detailTab === key
+                  ? 'bg-yellow-500/15 text-yellow-400'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Overview tab: token info + vesting + full risk assessment */}
+        <div className={cn(detailTab !== 'overview' && 'hidden')}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Token Information */}
           <motion.div
@@ -485,56 +510,44 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
             </motion.div>
           )}
 
-          {/* Recent Trades Feed */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
+        </div>
+
+        {/* Full Risk Assessment (overview tab) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="mb-6"
+        >
+          <RiskIndicators token={token} compact={false} />
+        </motion.div>
+        </div>
+
+        {/* Trades tab — kept mounted so the feed stays warm across switches */}
+        <div className={cn('mb-6', detailTab !== 'trades' && 'hidden')}>
           <RecentTradesFeed
             tokenAddress={token.address}
             chainId={resolvedChainId}
-            maxTrades={10}
+            maxTrades={20}
           />
-          </motion.div>
         </div>
 
-        {/* Comment Thread */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.55 }}
-          className="mb-6"
-        >
-          <TokenCommentThread
-            tokenAddress={token.address}
-            creatorAddress={(token as any).creator}
-          />
-        </motion.div>
-
-        {/* Holders List */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mb-6"
-        >
+        {/* Holders tab */}
+        <div className={cn('mb-6', detailTab !== 'holders' && 'hidden')}>
           <HolderList
             tokenAddress={token.address}
             chainId={resolvedChainId}
             maxHolders={20}
           />
-        </motion.div>
+        </div>
 
-        {/* Full Risk Assessment */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.65 }}
-          className="mb-6"
-        >
-          <RiskIndicators token={token} compact={false} />
-        </motion.div>
+        {/* Thread tab */}
+        <div className={cn('mb-6', detailTab !== 'thread' && 'hidden')}>
+          <TokenCommentThread
+            tokenAddress={token.address}
+            creatorAddress={(token as any).creator}
+          />
+        </div>
 
         {/* Social Share Panel */}
         {showSocialShare && (
