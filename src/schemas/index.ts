@@ -202,12 +202,16 @@ export type FavoriteTokenData = z.infer<typeof FavoriteTokenSchema>;
  * Price alert validation
  */
 export const PriceAlertSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   tokenAddress: EthereumAddressSchema,
   targetPrice: z.number().positive().finite(),
-  condition: z.enum(['above', 'below']),
-  enabled: z.boolean(),
+  direction: z.enum(['above', 'below']),
+  isActive: z.boolean(),
   createdAt: z.number().int().positive(),
+  tokenSymbol: z.string().optional(),
+  chainId: z.number().optional(),
+  currentPrice: z.number().optional(),
+  notified: z.boolean().optional(),
 });
 
 export const PriceAlertsArraySchema = z.array(PriceAlertSchema);
