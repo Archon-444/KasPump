@@ -12,7 +12,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          # Next 16 requires Node >=20.9; Hardhat also unsupported on 18
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
