@@ -19,17 +19,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      # TODO: make blocking once V2 type rot is fixed (~513 pre-existing errors
+      # TODO: make blocking once V2 type rot is fixed (~470 pre-existing errors
       # in page files left behind by the V2 rework)
       - name: Type check (non-blocking)
         run: npm run type-check
         continue-on-error: true
 
-      # TODO: make blocking once V2 test rot is fixed (188 tests still assert
-      # V1 behaviors like per-token curve types and membership tiers)
-      - name: Unit tests (non-blocking)
+      - name: Unit tests
         run: npm run test:unit
-        continue-on-error: true
 
       - name: Compile contracts
         run: npx hardhat compile
