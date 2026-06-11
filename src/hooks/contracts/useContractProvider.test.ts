@@ -3,17 +3,43 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { useContractProvider } from './useContractProvider';
 import { ethers } from 'ethers';
 
-// Mock ethers
+// Mock contract config so the initialization effect can resolve a factory address
+vi.mock('../../config/contracts', () => ({
+  getTokenFactoryAddress: vi.fn((chainId: number) => {
+    if (chainId === 97 || chainId === 56) return '0xfactory1234567890123456789012345678901234';
+    return null;
+  }),
+}));
+
+// Mock ethers. The implementation uses the `ethers` namespace import
+// (ethers.JsonRpcProvider / ethers.BrowserProvider / ethers.Contract),
+// so the namespace object must be mocked too.
 vi.mock('ethers', async () => {
-  const actual = await vi.importActual('ethers');
+  const actual = await vi.importActual<any>('ethers');
+
+  const JsonRpcProvider = vi.fn().mockImplementation(() => ({
+    getNetwork: vi.fn().mockResolvedValue({ chainId: 97 }),
+  }));
+  const BrowserProvider = vi.fn().mockImplementation(() => ({
+    getSigner: vi.fn().mockResolvedValue({
+      getAddress: vi.fn().mockResolvedValue('0xTest123'),
+    }),
+  }));
+  const Contract = vi.fn().mockImplementation(() => ({
+    getAllTokens: vi.fn().mockResolvedValue([]),
+  }));
+
   return {
     ...actual,
-    JsonRpcProvider: vi.fn().mockImplementation(() => ({
-      getNetwork: vi.fn().mockResolvedValue({ chainId: 97 }),
-    })),
-    BrowserProvider: vi.fn().mockImplementation(() => ({
-      getSigner: vi.fn().mockResolvedValue({ address: '0x123' }),
-    })),
+    JsonRpcProvider,
+    BrowserProvider,
+    Contract,
+    ethers: {
+      ...actual.ethers,
+      JsonRpcProvider,
+      BrowserProvider,
+      Contract,
+    },
   };
 });
 
@@ -94,12 +120,13 @@ describe('useContractProvider', () => {
 
       await waitFor(() => {
         expect(result.current.signer).toBeTruthy();
+        expect(result.current.browserProvider).toBeTruthy();
       });
     });
   });
 
-  describe('getContractRunner', () => {
-    it('should return signer when available', async () => {
+  describe('Contract runners', () => {
+    it('getContractRunner should return signer when available', async () => {
       const mockProvider = {
         request: vi.fn(),
       };
@@ -121,42 +148,45 @@ describe('useContractProvider', () => {
         expect(result.current.signer).toBeTruthy();
       });
 
-      const runner = result.current.getContractRunner(true);
+      const runner = result.current.getContractRunner();
       expect(runner).toBe(result.current.signer);
     });
 
-    it('should return provider for read-only operations', () => {
+    it('getRunnerOrThrow should fall back to the provider when no signer is available', () => {
       const { result } = renderHook(() =>
         useContractProvider(mockWallet, chainId)
       );
 
-      const runner = result.current.getContractRunner(false);
+      const runner = result.current.getRunnerOrThrow();
       expect(runner).toBe(result.current.provider);
     });
 
-    it('should throw error when signer required but not available', () => {
+    it('getReadProviderOrThrow should return the read provider', () => {
       const { result } = renderHook(() =>
         useContractProvider(mockWallet, chainId)
       );
 
-      expect(() => result.current.getContractRunner(true)).toThrow(
-        'Wallet not connected. Signer required for this operation.'
-      );
+      const runner = result.current.getReadProviderOrThrow();
+      expect(runner).toBe(result.current.provider);
     });
 
-    it('should throw error when provider not available', () => {
-      // Mock environment without RPC URL
-      const originalEnv = process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL;
-      delete process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL;
+    it('should throw error when no provider is available', () => {
+      // Make JsonRpcProvider construction fail so the provider memo resolves to null
+      (ethers.JsonRpcProvider as any).mockImplementationOnce(() => {
+        throw new Error('RPC unavailable');
+      });
 
       const { result } = renderHook(() =>
         useContractProvider(mockWallet, chainId)
       );
 
-      expect(() => result.current.getContractRunner(false)).toThrow();
-
-      // Restore
-      process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL = originalEnv;
+      expect(result.current.provider).toBeNull();
+      expect(() => result.current.getRunnerOrThrow()).toThrow(
+        'Blockchain provider not available'
+      );
+      expect(() => result.current.getReadProviderOrThrow()).toThrow(
+        'Blockchain provider not available'
+      );
     });
   });
 
@@ -237,7 +267,21 @@ describe('useContractProvider', () => {
   });
 
   describe('Initialization', () => {
-    it('should mark as initialized when provider is ready', async () => {
+    it('should mark as initialized when contract validation succeeds', async () => {
+      const { result } = renderHook(() =>
+        useContractProvider(mockWallet, chainId)
+      );
+
+      await waitFor(() => {
+        expect(result.current.isInitialized).toBe(true);
+      });
+    });
+
+    it('should still mark as initialized when the connectivity test call fails', async () => {
+      (ethers.Contract as any).mockImplementationOnce(() => ({
+        getAllTokens: vi.fn().mockRejectedValue(new Error('not deployed yet')),
+      }));
+
       const { result } = renderHook(() =>
         useContractProvider(mockWallet, chainId)
       );
