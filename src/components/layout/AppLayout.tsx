@@ -17,6 +17,7 @@ import {
   Palette,
   Bell,
   Wallet,
+  Trophy,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -57,6 +58,12 @@ const primaryNavItems: NavItem[] = [
     href: '/analytics',
     icon: <BarChart3 size={20} />,
     description: 'Platform metrics',
+  },
+  {
+    label: 'Leaderboard',
+    href: '/leaderboard',
+    icon: <Trophy size={20} />,
+    description: 'Top traders',
   },
 ];
 
