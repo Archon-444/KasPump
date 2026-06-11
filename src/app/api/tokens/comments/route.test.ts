@@ -15,7 +15,7 @@ vi.mock('@vercel/kv', () => ({
   },
 }));
 
-import { GET, POST } from './route';
+import { GET, POST, PATCH } from './route';
 import { kv } from '@vercel/kv';
 
 const TOKEN = '0x' + '1'.repeat(40);
@@ -176,5 +176,82 @@ describe('POST /api/tokens/comments', () => {
 
     const res = await POST(makePostRequest({ tokenAddress: TOKEN, walletAddress: otherWallet, text: 'gm' }));
     expect(res.status).toBe(201);
+  });
+});
+
+describe('PATCH /api/tokens/comments (reactions)', () => {
+  function makePatchRequest(body: unknown): NextRequest {
+    return new NextRequest('http://localhost/api/tokens/comments', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const existing = () => [{ ...makeComment(), id: 'c1' }];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(kv.set).mockResolvedValue('OK');
+    vi.mocked(kv.del).mockResolvedValue(1);
+    vi.mocked(kv.get).mockImplementation(async (key: any) => {
+      if (String(key).startsWith('comments:')) return existing();
+      return null;
+    });
+  });
+
+  it('rejects an emoji outside the allowlist', async () => {
+    const res = await PATCH(makePatchRequest({
+      tokenAddress: TOKEN, walletAddress: WALLET, commentId: 'c1', emoji: '😈',
+    }));
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 for an unknown comment id', async () => {
+    const res = await PATCH(makePatchRequest({
+      tokenAddress: TOKEN, walletAddress: WALLET, commentId: 'nope', emoji: '🔥',
+    }));
+    expect(res.status).toBe(404);
+    // Lock released even on the 404 path
+    expect(vi.mocked(kv.del)).toHaveBeenCalledWith(expect.stringContaining('lock:'));
+  });
+
+  it('adds a reaction and persists it', async () => {
+    const res = await PATCH(makePatchRequest({
+      tokenAddress: TOKEN, walletAddress: WALLET, commentId: 'c1', emoji: '🔥',
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.comment.reactions['🔥']).toEqual([WALLET.toLowerCase()]);
+
+    const writeCall = vi.mocked(kv.set).mock.calls.find(c => String(c[0]).startsWith('comments:'));
+    expect(writeCall).toBeDefined();
+  });
+
+  it('removes the reaction when toggled twice (same wallet)', async () => {
+    const reacted = [{ ...makeComment(), id: 'c1', reactions: { '🔥': [WALLET.toLowerCase()] } }];
+    vi.mocked(kv.get).mockImplementation(async (key: any) => {
+      if (String(key).startsWith('comments:')) return reacted;
+      return null;
+    });
+
+    const res = await PATCH(makePatchRequest({
+      tokenAddress: TOKEN, walletAddress: WALLET, commentId: 'c1', emoji: '🔥',
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.comment.reactions['🔥']).toBeUndefined();
+  });
+
+  it('returns 409 when the lock is held', async () => {
+    vi.mocked(kv.set).mockImplementation(async (key: any) => {
+      if (String(key).startsWith('lock:')) return null;
+      return 'OK';
+    });
+
+    const res = await PATCH(makePatchRequest({
+      tokenAddress: TOKEN, walletAddress: WALLET, commentId: 'c1', emoji: '🔥',
+    }));
+    expect(res.status).toBe(409);
   });
 });

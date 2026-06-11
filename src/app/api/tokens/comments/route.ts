@@ -12,7 +12,11 @@ interface Comment {
   timestamp: number;
   likes: number;
   isCreator?: boolean;
+  /** emoji -> wallet addresses that reacted with it */
+  reactions?: Record<string, string[]>;
 }
+
+const ALLOWED_REACTIONS = ['🔥', '💯', '🚀'] as const;
 
 function commentKey(tokenAddress: string): string {
   return `comments:${tokenAddress.toLowerCase()}`;
@@ -127,5 +131,66 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Comments POST Error:', error);
     return NextResponse.json({ error: 'Failed to post comment' }, { status: 500 });
+  }
+}
+
+/**
+ * PATCH — toggle an emoji reaction on a comment.
+ * Body: { tokenAddress, walletAddress, commentId, emoji }
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { tokenAddress, walletAddress, commentId, emoji } = body;
+
+    if (!tokenAddress || !ethers.isAddress(tokenAddress)) {
+      return NextResponse.json({ error: 'Valid token address required' }, { status: 400 });
+    }
+    if (!walletAddress || !ethers.isAddress(walletAddress)) {
+      return NextResponse.json({ error: 'Valid wallet address required' }, { status: 400 });
+    }
+    if (!commentId || typeof commentId !== 'string') {
+      return NextResponse.json({ error: 'Comment ID required' }, { status: 400 });
+    }
+    if (!ALLOWED_REACTIONS.includes(emoji)) {
+      return NextResponse.json({ error: 'Invalid reaction' }, { status: 400 });
+    }
+
+    const lockKey = `lock:${commentKey(tokenAddress)}`;
+    const acquired = await kv.set(lockKey, '1', { nx: true, ex: 5 });
+    if (!acquired) {
+      return NextResponse.json({ error: 'Please try again in a moment.' }, { status: 409 });
+    }
+
+    let updated: Comment | undefined;
+    try {
+      const comments = await readComments(tokenAddress);
+      updated = comments.find(c => c.id === commentId);
+      if (!updated) {
+        return NextResponse.json({ error: 'Comment not found' }, { status: 404 });
+      }
+
+      const wallet = walletAddress.toLowerCase();
+      const reactions = updated.reactions ?? {};
+      const reactors = reactions[emoji] ?? [];
+
+      // Toggle: remove if already reacted, add otherwise
+      reactions[emoji] = reactors.includes(wallet)
+        ? reactors.filter(w => w !== wallet)
+        : [...reactors, wallet];
+      if (reactions[emoji].length === 0) {
+        delete reactions[emoji];
+      }
+      updated.reactions = reactions;
+
+      await writeComments(tokenAddress, comments);
+    } finally {
+      await kv.del(lockKey);
+    }
+
+    return NextResponse.json({ comment: updated });
+  } catch (error: any) {
+    console.error('Comments PATCH Error:', error);
+    return NextResponse.json({ error: 'Failed to update reaction' }, { status: 500 });
   }
 }

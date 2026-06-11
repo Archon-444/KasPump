@@ -15,7 +15,10 @@ interface Comment {
   timestamp: number;
   likes: number;
   isCreator?: boolean;
+  reactions?: Record<string, string[]>;
 }
+
+const REACTION_EMOJIS = ['🔥', '💯', '🚀'] as const;
 
 export interface TokenCommentThreadProps {
   tokenAddress: string;
@@ -111,6 +114,41 @@ export const TokenCommentThread: React.FC<TokenCommentThreadProps> = ({
     }
   };
 
+  const handleReaction = async (commentId: string, emoji: string) => {
+    if (!wallet.address) return;
+    const walletLower = wallet.address.toLowerCase();
+
+    // Optimistic toggle
+    setComments(prev => prev.map(c => {
+      if (c.id !== commentId) return c;
+      const reactions = { ...(c.reactions ?? {}) };
+      const reactors = reactions[emoji] ?? [];
+      if (reactors.includes(walletLower)) {
+        const next = reactors.filter(w => w !== walletLower);
+        if (next.length === 0) delete reactions[emoji];
+        else reactions[emoji] = next;
+      } else {
+        reactions[emoji] = [...reactors, walletLower];
+      }
+      return { ...c, reactions };
+    }));
+
+    try {
+      await fetch('/api/tokens/comments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tokenAddress,
+          walletAddress: wallet.address,
+          commentId,
+          emoji,
+        }),
+      });
+    } catch {
+      // Next poll re-syncs from the server if the optimistic update was wrong
+    }
+  };
+
   return (
     <Card className={cn('glassmorphism p-5', className)}>
       <div className="flex items-center gap-2 mb-4">
@@ -198,7 +236,7 @@ export const TokenCommentThread: React.FC<TokenCommentThreadProps> = ({
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, delay: i < 5 ? i * 0.03 : 0 }}
-                  className="flex gap-2"
+                  className="flex gap-2 group"
                 >
                   <div className={cn(
                     'w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0',
@@ -227,6 +265,42 @@ export const TokenCommentThread: React.FC<TokenCommentThreadProps> = ({
                     <p className="text-sm text-gray-200 break-words whitespace-pre-wrap leading-relaxed">
                       {comment.text}
                     </p>
+                    <div className="flex items-center gap-1 mt-1.5">
+                      {REACTION_EMOJIS.map((emoji) => {
+                        const reactors = comment.reactions?.[emoji] ?? [];
+                        const count = reactors.length;
+                        const hasReacted = wallet.address
+                          ? reactors.includes(wallet.address.toLowerCase())
+                          : false;
+                        return (
+                          <button
+                            key={emoji}
+                            onClick={() => handleReaction(comment.id, emoji)}
+                            disabled={!wallet.address}
+                            className={cn(
+                              'flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs transition-all',
+                              hasReacted
+                                ? 'bg-yellow-500/15 border border-yellow-500/30'
+                                : count > 0
+                                  ? 'bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08]'
+                                  : 'opacity-0 group-hover:opacity-60 hover:!opacity-100 border border-transparent',
+                              !wallet.address && 'cursor-default'
+                            )}
+                            title={hasReacted ? 'Remove reaction' : 'React'}
+                          >
+                            <span className="text-[11px] leading-none">{emoji}</span>
+                            {count > 0 && (
+                              <span className={cn(
+                                'text-[10px] tabular-nums leading-none',
+                                hasReacted ? 'text-yellow-400' : 'text-gray-500'
+                              )}>
+                                {count}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </motion.div>
               );
