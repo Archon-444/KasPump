@@ -55,12 +55,12 @@ export default function DiscoverPage() {
   const router = useRouter();
   const isMobile = useIsMobile();
 
-  // Optimized Data Fetching using React Query
-  // Fetches 100 tokens to allow for client-side sorting/filtering on this batch
-  // Future optimization: Move all filtering/sorting to the API
+  // Progressive loading — start with 50, "Load More" adds 50 more each time
+  const [tokenLimit, setTokenLimit] = useState(50);
+
   const { data, isLoading, refetch, isRefetching } = useTokenQuery({
-    limit: 100, 
-    search: filters.searchQuery // Server-side search optimization
+    limit: tokenLimit,
+    search: filters.searchQuery
   });
 
   const tokens = data?.tokens || [];
@@ -411,6 +411,18 @@ export default function DiscoverPage() {
                 </motion.div>
               ))}
             </motion.div>
+          )}
+
+          {/* Load More */}
+          {data?.pagination?.hasMore && !isLoading && (
+            <div className="flex justify-center mt-8">
+              <button
+                onClick={() => setTokenLimit(l => l + 50)}
+                className="px-6 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-sm font-medium text-gray-300 hover:text-white transition-all"
+              >
+                Load More Tokens
+              </button>
+            </div>
           )}
         </section>
       </main>

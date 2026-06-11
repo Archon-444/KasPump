@@ -24,6 +24,7 @@ import { RecentTradesFeed } from './RecentTradesFeed';
 import { TokenCommentThread } from './TokenCommentThread';
 import { HolderList } from './HolderList';
 import { RiskIndicators } from './RiskIndicators';
+import { ConfettiSuccess } from './ConfettiSuccess';
 import { GraduationHUD } from './GraduationHUD';
 import { CreatorVestingPanel } from './CreatorVestingPanel';
 import { MobileTradingInterface } from '../mobile';
@@ -61,6 +62,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
   const [showPriceAlert, setShowPriceAlert] = useState(false);
   const [showSocialShare, setShowSocialShare] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
+  const [confettiTrigger, setConfettiTrigger] = useState(false);
   const fetchBalances = useCallback(async () => {
     if (!wallet.address) {
       setUserBalance(0);
@@ -112,9 +114,19 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
         const chainId = resolveChainId();
         const explorerUrl = chainId ? getExplorerUrl(chainId, 'tx', txHash) : undefined;
 
+        const isFirstTrade = typeof window !== 'undefined' && !localStorage.getItem('kaspump_first_trade');
+        if (isFirstTrade) {
+          localStorage.setItem('kaspump_first_trade', '1');
+          setConfettiTrigger(true);
+        }
+
         showSuccess(
-          trade.action === 'buy' ? 'Purchase submitted' : 'Sell order submitted',
-          'Your transaction has been sent to the network.',
+          isFirstTrade
+            ? 'First trade complete!'
+            : trade.action === 'buy' ? 'Purchase submitted' : 'Sell order submitted',
+          isFirstTrade
+            ? 'Welcome to KasPump — you\'re officially a trader.'
+            : 'Your transaction has been sent to the network.',
           {
             txHash,
             explorerUrl,
@@ -143,6 +155,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
 
   return (
     <div className={cn('min-h-screen bg-gradient-to-br from-gray-900 via-yellow-900/20 to-gray-900', className)}>
+      <ConfettiSuccess trigger={confettiTrigger} />
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <motion.div

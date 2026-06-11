@@ -11,8 +11,8 @@
  * Post-graduation: "Graduated — LP active" with a link to the DEX pair.
  */
 
-import React, { useEffect, useState } from 'react';
-import { Rocket, ExternalLink, Target } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Rocket, ExternalLink, Target, PartyPopper } from 'lucide-react';
 import { ethers } from 'ethers';
 import { useAccount } from 'wagmi';
 import { Card, Progress } from '../ui';
@@ -124,6 +124,21 @@ export const GraduationHUD: React.FC<GraduationHUDProps> = ({
   // Pre-graduation HUD.
   const progressPct = Math.max(0, Math.min(100, token.bondingCurveProgress));
   const remainingPct = Math.max(0, 100 - progressPct);
+
+  // Milestone detection — celebrate when progress crosses 50% during session
+  const prevProgressRef = useRef(progressPct);
+  const [milestoneMsg, setMilestoneMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const prev = prevProgressRef.current;
+    prevProgressRef.current = progressPct;
+    if (prev < 50 && progressPct >= 50) {
+      setMilestoneMsg('Halfway to graduation!');
+      const t = setTimeout(() => setMilestoneMsg(null), 4000);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [progressPct]);
   const nativeLeftFmt =
     nativeLeftToGraduate == null
       ? null
@@ -143,6 +158,12 @@ export const GraduationHUD: React.FC<GraduationHUDProps> = ({
         </span>
       </div>
       <Progress value={progressPct} className="h-2.5" />
+      {milestoneMsg && (
+        <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-yellow-500/[0.08] border border-yellow-500/[0.15] rounded-lg animate-pulse">
+          <PartyPopper size={14} className="text-yellow-400" />
+          <span className="text-xs font-semibold text-yellow-400">{milestoneMsg}</span>
+        </div>
+      )}
       <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
         <span>{remainingPct.toFixed(1)}% sold left until graduation</span>
         {nativeLeftFmt != null && (
