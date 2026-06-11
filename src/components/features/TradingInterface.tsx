@@ -177,7 +177,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const getTradeButtonText = () => {
     if (!amount || parseFloat(amount) <= 0) return `Enter ${tradeType === 'buy' ? 'BNB' : token.symbol} amount`;
     if (isInsufficientBalance()) return 'Insufficient Balance';
-    if (quoteLoading) return 'Fetching quote...';
+    if (quoteLoading) return 'Fetching quote…';
     if (loading) return `${tradeType === 'buy' ? 'Buying' : 'Selling'}...`;
     return `${tradeType === 'buy' ? 'Buy' : 'Sell'} ${token.symbol}`;
   };
@@ -447,7 +447,7 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
         )}
       >
         <div className="flex items-center justify-center gap-2">
-          {loading ? (
+          {(loading || quoteLoading) ? (
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
           ) : (
             <Zap size={16} />
@@ -456,16 +456,32 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
         </div>
       </Button>
 
-      {/* Warning Messages */}
-      {priceImpact > 10 && (
+      {/* Graduated Price Impact Warnings */}
+      {priceImpact > 2 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center space-x-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg"
+          className={cn(
+            'flex items-center space-x-2 p-3 rounded-lg',
+            priceImpact > 10
+              ? 'bg-red-500/10 border border-red-500/20'
+              : priceImpact > 5
+                ? 'bg-orange-500/10 border border-orange-500/20'
+                : 'bg-yellow-500/10 border border-yellow-500/20'
+          )}
         >
-          <AlertTriangle size={16} className="text-red-400" />
-          <span className="text-red-400 text-sm">
-            High price impact ({priceImpact.toFixed(1)}%). Consider reducing trade size.
+          <AlertTriangle size={16} className={cn(
+            priceImpact > 10 ? 'text-red-400' : priceImpact > 5 ? 'text-orange-400' : 'text-yellow-400'
+          )} />
+          <span className={cn(
+            'text-sm',
+            priceImpact > 10 ? 'text-red-400' : priceImpact > 5 ? 'text-orange-400' : 'text-yellow-400'
+          )}>
+            {priceImpact > 10
+              ? `High price impact (${priceImpact.toFixed(1)}%). Consider reducing trade size.`
+              : priceImpact > 5
+                ? `Significant price impact (${priceImpact.toFixed(1)}%). You may receive less than expected.`
+                : `Moderate price impact (${priceImpact.toFixed(1)}%).`}
           </span>
         </motion.div>
       )}

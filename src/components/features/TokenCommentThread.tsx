@@ -52,7 +52,7 @@ export const TokenCommentThread: React.FC<TokenCommentThreadProps> = ({
 
   useEffect(() => {
     fetchComments();
-    pollRef.current = setInterval(fetchComments, 10000);
+    pollRef.current = setInterval(fetchComments, 5000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };

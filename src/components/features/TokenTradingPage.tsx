@@ -35,7 +35,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatPercentage, formatTimeAgo, cn, copyToClipboard } from '../../utils';
 import { getExplorerUrl } from '../../config/chains';
-import { Bell, Copy, Check } from 'lucide-react';
+import { Bell, Copy, Check, Shield } from 'lucide-react';
 
 export interface TokenTradingPageProps {
   token: KasPumpToken;
@@ -301,6 +301,26 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
                 right-side info card. Pre-graduation: progress + native left.
                 Post-graduation: "Graduated — LP active" + DEX pair link. */}
             <GraduationHUD token={token} />
+
+            {/* Anti-sniper protection — top-level visibility */}
+            {(() => {
+              const elapsed = token.createdAt ? (Date.now() - token.createdAt.getTime()) / 1000 : Infinity;
+              const secondsLeft = Math.max(0, Math.ceil(60 - elapsed));
+              if (secondsLeft <= 0) return null;
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-2 px-4 py-3 bg-yellow-500/[0.08] border border-yellow-500/[0.15] rounded-xl animate-pulse"
+                >
+                  <Shield size={16} className="text-yellow-400 flex-shrink-0" />
+                  <p className="text-sm font-semibold text-yellow-400 flex-1">
+                    Anti-sniper protection active — elevated fees for {secondsLeft}s
+                  </p>
+                  <span className="text-sm font-bold text-yellow-400 tabular-nums">{secondsLeft}s</span>
+                </motion.div>
+              );
+            })()}
 
             <TradingChart
               token={token}

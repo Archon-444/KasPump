@@ -353,11 +353,13 @@ export default function DiscoverPage() {
               )}
             </div>
 
-            <TokenSearchFilters
-              filters={filters}
-              onFiltersChange={setFilters}
-              tokenCount={filteredTokens.length}
-            />
+            <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm -mx-4 px-4 py-2">
+              <TokenSearchFilters
+                filters={filters}
+                onFiltersChange={setFilters}
+                tokenCount={filteredTokens.length}
+              />
+            </div>
           </div>
 
           {/* Token Grid */}
@@ -381,8 +383,8 @@ export default function DiscoverPage() {
           ) : (
             <motion.div
               className={cn(
-                'space-y-3',
-                !isMobile && 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 space-y-0'
+                'space-y-4',
+                !isMobile && 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 space-y-0'
               )}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

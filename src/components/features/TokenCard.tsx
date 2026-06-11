@@ -179,21 +179,21 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">MCap</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">MCap</p>
               <p className="text-white text-sm font-medium tabular-nums">
                 {formatCurrency(token.marketCap, 'BNB')}
               </p>
             </div>
             <div>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Volume</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">Volume</p>
               <p className="text-white text-sm font-medium tabular-nums">
                 {formatCurrency(token.volume24h, 'BNB')}
               </p>
             </div>
             <div>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Holders</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">Holders</p>
               <p className="text-white text-sm font-medium tabular-nums flex items-center gap-1">
-                <Users size={11} className="text-gray-500" />
+                <Users size={11} className="text-gray-400" />
                 {token.holders}
               </p>
             </div>
