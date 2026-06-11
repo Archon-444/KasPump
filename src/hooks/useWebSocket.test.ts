@@ -3,110 +3,101 @@
  * Tests WebSocket connections, subscriptions, and event handling
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useWebSocket, useTradeEvents, usePriceUpdates, useTokenUpdates } from './useWebSocket';
 
-// Mock WebSocket client
-const mockWebSocketClient = {
-  connect: vi.fn(),
-  disconnect: vi.fn(),
-  isConnected: vi.fn(),
-  subscribe: vi.fn(),
-  unsubscribe: vi.fn(),
-  send: vi.fn(),
+// Mock WebSocket client (singleton returned by getWebSocketClient)
+type EventCallback = (data: any) => void;
+
+let eventCallbacks: Map<string, Set<EventCallback>>;
+
+const mockSocket = {
+  emit: vi.fn(),
 };
 
-vi.mock('../lib/websocket', () => ({
+const mockWebSocketClient = {
+  isConnected: vi.fn(),
+  on: vi.fn(),
+  off: vi.fn(),
+  subscribeToToken: vi.fn(),
+  unsubscribeFromToken: vi.fn(),
+  socket: mockSocket,
+};
+
+vi.mock('../lib/websocket/client', () => ({
   getWebSocketClient: () => mockWebSocketClient,
-  WebSocketMessage: {},
-  TradeEvent: {},
-  PriceUpdate: {},
 }));
 
+// Helper to emit an event to all registered listeners
+function emitEvent(event: string, data: any) {
+  eventCallbacks.get(event)?.forEach(cb => cb(data));
+}
+
+function setupMockClient() {
+  vi.clearAllMocks();
+  eventCallbacks = new Map();
+
+  mockWebSocketClient.isConnected.mockReturnValue(false);
+
+  mockWebSocketClient.on.mockImplementation((event: string, callback: EventCallback) => {
+    if (!eventCallbacks.has(event)) {
+      eventCallbacks.set(event, new Set());
+    }
+    eventCallbacks.get(event)!.add(callback);
+    // Return unsubscribe function
+    return () => {
+      eventCallbacks.get(event)?.delete(callback);
+    };
+  });
+}
+
 describe('useWebSocket', () => {
-  let subscriptionCallbacks: Map<string, Function>;
-
   beforeEach(() => {
-    vi.clearAllMocks();
-    subscriptionCallbacks = new Map();
-
-    // Mock isConnected to return false initially
-    mockWebSocketClient.isConnected.mockReturnValue(false);
-
-    // Mock connect to resolve successfully
-    mockWebSocketClient.connect.mockResolvedValue(undefined);
-
-    // Mock subscribe to store callbacks
-    mockWebSocketClient.subscribe.mockImplementation((eventType: string, callback: Function) => {
-      subscriptionCallbacks.set(eventType, callback);
-      // Return unsubscribe function
-      return () => {
-        subscriptionCallbacks.delete(eventType);
-      };
-    });
+    setupMockClient();
   });
 
   afterEach(() => {
-    subscriptionCallbacks.clear();
+    eventCallbacks.clear();
   });
 
   describe('Initial Connection', () => {
-    it('should initialize with disconnected state', () => {
+    it('should initialize with disconnected state when client is not connected', () => {
       const { result } = renderHook(() => useWebSocket('test'));
 
       expect(result.current.isConnected).toBe(false);
       expect(result.current.lastMessage).toBeNull();
     });
 
-    it('should attempt to connect if not already connected', async () => {
-      renderHook(() => useWebSocket('test'));
-
-      await waitFor(() => {
-        expect(mockWebSocketClient.connect).toHaveBeenCalled();
-      });
-    });
-
-    it('should not attempt to connect if already connected', () => {
+    it('should initialize with connected state when client is already connected', () => {
       mockWebSocketClient.isConnected.mockReturnValue(true);
 
-      renderHook(() => useWebSocket('test'));
+      const { result } = renderHook(() => useWebSocket('test'));
 
-      expect(mockWebSocketClient.connect).not.toHaveBeenCalled();
+      expect(result.current.isConnected).toBe(true);
     });
 
-    it('should update connection status after successful connect', async () => {
-      mockWebSocketClient.connect.mockResolvedValue(undefined);
-
+    it('should update connection status when connection is established', () => {
       const { result } = renderHook(() => useWebSocket('test'));
 
       expect(result.current.isConnected).toBe(false);
 
-      await waitFor(() => {
-        expect(mockWebSocketClient.connect).toHaveBeenCalled();
-      });
-
-      // Simulate connection status update
       act(() => {
-        mockWebSocketClient.isConnected.mockReturnValue(true);
-        const statusCallback = subscriptionCallbacks.get('*');
-        if (statusCallback) {
-          statusCallback({ type: 'connected' });
-        }
+        emitEvent('connection:established', null);
       });
 
-      await waitFor(() => {
-        expect(result.current.isConnected).toBe(true);
-      });
+      expect(result.current.isConnected).toBe(true);
     });
 
-    it('should handle connection failures gracefully', async () => {
-      mockWebSocketClient.connect.mockRejectedValue(new Error('Connection failed'));
+    it('should update connection status when connection is lost', () => {
+      mockWebSocketClient.isConnected.mockReturnValue(true);
 
       const { result } = renderHook(() => useWebSocket('test'));
 
-      await waitFor(() => {
-        expect(mockWebSocketClient.connect).toHaveBeenCalled();
+      expect(result.current.isConnected).toBe(true);
+
+      act(() => {
+        emitEvent('connection:lost', { reason: 'transport close' });
       });
 
       expect(result.current.isConnected).toBe(false);
@@ -115,24 +106,27 @@ describe('useWebSocket', () => {
 
   describe('Event Subscription', () => {
     it('should subscribe to specified event type', () => {
-      renderHook(() => useWebSocket('trade'));
+      renderHook(() => useWebSocket('trade:new'));
 
-      expect(mockWebSocketClient.subscribe).toHaveBeenCalledWith(
-        'trade',
+      expect(mockWebSocketClient.on).toHaveBeenCalledWith(
+        'trade:new',
         expect.any(Function)
       );
     });
 
-    it('should subscribe to connection status updates', () => {
+    it('should subscribe to connection lifecycle events', () => {
       renderHook(() => useWebSocket('test'));
 
-      // Should subscribe to both event type and status (*)
-      expect(mockWebSocketClient.subscribe).toHaveBeenCalledWith(
-        'test',
+      expect(mockWebSocketClient.on).toHaveBeenCalledWith(
+        'connection:established',
         expect.any(Function)
       );
-      expect(mockWebSocketClient.subscribe).toHaveBeenCalledWith(
-        '*',
+      expect(mockWebSocketClient.on).toHaveBeenCalledWith(
+        'connection:lost',
+        expect.any(Function)
+      );
+      expect(mockWebSocketClient.on).toHaveBeenCalledWith(
+        'test',
         expect.any(Function)
       );
     });
@@ -142,12 +136,8 @@ describe('useWebSocket', () => {
 
       expect(result.current.lastMessage).toBeNull();
 
-      // Simulate receiving message
       act(() => {
-        const callback = subscriptionCallbacks.get('test');
-        if (callback) {
-          callback({ value: 'test data' });
-        }
+        emitEvent('test', { value: 'test data' });
       });
 
       expect(result.current.lastMessage).toEqual({ value: 'test data' });
@@ -160,10 +150,7 @@ describe('useWebSocket', () => {
       const testData = { id: 1, message: 'hello' };
 
       act(() => {
-        const subscriptionCallback = subscriptionCallbacks.get('test');
-        if (subscriptionCallback) {
-          subscriptionCallback(testData);
-        }
+        emitEvent('test', testData);
       });
 
       expect(callback).toHaveBeenCalledWith(testData);
@@ -174,12 +161,9 @@ describe('useWebSocket', () => {
       const { result } = renderHook(() => useWebSocket<string>('test', callback));
 
       act(() => {
-        const subscriptionCallback = subscriptionCallbacks.get('test');
-        if (subscriptionCallback) {
-          subscriptionCallback('message 1');
-          subscriptionCallback('message 2');
-          subscriptionCallback('message 3');
-        }
+        emitEvent('test', 'message 1');
+        emitEvent('test', 'message 2');
+        emitEvent('test', 'message 3');
       });
 
       expect(callback).toHaveBeenCalledTimes(3);
@@ -199,10 +183,7 @@ describe('useWebSocket', () => {
 
       // Send message with first callback
       act(() => {
-        const subscriptionCallback = subscriptionCallbacks.get('test');
-        if (subscriptionCallback) {
-          subscriptionCallback('test1');
-        }
+        emitEvent('test', 'test1');
       });
 
       expect(callback1).toHaveBeenCalledWith('test1');
@@ -213,10 +194,7 @@ describe('useWebSocket', () => {
 
       // Send message with updated callback
       act(() => {
-        const subscriptionCallback = subscriptionCallbacks.get('test');
-        if (subscriptionCallback) {
-          subscriptionCallback('test2');
-        }
+        emitEvent('test', 'test2');
       });
 
       expect(callback1).toHaveBeenCalledTimes(1);
@@ -227,39 +205,39 @@ describe('useWebSocket', () => {
   describe('Cleanup', () => {
     it('should unsubscribe on unmount', () => {
       const unsubscribeFn = vi.fn();
-      mockWebSocketClient.subscribe.mockReturnValue(unsubscribeFn);
+      mockWebSocketClient.on.mockReturnValue(unsubscribeFn);
 
       const { unmount } = renderHook(() => useWebSocket('test'));
 
       unmount();
 
-      // Should call both unsubscribe functions (event + status)
-      expect(unsubscribeFn).toHaveBeenCalledTimes(2);
+      // Should call all unsubscribe functions (event + connection established/lost)
+      expect(unsubscribeFn).toHaveBeenCalledTimes(3);
     });
 
     it('should unsubscribe when event type changes', () => {
       const unsubscribeFn = vi.fn();
-      mockWebSocketClient.subscribe.mockReturnValue(unsubscribeFn);
+      mockWebSocketClient.on.mockReturnValue(unsubscribeFn);
 
       const { rerender } = renderHook(
         ({ eventType }) => useWebSocket(eventType),
-        { initialProps: { eventType: 'trade' } }
+        { initialProps: { eventType: 'trade:new' } }
       );
 
-      expect(mockWebSocketClient.subscribe).toHaveBeenCalledWith(
-        'trade',
+      expect(mockWebSocketClient.on).toHaveBeenCalledWith(
+        'trade:new',
         expect.any(Function)
       );
 
       // Change event type
-      rerender({ eventType: 'price' });
+      rerender({ eventType: 'price:update' });
 
       // Should unsubscribe from old event
       expect(unsubscribeFn).toHaveBeenCalled();
 
       // Should subscribe to new event
-      expect(mockWebSocketClient.subscribe).toHaveBeenCalledWith(
-        'price',
+      expect(mockWebSocketClient.on).toHaveBeenCalledWith(
+        'price:update',
         expect.any(Function)
       );
     });
@@ -273,28 +251,44 @@ describe('useWebSocket', () => {
       expect(typeof result.current.send).toBe('function');
     });
 
-    it('should call client send when invoked', () => {
+    it('should emit on the socket when connected', () => {
+      mockWebSocketClient.isConnected.mockReturnValue(true);
+
       const { result } = renderHook(() => useWebSocket('test'));
 
-      const message = { type: 'subscribe', topic: 'tokens' };
+      const message = { topic: 'tokens' };
 
       act(() => {
-        result.current.send(message);
+        result.current.send('subscribe', message);
       });
 
-      expect(mockWebSocketClient.send).toHaveBeenCalledWith(message);
+      expect(mockSocket.emit).toHaveBeenCalledWith('subscribe', message);
+    });
+
+    it('should not emit when disconnected', () => {
+      mockWebSocketClient.isConnected.mockReturnValue(false);
+
+      const { result } = renderHook(() => useWebSocket('test'));
+
+      act(() => {
+        result.current.send('subscribe', { topic: 'tokens' });
+      });
+
+      expect(mockSocket.emit).not.toHaveBeenCalled();
     });
 
     it('should handle multiple send calls', () => {
+      mockWebSocketClient.isConnected.mockReturnValue(true);
+
       const { result } = renderHook(() => useWebSocket('test'));
 
       act(() => {
-        result.current.send({ msg: 1 });
-        result.current.send({ msg: 2 });
-        result.current.send({ msg: 3 });
+        result.current.send('event', { msg: 1 });
+        result.current.send('event', { msg: 2 });
+        result.current.send('event', { msg: 3 });
       });
 
-      expect(mockWebSocketClient.send).toHaveBeenCalledTimes(3);
+      expect(mockSocket.emit).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -307,7 +301,7 @@ describe('useWebSocket', () => {
       }
 
       const callback = vi.fn();
-      const { result } = renderHook(() => useWebSocket<TradeMessage>('trade', callback));
+      const { result } = renderHook(() => useWebSocket<TradeMessage>('trade:new', callback));
 
       const tradeData: TradeMessage = {
         tokenAddress: '0x123',
@@ -316,10 +310,7 @@ describe('useWebSocket', () => {
       };
 
       act(() => {
-        const subscriptionCallback = subscriptionCallbacks.get('trade');
-        if (subscriptionCallback) {
-          subscriptionCallback(tradeData);
-        }
+        emitEvent('trade:new', tradeData);
       });
 
       expect(callback).toHaveBeenCalledWith(tradeData);
@@ -330,49 +321,40 @@ describe('useWebSocket', () => {
 
 describe('useTradeEvents', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockWebSocketClient.isConnected.mockReturnValue(false);
-    mockWebSocketClient.connect.mockResolvedValue(undefined);
-    mockWebSocketClient.subscribe.mockImplementation((eventType: string, callback: Function) => {
-      return () => {};
-    });
+    setupMockClient();
   });
 
-  it('should subscribe to trade events', () => {
+  it('should subscribe to trade:new events', () => {
     renderHook(() => useTradeEvents());
 
-    expect(mockWebSocketClient.subscribe).toHaveBeenCalledWith(
-      'trade',
+    expect(mockWebSocketClient.on).toHaveBeenCalledWith(
+      'trade:new',
       expect.any(Function)
     );
   });
 
   it('should call callback with trade data', () => {
     const callback = vi.fn();
-    let tradeCallback: Function | undefined;
-
-    mockWebSocketClient.subscribe.mockImplementation((eventType: string, cb: Function) => {
-      if (eventType === 'trade') {
-        tradeCallback = cb;
-      }
-      return () => {};
-    });
 
     renderHook(() => useTradeEvents(callback));
 
     const tradeData = {
+      network: 'base',
       tokenAddress: '0x123',
+      ammAddress: '0xAMM',
       trader: '0x456',
-      isBuy: true,
-      amount: 100,
-      price: 1.5,
+      type: 'buy' as const,
+      nativeAmount: '100',
+      tokenAmount: '1000',
+      price: '1.5',
+      fee: '0.1',
       timestamp: Date.now(),
+      txHash: '0xhash',
+      blockNumber: 1,
     };
 
     act(() => {
-      if (tradeCallback) {
-        tradeCallback(tradeData);
-      }
+      emitEvent('trade:new', tradeData);
     });
 
     expect(callback).toHaveBeenCalledWith(tradeData);
@@ -381,48 +363,33 @@ describe('useTradeEvents', () => {
 
 describe('usePriceUpdates', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockWebSocketClient.isConnected.mockReturnValue(false);
-    mockWebSocketClient.connect.mockResolvedValue(undefined);
-    mockWebSocketClient.subscribe.mockImplementation((eventType: string, callback: Function) => {
-      return () => {};
-    });
+    setupMockClient();
   });
 
-  it('should subscribe to price events', () => {
+  it('should subscribe to price:update events', () => {
     renderHook(() => usePriceUpdates());
 
-    expect(mockWebSocketClient.subscribe).toHaveBeenCalledWith(
-      'price',
+    expect(mockWebSocketClient.on).toHaveBeenCalledWith(
+      'price:update',
       expect.any(Function)
     );
   });
 
   it('should call callback with price data', () => {
     const callback = vi.fn();
-    let priceCallback: Function | undefined;
-
-    mockWebSocketClient.subscribe.mockImplementation((eventType: string, cb: Function) => {
-      if (eventType === 'price') {
-        priceCallback = cb;
-      }
-      return () => {};
-    });
 
     renderHook(() => usePriceUpdates(callback));
 
     const priceData = {
       tokenAddress: '0x789',
-      chainId: 56,
-      price: 2.5,
+      chainId: 8453,
+      price: '2.5',
       change24h: 5.2,
       timestamp: Date.now(),
     };
 
     act(() => {
-      if (priceCallback) {
-        priceCallback(priceData);
-      }
+      emitEvent('price:update', priceData);
     });
 
     expect(callback).toHaveBeenCalledWith(priceData);
@@ -430,24 +397,18 @@ describe('usePriceUpdates', () => {
 });
 
 describe('useTokenUpdates', () => {
-  let tradeCallback: Function | undefined;
-  let priceCallback: Function | undefined;
-
   beforeEach(() => {
-    vi.clearAllMocks();
-    tradeCallback = undefined;
-    priceCallback = undefined;
+    setupMockClient();
+  });
 
-    mockWebSocketClient.isConnected.mockReturnValue(false);
-    mockWebSocketClient.connect.mockResolvedValue(undefined);
-    mockWebSocketClient.subscribe.mockImplementation((eventType: string, cb: Function) => {
-      if (eventType === 'trade') {
-        tradeCallback = cb;
-      } else if (eventType === 'price') {
-        priceCallback = cb;
-      }
-      return () => {};
-    });
+  it('should subscribe to token updates on mount and unsubscribe on unmount', () => {
+    const { unmount } = renderHook(() => useTokenUpdates('0x123'));
+
+    expect(mockWebSocketClient.subscribeToToken).toHaveBeenCalledWith('0x123');
+
+    unmount();
+
+    expect(mockWebSocketClient.unsubscribeFromToken).toHaveBeenCalledWith('0x123');
   });
 
   it('should filter updates for specific token', () => {
@@ -458,18 +419,14 @@ describe('useTokenUpdates', () => {
 
     // Send trade for different token
     act(() => {
-      if (tradeCallback) {
-        tradeCallback({ tokenAddress: '0xDEF456', amount: 100 });
-      }
+      emitEvent('trade:new', { tokenAddress: '0xDEF456', tokenAmount: '100' });
     });
 
     expect(callback).not.toHaveBeenCalled();
 
     // Send trade for target token
     act(() => {
-      if (tradeCallback) {
-        tradeCallback({ tokenAddress: targetAddress, amount: 100 });
-      }
+      emitEvent('trade:new', { tokenAddress: targetAddress, tokenAmount: '100' });
     });
 
     expect(callback).toHaveBeenCalledTimes(1);
@@ -481,56 +438,25 @@ describe('useTokenUpdates', () => {
     renderHook(() => useTokenUpdates('0xabc123', undefined, callback));
 
     act(() => {
-      if (tradeCallback) {
-        tradeCallback({ tokenAddress: '0xABC123', amount: 100 });
-      }
+      emitEvent('trade:new', { tokenAddress: '0xABC123', tokenAmount: '100' });
     });
 
     expect(callback).toHaveBeenCalled();
   });
 
-  it('should filter by chain ID when provided', () => {
-    const callback = vi.fn();
-    const targetAddress = '0x123';
-
-    renderHook(() => useTokenUpdates(targetAddress, 56, callback));
-
-    // Send update for different chain
-    act(() => {
-      if (priceCallback) {
-        priceCallback({ tokenAddress: targetAddress, chainId: 97, price: 1.5 });
-      }
-    });
-
-    expect(callback).not.toHaveBeenCalled();
-
-    // Send update for correct chain
-    act(() => {
-      if (priceCallback) {
-        priceCallback({ tokenAddress: targetAddress, chainId: 56, price: 1.5 });
-      }
-    });
-
-    expect(callback).toHaveBeenCalledWith({ tokenAddress: targetAddress, chainId: 56, price: 1.5 });
-  });
-
-  it('should store updates in state', () => {
+  it('should store trade updates in state', () => {
     const { result } = renderHook(() => useTokenUpdates('0x123'));
 
     expect(result.current.updates).toEqual([]);
 
     act(() => {
-      if (tradeCallback) {
-        tradeCallback({ tokenAddress: '0x123', amount: 100 });
-      }
+      emitEvent('trade:new', { tokenAddress: '0x123', tokenAmount: '100' });
     });
 
     expect(result.current.updates).toHaveLength(1);
 
     act(() => {
-      if (priceCallback) {
-        priceCallback({ tokenAddress: '0x123', price: 1.5 });
-      }
+      emitEvent('trade:new', { tokenAddress: '0x123', tokenAmount: '200' });
     });
 
     expect(result.current.updates).toHaveLength(2);
@@ -542,9 +468,7 @@ describe('useTokenUpdates', () => {
     // Send 60 updates
     act(() => {
       for (let i = 0; i < 60; i++) {
-        if (tradeCallback) {
-          tradeCallback({ tokenAddress: '0x123', amount: i });
-        }
+        emitEvent('trade:new', { tokenAddress: '0x123', amount: i });
       }
     });
 
@@ -553,18 +477,14 @@ describe('useTokenUpdates', () => {
     expect((result.current.updates[0] as any).amount).toBe(59);
   });
 
-  it('should handle both trade and price updates', () => {
+  it('should ignore price:update events (only trades are tracked)', () => {
     const { result } = renderHook(() => useTokenUpdates('0x123'));
 
     act(() => {
-      if (tradeCallback) {
-        tradeCallback({ tokenAddress: '0x123', type: 'trade', amount: 100 });
-      }
-      if (priceCallback) {
-        priceCallback({ tokenAddress: '0x123', type: 'price', price: 1.5 });
-      }
+      emitEvent('trade:new', { tokenAddress: '0x123', amount: 100 });
+      emitEvent('price:update', { tokenAddress: '0x123', price: '1.5' });
     });
 
-    expect(result.current.updates).toHaveLength(2);
+    expect(result.current.updates).toHaveLength(1);
   });
 });

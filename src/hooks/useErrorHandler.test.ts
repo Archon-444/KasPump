@@ -158,7 +158,7 @@ describe('useErrorHandler', () => {
       expect(result.current.error).toBeNull();
     });
 
-    it('should reset retry count when clearing', () => {
+    it('should reset retry count when clearing', async () => {
       const { result } = renderHook(() => useErrorHandler());
       const onRetry = vi.fn().mockResolvedValue(undefined);
 
@@ -167,7 +167,7 @@ describe('useErrorHandler', () => {
         result.current.handleError('Error', { onRetry });
       });
 
-      act(async () => {
+      await act(async () => {
         await result.current.retry();
       });
 
@@ -225,8 +225,9 @@ describe('useErrorHandler', () => {
         result.current.handleError('Error', { onRetry });
       });
 
-      const retryPromise = act(async () => {
-        await result.current.retry();
+      let retryPromise: Promise<void>;
+      act(() => {
+        retryPromise = result.current.retry();
       });
 
       // Should be retrying now
@@ -234,7 +235,9 @@ describe('useErrorHandler', () => {
 
       // Resolve the retry
       resolveRetry!();
-      await retryPromise;
+      await act(async () => {
+        await retryPromise;
+      });
 
       expect(result.current.isRetrying).toBe(false);
     });
@@ -445,8 +448,9 @@ describe('useErrorHandler', () => {
         result.current.handleError('Error', { onRetry });
       });
 
-      const retryPromise = act(async () => {
-        await result.current.retry();
+      let retryPromise: Promise<void>;
+      act(() => {
+        retryPromise = result.current.retry();
       });
 
       // Clear while retrying
@@ -455,7 +459,9 @@ describe('useErrorHandler', () => {
       });
 
       resolveRetry!();
-      await retryPromise;
+      await act(async () => {
+        await retryPromise;
+      });
 
       // Error should be null after clearing
       expect(result.current.error).toBeNull();

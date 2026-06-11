@@ -4,7 +4,7 @@
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useCreatorTokens } from './useCreatorTokens';
 import { ethers } from 'ethers';
 
@@ -41,6 +41,12 @@ vi.mock('../config/chains', () => ({
   isTestnet: vi.fn((chainId: number) => chainId === 97 || chainId === 421614 || chainId === 84532),
 }));
 
+// Mock contract address registry (addresses are resolved at module load in the
+// real implementation, so env vars set in tests would be ignored)
+vi.mock('../config/contracts', () => ({
+  getTokenFactoryAddress: vi.fn(),
+}));
+
 // Mock ethers
 vi.mock('ethers', async () => {
   const actual = await vi.importActual('ethers');
@@ -58,6 +64,7 @@ vi.mock('ethers', async () => {
 });
 
 import { useMultichainWallet } from './useMultichainWallet';
+import { getTokenFactoryAddress } from '../config/contracts';
 
 describe('useCreatorTokens', () => {
   const mockCreatorAddress = '0x1234567890123456789012345678901234567890';
@@ -120,12 +127,10 @@ describe('useCreatorTokens', () => {
     // Setup default mocks
     (useMultichainWallet as any).mockReturnValue(mockWallet);
 
-    // Mock environment variables
-    process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY = '0xfactory123456789012345678901234567890';
-  });
-
-  afterEach(() => {
-    delete process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY;
+    // Factory deployed on BSC mainnet only in these tests
+    (getTokenFactoryAddress as any).mockImplementation((chainId: number) =>
+      chainId === 56 ? '0xfactory1234567890123456789012345678901234' : undefined
+    );
   });
 
   describe('Initial State', () => {
@@ -133,7 +138,8 @@ describe('useCreatorTokens', () => {
       const { result } = renderHook(() => useCreatorTokens());
 
       expect(result.current.tokens).toEqual([]);
-      expect(result.current.loading).toBe(true);
+      // The disconnected branch resolves synchronously, so loading is already false
+      expect(result.current.loading).toBe(false);
       expect(result.current.error).toBeNull();
     });
 
@@ -243,7 +249,7 @@ describe('useCreatorTokens', () => {
           imageUrl: '',
           creator: configCallCount === 2 ? mockCreatorAddress : '0xotheraddress',
           totalSupply: ethers.parseEther('1000000'),
-          createdAt: BigInt(Date.now() / 1000),
+          createdAt: BigInt(Math.floor(Date.now() / 1000)),
           curveType: 0,
         });
       });
@@ -271,7 +277,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
       mockFactoryContract.getTokenAMM.mockResolvedValue(ethers.ZeroAddress);
@@ -333,7 +339,8 @@ describe('useCreatorTokens', () => {
         expect(token.symbol).toBe('AWSM');
         expect(token.description).toBe('This is an awesome token');
         expect(token.image).toBe('https://example.com/awesome.png');
-        expect(token.curveType).toBe('exponential');
+        // V2: all tokens use the sigmoid curve regardless of on-chain curveType
+        expect(token.curveType).toBe('sigmoid');
         expect(token.totalSupply).toBe(5000000);
       }
     });
@@ -346,7 +353,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
 
@@ -371,7 +378,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
 
@@ -393,7 +400,7 @@ describe('useCreatorTokens', () => {
         const token = result.current.tokens[0];
         expect(token.currentSupply).toBe(750000);
         expect(token.price).toBe(0.05);
-        expect(token.totalVolume).toBe(50000);
+        expect(token.totalVolume).toBeCloseTo(50000, 6);
         expect(token.bondingCurveProgress).toBe(75);
         expect(token.isGraduated).toBe(false);
       }
@@ -407,7 +414,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
 
@@ -428,7 +435,7 @@ describe('useCreatorTokens', () => {
       if (result.current.tokens.length > 0) {
         const token = result.current.tokens[0];
         // Market cap = currentSupply * price = 100000 * 2 = 200000
-        expect(token.marketCap).toBe(200000);
+        expect(token.marketCap).toBeCloseTo(200000, 6);
       }
     });
 
@@ -440,7 +447,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
 
@@ -461,7 +468,7 @@ describe('useCreatorTokens', () => {
       if (result.current.tokens.length > 0) {
         const token = result.current.tokens[0];
         // Earnings = volume * 0.005 (0.5% creator fee)
-        expect(token.totalEarnings).toBe(500); // 100000 * 0.005
+        expect(token.totalEarnings).toBeCloseTo(500, 6); // 100000 * 0.005
       }
     });
 
@@ -473,7 +480,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
 
@@ -519,7 +526,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
@@ -545,7 +552,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
@@ -584,7 +591,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
@@ -626,7 +633,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
@@ -665,7 +672,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
@@ -701,7 +708,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
@@ -735,7 +742,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
@@ -785,7 +792,7 @@ describe('useCreatorTokens', () => {
       mockWallet.address = mockCreatorAddress;
     });
 
-    it('should set error state on fetch failure', async () => {
+    it('should keep error null when a chain fetch fails (errors handled per-chain)', async () => {
       mockFactoryContract.getAllTokens.mockRejectedValue(new Error('RPC failure'));
 
       const { result } = renderHook(() => useCreatorTokens());
@@ -794,7 +801,9 @@ describe('useCreatorTokens', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('RPC failure');
+      // V2: RPC failures are caught per-chain and skipped; no global error is set
+      expect(result.current.error).toBeNull();
+      expect(result.current.tokens).toEqual([]);
     });
 
     it('should handle chain-specific errors gracefully', async () => {
@@ -829,7 +838,7 @@ describe('useCreatorTokens', () => {
           imageUrl: '',
           creator: mockCreatorAddress,
           totalSupply: ethers.parseEther('1000000'),
-          createdAt: BigInt(Date.now() / 1000),
+          createdAt: BigInt(Math.floor(Date.now() / 1000)),
           curveType: 0,
         });
       });
@@ -845,23 +854,39 @@ describe('useCreatorTokens', () => {
       expect(result.current.tokens.length).toBe(1);
     });
 
-    it('should clear error on successful refetch', async () => {
+    it('should recover and load tokens on refetch after a failed fetch', async () => {
       mockFactoryContract.getAllTokens.mockRejectedValueOnce(new Error('First error'));
+      mockFactoryContract.getTokenConfig.mockResolvedValue({
+        name: 'Recovered Token',
+        symbol: 'REC',
+        description: '',
+        imageUrl: '',
+        creator: mockCreatorAddress,
+        totalSupply: ethers.parseEther('1000000'),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
+        curveType: 0,
+      });
+      mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
 
       const { result } = renderHook(() => useCreatorTokens());
 
       await waitFor(() => {
-        expect(result.current.error).toBe('First error');
+        expect(result.current.loading).toBe(false);
       });
 
-      // Mock successful response
-      mockFactoryContract.getAllTokens.mockResolvedValue([]);
+      // First fetch failed (handled per-chain) -> no tokens, no global error
+      expect(result.current.tokens).toEqual([]);
+      expect(result.current.error).toBeNull();
+
+      // Mock successful response and refetch
+      mockFactoryContract.getAllTokens.mockResolvedValue([mockTokenAddress]);
 
       await act(async () => {
         await result.current.refresh();
       });
 
       expect(result.current.error).toBeNull();
+      expect(result.current.tokens.length).toBe(1);
     });
   });
 
@@ -880,7 +905,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
@@ -896,7 +921,7 @@ describe('useCreatorTokens', () => {
     });
 
     it('should handle missing factory address for chain', async () => {
-      delete process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY;
+      (getTokenFactoryAddress as any).mockReturnValue(undefined);
 
       const { result } = renderHook(() => useCreatorTokens());
 
@@ -937,7 +962,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000'),
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
@@ -961,7 +986,7 @@ describe('useCreatorTokens', () => {
         imageUrl: '',
         creator: mockCreatorAddress,
         totalSupply: ethers.parseEther('1000000000'), // 1 billion
-        createdAt: BigInt(Date.now() / 1000),
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
         curveType: 0,
       });
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);

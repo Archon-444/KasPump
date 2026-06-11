@@ -4,13 +4,22 @@
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { usePriceAlerts, PriceAlert } from './usePriceAlerts';
 
 describe('usePriceAlerts', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+
+    // Alert IDs are derived from `${tokenAddress}-${Date.now()}`, so make
+    // Date.now monotonically increasing to avoid ID collisions within a test
+    let now = 1700000000000;
+    vi.spyOn(Date, 'now').mockImplementation(() => ++now);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('Initial State', () => {
@@ -22,14 +31,19 @@ describe('usePriceAlerts', () => {
     });
 
     it('should load alerts from localStorage on mount', async () => {
+      // Stored data must satisfy PriceAlertSchema: UUID id, valid 40-hex
+      // address, plus `condition` and `enabled` fields. Extra fields used by
+      // the hook (tokenSymbol, direction, isActive, ...) are preserved.
       const storedAlerts = [
         {
-          id: 'alert-1',
-          tokenAddress: '0x123',
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          tokenAddress: '0x1111111111111111111111111111111111111111',
           chainId: 56,
           tokenSymbol: 'TOKEN',
           targetPrice: 100,
           direction: 'above' as const,
+          condition: 'above' as const,
+          enabled: true,
           currentPrice: 90,
           createdAt: Date.now(),
           isActive: true,
@@ -178,9 +192,15 @@ describe('usePriceAlerts', () => {
     it('should add multiple alerts', () => {
       const { result } = renderHook(() => usePriceAlerts());
 
+      // Separate act() calls: createAlert reads the current alerts state,
+      // so each create must be committed before the next one
       act(() => {
         result.current.createAlert('0xAAA', 'TOKEN1', 100, 'above', 90, 56);
+      });
+      act(() => {
         result.current.createAlert('0xBBB', 'TOKEN2', 50, 'below', 60, 97);
+      });
+      act(() => {
         result.current.createAlert('0xCCC', 'TOKEN3', 200, 'above', 180, 8453);
       });
 
@@ -215,8 +235,10 @@ describe('usePriceAlerts', () => {
 
       act(() => {
         const alert1 = result.current.createAlert('0x123', 'TOKEN', 100, 'above', 90);
-        result.current.createAlert('0x456', 'TOKEN2', 200, 'below', 210);
         alertId = alert1.id;
+      });
+      act(() => {
+        result.current.createAlert('0x456', 'TOKEN2', 200, 'below', 210);
       });
 
       act(() => {
@@ -390,7 +412,11 @@ describe('usePriceAlerts', () => {
 
       act(() => {
         result.current.createAlert('0x111', 'TOKEN1', 100, 'above', 90);
+      });
+      act(() => {
         result.current.createAlert('0x222', 'TOKEN2', 200, 'below', 210);
+      });
+      act(() => {
         result.current.createAlert('0x111', 'TOKEN1', 150, 'below', 160);
       });
 
@@ -419,6 +445,8 @@ describe('usePriceAlerts', () => {
 
       act(() => {
         result.current.createAlert('0x123', 'TOKEN', 100, 'above', 90, 56);
+      });
+      act(() => {
         result.current.createAlert('0x123', 'TOKEN', 200, 'below', 210, 97);
       });
 
@@ -439,8 +467,10 @@ describe('usePriceAlerts', () => {
 
       act(() => {
         const alert = result.current.createAlert('0x123', 'TOKEN', 100, 'above', 90);
-        result.current.createAlert('0x123', 'TOKEN', 200, 'below', 210);
         alertId = alert.id;
+      });
+      act(() => {
+        result.current.createAlert('0x123', 'TOKEN', 200, 'below', 210);
       });
 
       // Deactivate one alert
@@ -494,7 +524,11 @@ describe('usePriceAlerts', () => {
 
       act(() => {
         result.current.createAlert('0x111', 'TOKEN1', 100, 'above', 90);
+      });
+      act(() => {
         result.current.createAlert('0x222', 'TOKEN2', 200, 'below', 210);
+      });
+      act(() => {
         result.current.createAlert('0x333', 'TOKEN3', 300, 'above', 280);
       });
 
@@ -560,11 +594,11 @@ describe('usePriceAlerts', () => {
     it('should handle rapid alert creation', () => {
       const { result } = renderHook(() => usePriceAlerts());
 
-      act(() => {
-        for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 10; i++) {
+        act(() => {
           result.current.createAlert(`0x${i}`, `TOKEN${i}`, 100 + i, 'above', 90 + i);
-        }
-      });
+        });
+      }
 
       expect(result.current.alerts).toHaveLength(10);
     });
@@ -592,8 +626,10 @@ describe('usePriceAlerts', () => {
 
       act(() => {
         const a1 = result.current.createAlert('0x111', 'TOKEN1', 100, 'above', 90, 56);
-        const a2 = result.current.createAlert('0x222', 'TOKEN2', 200, 'below', 210, 97);
         alert1Id = a1.id;
+      });
+      act(() => {
+        const a2 = result.current.createAlert('0x222', 'TOKEN2', 200, 'below', 210, 97);
         alert2Id = a2.id;
       });
 

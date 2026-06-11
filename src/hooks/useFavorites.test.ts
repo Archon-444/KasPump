@@ -24,9 +24,10 @@ describe('useFavorites', () => {
     });
 
     it('should load favorites from localStorage on mount', async () => {
+      // Addresses must be valid 40-hex-char Ethereum addresses to pass Zod validation
       const storedFavorites = [
-        { address: '0x123', chainId: 97, addedAt: Date.now() },
-        { address: '0x456', chainId: 56, addedAt: Date.now() },
+        { address: '0x1111111111111111111111111111111111111111', chainId: 97, addedAt: Date.now() },
+        { address: '0x2222222222222222222222222222222222222222', chainId: 56, addedAt: Date.now() },
       ];
       localStorage.setItem('kaspump_favorites', JSON.stringify(storedFavorites));
 
@@ -145,8 +146,12 @@ describe('useFavorites', () => {
     it('should allow same address on different chains', () => {
       const { result } = renderHook(() => useFavorites());
 
+      // Separate act() calls: addFavorite reads the current favorites state,
+      // so each add must be committed before the next one
       act(() => {
         result.current.addFavorite('0x123', 97); // BSC Testnet
+      });
+      act(() => {
         result.current.addFavorite('0x123', 56); // BSC Mainnet
       });
 
@@ -158,7 +163,11 @@ describe('useFavorites', () => {
 
       act(() => {
         result.current.addFavorite('0xAAA', 97);
+      });
+      act(() => {
         result.current.addFavorite('0xBBB', 97);
+      });
+      act(() => {
         result.current.addFavorite('0xCCC', 56);
       });
 
@@ -173,6 +182,8 @@ describe('useFavorites', () => {
 
       act(() => {
         result.current.addFavorite('0x123', 97);
+      });
+      act(() => {
         result.current.addFavorite('0x456', 97);
       });
 
@@ -191,6 +202,8 @@ describe('useFavorites', () => {
 
       act(() => {
         result.current.addFavorite('0x123', 97);
+      });
+      act(() => {
         result.current.addFavorite('0x456', 97);
       });
 
@@ -347,7 +360,11 @@ describe('useFavorites', () => {
 
       act(() => {
         result.current.addFavorite('0x111', 97);
+      });
+      act(() => {
         result.current.addFavorite('0x222', 56);
+      });
+      act(() => {
         result.current.addFavorite('0x333', 8453);
       });
 

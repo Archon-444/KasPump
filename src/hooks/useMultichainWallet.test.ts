@@ -17,27 +17,25 @@ vi.mock('wagmi', () => ({
   useSwitchChain: vi.fn(),
 }));
 
-// Mock chain config
+// Mock chain config (V2 Phase 1: Base + Base Sepolia are the active chains)
 vi.mock('../config/chains', () => ({
   getChainById: vi.fn((chainId: number) => {
     const chains: Record<number, any> = {
-      56: { id: 56, name: 'BSC Mainnet' },
-      97: { id: 97, name: 'BSC Testnet' },
-      42161: { id: 42161, name: 'Arbitrum One' },
+      8453: { id: 8453, name: 'Base' },
+      84532: { id: 84532, name: 'Base Sepolia' },
     };
     return chains[chainId];
   }),
   getChainMetadata: vi.fn((chainId: number) => {
     const metadata: Record<number, any> = {
-      56: { shortName: 'BSC', name: 'BNB Smart Chain' },
-      97: { shortName: 'BSC Testnet', name: 'BNB Smart Chain Testnet' },
-      42161: { shortName: 'Arbitrum', name: 'Arbitrum One' },
+      8453: { name: 'Base' },
+      84532: { name: 'Base Sepolia' },
     };
     return metadata[chainId];
   }),
   supportedChains: [
-    { id: 56, name: 'BSC Mainnet' },
-    { id: 97, name: 'BSC Testnet' },
+    { id: 8453, name: 'Base' },
+    { id: 84532, name: 'Base Sepolia' },
   ],
 }));
 
@@ -100,14 +98,14 @@ describe('useMultichainWallet', () => {
       (wagmi.useAccount as any).mockReturnValue({
         address: '0x1234567890123456789012345678901234567890',
         isConnected: true,
-        chainId: 56,
+        chainId: 8453,
         connector: {},
       });
 
       (wagmi.useBalance as any).mockReturnValue({
         data: {
-          value: BigInt('1000000000000000000'), // 1 BNB in wei
-          symbol: 'BNB',
+          value: BigInt('1000000000000000000'), // 1 ETH in wei
+          symbol: 'ETH',
           decimals: 18,
         },
         refetch: vi.fn(),
@@ -117,8 +115,8 @@ describe('useMultichainWallet', () => {
 
       expect(result.current.connected).toBe(true);
       expect(result.current.address).toBe('0x1234567890123456789012345678901234567890');
-      expect(result.current.chainId).toBe(56);
-      expect(result.current.chainName).toBe('BSC');
+      expect(result.current.chainId).toBe(8453);
+      expect(result.current.chainName).toBe('Base');
     });
   });
 
@@ -132,7 +130,7 @@ describe('useMultichainWallet', () => {
       (wagmi.useAccount as any).mockReturnValue({
         address: '0xABC',
         isConnected: true,
-        chainId: 97,
+        chainId: 84532,
         connector: {},
       });
 
@@ -143,7 +141,7 @@ describe('useMultichainWallet', () => {
       });
 
       expect(result.current.address).toBe('0xABC');
-      expect(result.current.chainId).toBe(97);
+      expect(result.current.chainId).toBe(84532);
     });
 
     it('should update state when wallet disconnects', async () => {
@@ -179,30 +177,30 @@ describe('useMultichainWallet', () => {
       (wagmi.useAccount as any).mockReturnValue({
         address: '0xABC',
         isConnected: true,
-        chainId: 56,
+        chainId: 8453,
         connector: {},
       });
 
       const { result, rerender } = renderHook(() => useMultichainWallet());
 
-      expect(result.current.chainId).toBe(56);
-      expect(result.current.chainName).toBe('BSC');
+      expect(result.current.chainId).toBe(8453);
+      expect(result.current.chainName).toBe('Base');
 
       // Simulate chain switch
       (wagmi.useAccount as any).mockReturnValue({
         address: '0xABC',
         isConnected: true,
-        chainId: 97,
+        chainId: 84532,
         connector: {},
       });
 
       rerender();
 
       await waitFor(() => {
-        expect(result.current.chainId).toBe(97);
+        expect(result.current.chainId).toBe(84532);
       });
 
-      expect(result.current.chainName).toBe('BSC Testnet');
+      expect(result.current.chainName).toBe('Base Sepolia');
     });
   });
 
@@ -296,9 +294,9 @@ describe('useMultichainWallet', () => {
     });
   });
 
-  describe('Connect Function', () => {
-    it('should call wagmi connect with connector', async () => {
-      const mockConnector = { id: 'metamask', name: 'MetaMask' } as Connector;
+  describe('Connect Functions', () => {
+    it('should call wagmi connect with the injected connector', async () => {
+      const mockConnector = { id: 'injected', name: 'Injected' } as Connector;
       const connectFn = vi.fn();
 
       (wagmi.useConnect as any).mockReturnValue({
@@ -311,7 +309,27 @@ describe('useMultichainWallet', () => {
       const { result } = renderHook(() => useMultichainWallet());
 
       await act(async () => {
-        result.current.connect(mockConnector);
+        await result.current.connectInjected();
+      });
+
+      expect(connectFn).toHaveBeenCalledWith({ connector: mockConnector });
+    });
+
+    it('should call wagmi connect with the WalletConnect connector', async () => {
+      const mockConnector = { id: 'walletConnect', name: 'WalletConnect' } as Connector;
+      const connectFn = vi.fn();
+
+      (wagmi.useConnect as any).mockReturnValue({
+        connect: connectFn,
+        connectors: [mockConnector],
+        isPending: false,
+        error: null,
+      });
+
+      const { result } = renderHook(() => useMultichainWallet());
+
+      await act(async () => {
+        await result.current.connectWalletConnect();
       });
 
       expect(connectFn).toHaveBeenCalledWith({ connector: mockConnector });
@@ -319,8 +337,8 @@ describe('useMultichainWallet', () => {
 
     it('should return available connectors', () => {
       const mockConnectors = [
-        { id: 'metamask', name: 'MetaMask' },
-        { id: 'walletconnect', name: 'WalletConnect' },
+        { id: 'metaMask', name: 'MetaMask' },
+        { id: 'walletConnect', name: 'WalletConnect' },
       ] as Connector[];
 
       (wagmi.useConnect as any).mockReturnValue({
@@ -332,8 +350,8 @@ describe('useMultichainWallet', () => {
 
       const { result } = renderHook(() => useMultichainWallet());
 
-      expect(result.current.connectors).toHaveLength(2);
-      expect(result.current.connectors).toEqual(mockConnectors);
+      expect(result.current.availableConnectors).toHaveLength(2);
+      expect(result.current.availableConnectors).toEqual(mockConnectors);
     });
   });
 
@@ -348,7 +366,7 @@ describe('useMultichainWallet', () => {
       const { result } = renderHook(() => useMultichainWallet());
 
       await act(async () => {
-        result.current.disconnect();
+        await result.current.disconnectWallet();
       });
 
       expect(disconnectFn).toHaveBeenCalled();
@@ -521,7 +539,7 @@ describe('useMultichainWallet', () => {
   });
 
   describe('Balance Refetch', () => {
-    it('should expose balance refetch function', () => {
+    it('should expose balance refresh function', () => {
       const refetchFn = vi.fn();
 
       (wagmi.useBalance as any).mockReturnValue({
@@ -532,7 +550,7 @@ describe('useMultichainWallet', () => {
       const { result } = renderHook(() => useMultichainWallet());
 
       act(() => {
-        result.current.refetchBalance();
+        result.current.refreshBalance();
       });
 
       expect(refetchFn).toHaveBeenCalled();
@@ -555,9 +573,8 @@ describe('useMultichainWallet', () => {
 
     it('should show correct chain names for supported chains', () => {
       const testCases = [
-        { chainId: 56, expectedName: 'BSC' },
-        { chainId: 97, expectedName: 'BSC Testnet' },
-        { chainId: 42161, expectedName: 'Arbitrum' },
+        { chainId: 8453, expectedName: 'Base' },
+        { chainId: 84532, expectedName: 'Base Sepolia' },
       ];
 
       testCases.forEach(({ chainId, expectedName }) => {
