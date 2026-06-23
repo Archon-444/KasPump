@@ -51,57 +51,21 @@ async function createConnectors(): Promise<any[]> {
   }
 
   try {
-    // `injected` lives in @wagmi/core (re-exported by the main `wagmi` package)
-    // and carries zero SDK dependencies — it initialises instantly with no network calls.
-    // MetaMask / Coinbase / WalletConnect connectors are in `wagmi/connectors` which pulls
-    // in @metamask/sdk, @coinbase/wallet-sdk and @walletconnect/universal-provider; one or
-    // more of those SDKs makes an outbound network call during module evaluation that can
-    // hang indefinitely in network-restricted environments (CI).  Load them with a timeout
-    // so a slow/blocked SDK init never prevents the app from rendering.
+    // `injected` is exported from the main `wagmi` package (via @wagmi/core) and
+    // carries zero SDK dependencies. It wraps window.ethereum and supports every
+    // injected wallet: MetaMask, Coinbase Extension, Brave Wallet, etc.
+    //
+    // DO NOT import from 'wagmi/connectors' here. That barrel re-exports
+    // @wagmi/connectors which loads @metamask/sdk, @coinbase/wallet-sdk, and
+    // @walletconnect/universal-provider. At least one of those SDKs executes
+    // synchronous blocking code during module evaluation (no-ops that poll or
+    // wait on missing browser APIs in restricted CI environments), which freezes
+    // the JavaScript event loop and prevents the app from ever rendering.
     const { injected } = await import('wagmi');
-
-    const origin = getOrigin();
-    const logoUrl = getLogoUrl();
-
-    const baseConnectors: any[] = [
-      injected({ shimDisconnect: true }),
-    ];
-
-    const sdkConnectors = await Promise.race<any[]>([
-      (async () => {
-        const { metaMask, walletConnect, coinbaseWallet } = await import('wagmi/connectors');
-        const extras: any[] = [
-          metaMask({ dappMetadata: { name: brand.name, url: origin } }),
-          coinbaseWallet({ appName: brand.name, preference: 'eoaOnly', appLogoUrl: logoUrl || undefined }),
-        ];
-        if (hasValidProjectId) {
-          extras.push(walletConnect({
-            projectId,
-            metadata: {
-              name: brand.name,
-              description: brand.shortDescription,
-              url: origin,
-              icons: logoUrl ? [logoUrl] : [],
-            },
-          }));
-        }
-        return extras;
-      })(),
-      // 8 s safety valve: if any SDK init hangs (e.g. network-restricted CI),
-      // proceed without it rather than blocking the page forever.
-      new Promise<any[]>(resolve => setTimeout(() => resolve([]), 8000)),
-    ]);
-
-    return [...baseConnectors, ...sdkConnectors];
+    return [injected({ shimDisconnect: true })];
   } catch (error) {
-    console.error('Error initializing wagmi connectors:', error);
-    // Fallback: injected only (no SDK deps)
-    try {
-      const { injected } = await import('wagmi');
-      return [injected({ shimDisconnect: true })];
-    } catch {
-      return [];
-    }
+    console.error('Error creating injected connector:', error);
+    return [];
   }
 }
 
