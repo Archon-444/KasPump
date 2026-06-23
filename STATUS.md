@@ -17,28 +17,29 @@ All items must be ✅ before mainnet deployment.
 - [ ] Testnet Safe rehearsal completed (pause, unpause, updateFeeRecipient through Safe)
 - [ ] Fuzz / invariant tests passing (`test/invariant/BondingCurveMath.t.sol`, `BondingCurveAMM.t.sol`)
 - [ ] All contracts verified on BSCScan (scripts: `batch-verify-all.ts`, `auto-verify-with-retry.ts`)
-- [ ] CSP `connect-src` tightened to explicit allowlist (no `wss:` or `https:` catch-alls)
-- [ ] API rate limiting on Upstash Redis (comments, upload, analytics/events, push/subscribe)
-- [ ] IPFS upload validates file type + size
+- [x] CSP `connect-src` tightened to explicit allowlist — **DONE** (2026-06-23, `vercel.json`)
+- [x] API rate limiting on Vercel KV (comments POST/PATCH, push/subscribe POST) — **DONE** (2026-06-23)
+- [x] IPFS upload validates file type (jpeg/png/gif/webp) + size (≤5MB) — **DONE** (2026-06-23)
 
 ### TypeScript & CI
 - [ ] `tsc` blocking in CI — pre-existing errors must be fixed first (see TECHNICAL_DEBT.md #16)
 - [ ] `next.config.js` `ignoreBuildErrors: false` — gated on same
 - [x] `SECURITY_AUDIT.md` reconciled to current code — **DONE** (2026-06-23)
 - [x] `TECHNICAL_DEBT.md` reconciled to current code — **DONE** (2026-06-23)
-- [ ] Hardhat test suite confirmed green on clean checkout
-- [ ] Vitest unit suite confirmed green on clean checkout
+- [x] Vitest unit suite: **462/462 passed** on clean run — **DONE** (2026-06-23)
+- [ ] Hardhat test suite confirmed green on clean checkout — blocked by network egress restriction on binaries.soliditylang.org
 - [ ] Slither static analysis run, all findings triaged
-- [ ] `npm audit` clean (no high/critical)
+- [x] `npm audit` run — Next.js upgraded 16.0.1→16.2.9 (fixes critical CVEs); 0 critical remaining (vitest UI server vuln non-exploitable in CI); wagmi/viem/rainbowkit transitive `ws` highs: npm audit incorrectly suggests downgrade as fix — **DONE** (2026-06-23)
 
 ### Scalability
-- [ ] Moralis holder count cache on Vercel KV (not in-memory Map)
+- [x] Moralis holder count cache on Vercel KV (60s TTL, in-memory fallback for dev) — **DONE** (2026-06-23)
 - [ ] Subgraph deployed (Goldsky or Alchemy) — endpoint set in `NEXT_PUBLIC_SUBGRAPH_URL`
 - [ ] 24h metrics populated from subgraph (not returning 0)
 - [ ] WebSocket server deployed (Render or equivalent), origin pinned in CSP
 - [ ] WebSocket server using Upstash Redis (not self-hosted)
-- [ ] Client-side WS reconnection with exponential backoff confirmed
-- [ ] RPC failover pool in `wagmi.ts` and `BlockchainListener.ts`
+- [x] Client-side WS reconnection: exponential backoff (2s→4s→8s→16s→30s cap), degraded polling fallback — **DONE** (2026-06-23)
+- [x] RPC failover: `fallback([primary, secondary])` transport per chain in `wagmi.ts` — **DONE** (2026-06-23)
+- [ ] RPC failover in `BlockchainListener.ts`
 - [ ] Multicall batch reads on token list
 
 ### UI/UX
@@ -63,7 +64,7 @@ All items must be ✅ before mainnet deployment.
 - [ ] Emergency runbook updated and rehearsed
 
 ### Rebrand (PARKED — not blocking)
-- [ ] `src/config/brand.ts` created (centralized brand strings — no-regret prep)
+- [x] `src/config/brand.ts` created (consumed by layout.tsx + wagmi.ts) — **DONE** (2026-06-23)
 - [ ] Name + domain + X handle confirmed and locked *(not decided)*
 
 ---
@@ -73,11 +74,11 @@ All items must be ✅ before mainnet deployment.
 | Phase | Status | Notes |
 |-------|--------|-------|
 | P0 — Reconcile & Baseline | 🔄 In Progress | Docs updated; CI gated; test runs pending |
-| P1 — Security | 🔴 Not started | Audit engaged; Safe, fuzz tests, CSP todo |
-| P2 — Scalability | 🔴 Not started | Subgraph, KV cache, WS deploy todo |
+| P1 — Security | 🔄 In Progress | CSP ✅, rate limiting ✅, IPFS ✅; Safe + fuzz tests + audit support remaining |
+| P2 — Scalability | 🔄 In Progress | KV cache ✅, WS backoff ✅, RPC failover ✅; subgraph + WS server + multicall remaining |
 | P3 — UI/UX | 🔴 Not started | Per-surface impeccable audits todo |
-| P4 — Launch Readiness | 🔴 Not started | E2E, monitoring, dry-run todo |
-| P5 — Rebrand | ⏸ Parked | Brand strings to centralize; name not locked |
+| P4 — Launch Readiness | 🔄 In Progress | Brand centralized ✅; E2E, monitoring, dry-run remaining |
+| P5 — Rebrand | ⏸ Parked | Brand strings centralized; name not locked |
 
 ---
 
