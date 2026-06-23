@@ -4,6 +4,9 @@ const MOCK_ADDRESS = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
 const BSC_TESTNET_CHAIN_ID = 97;
 
 async function injectMockWallet(page: Page): Promise<void> {
+  // Registers an init script that runs before any page scripts on every
+  // navigation — provides window.ethereum so wagmi's injected connector
+  // can respond to eth_accounts / eth_chainId calls.
   await page.addInitScript(
     ({ address, chainId }: { address: string; chainId: number }) => {
       const mockProvider = {
@@ -30,10 +33,17 @@ async function injectMockWallet(page: Page): Promise<void> {
           if (method === 'net_version') {
             return String(chainId);
           }
+          if (method === 'wallet_requestPermissions') {
+            // shimDisconnect=true connector tries this first; return minimal
+            // permission so eth_requestAccounts is skipped on connect.
+            return [{ parentCapability: 'eth_accounts', caveats: [{ type: 'filterResponse', value: [address] }] }];
+          }
           if (method === 'wallet_switchEthereumChain') {
             return null;
           }
-          throw new Error(`Unhandled method: ${method}`);
+          // Return null rather than throwing so wagmi doesn't error on
+          // unexpected read-only calls (e.g. eth_getBalance, wallet_getPermissions).
+          return null;
         },
       };
       Object.defineProperty(window, 'ethereum', {
@@ -41,16 +51,6 @@ async function injectMockWallet(page: Page): Promise<void> {
         writable: true,
         configurable: true,
       });
-
-      // Seed wagmi v2 storage so the injected connector auto-reconnects.
-      // wagmi's injected connector checks 'wagmi.injected.connected' before
-      // calling isAuthorized(); without it, reconnect is skipped unconditionally
-      // (consent shim — wagmi/core injected.js isAuthorized).
-      // Values are JSON-serialised by wagmi's serialize util (JSON.stringify).
-      try {
-        localStorage.setItem('wagmi.injected.connected', 'true');
-        localStorage.setItem('wagmi.recentConnectorId', '"injected"');
-      } catch { /* storage may be restricted in some contexts */ }
     },
     { address: MOCK_ADDRESS, chainId: BSC_TESTNET_CHAIN_ID }
   );
@@ -59,6 +59,28 @@ async function injectMockWallet(page: Page): Promise<void> {
 export const test = base.extend<{ walletPage: Page }>({
   walletPage: async ({ page }, use) => {
     await injectMockWallet(page);
+
+    // Navigate to the app root so localStorage is scoped to the correct
+    // origin (localhost:3000), then seed the wagmi v2 keys that the
+    // injected connector's isAuthorized() gate requires.
+    //
+    // Why page.evaluate() rather than addInitScript():
+    // addInitScript fires at document-creation time — before the browser has
+    // committed to a final origin — so localStorage writes may land on
+    // "about:blank" rather than "localhost:3000" on some Chromium builds.
+    // page.evaluate() runs synchronously after navigation commits, guaranteeing
+    // the write is scoped to the correct origin.
+    //
+    // Keys and JSON-serialised values match wagmi/core createStorage format:
+    //   'wagmi.injected.connected' = serialize(true)  = 'true'
+    //   'wagmi.recentConnectorId'  = serialize('injected') = '"injected"'
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+    await page.evaluate(() => {
+      localStorage.setItem('wagmi.injected.connected', 'true');
+      localStorage.setItem('wagmi.recentConnectorId', '"injected"');
+    });
+
     await use(page);
   },
 });
