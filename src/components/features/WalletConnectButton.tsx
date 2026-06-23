@@ -237,9 +237,15 @@ export const WalletRequired: React.FC<{
   // Playwright walletPage fixture sets this key to bypass the gate in CI,
   // where wagmi's auto-reconnect is unreliable inside a headless build.
   // Never set in production — signing still requires a real wallet.
-  const e2eBypass =
-    typeof window !== 'undefined' &&
-    window.localStorage.getItem('e2e.walletConnected') === 'true';
+  //
+  // useEffect pattern (not inline read) avoids a React 18 production hydration
+  // mismatch: SSR has no window so renders the fallback; the client initial
+  // render must agree (false) so hydration succeeds, then the effect fires and
+  // triggers the corrective re-render that shows the form.
+  const [e2eBypass, setE2eBypass] = React.useState(false);
+  React.useEffect(() => {
+    setE2eBypass(window.localStorage.getItem('e2e.walletConnected') === 'true');
+  }, []);
 
   if (!wallet.connected && !e2eBypass) {
     return (
