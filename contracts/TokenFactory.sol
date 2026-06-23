@@ -156,16 +156,17 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     // ========== EXTERNAL FUNCTIONS ==========
 
     /**
-     * @dev Creates a new KRC-20 token with bonding curve
-     * @notice Rate limited to prevent spam, requires creation fee
-     *
-     * SECURITY FIXES:
-     * - nonReentrant: Prevents reentrancy
-     * - whenNotPaused: Allows emergency stop
-     * - Comprehensive input validation
-     * - Rate limiting
-     * - Safe CREATE2 deployment
-     * - Creation fee anti-spam mechanism
+     * @notice Deploy a new KRC-20 token and its BondingCurveAMM in a single transaction.
+     *         The token is immediately tradeable against the curve. Graduation to a DEX
+     *         liquidity pool is triggered automatically when the supply reaches the
+     *         BondingCurveMath.GRADUATION_THRESHOLD.
+     * @dev CREATE2 is used for deterministic token addresses. nonReentrant + whenNotPaused.
+     *      Caller must send at least CREATION_FEE (0.005 native) as anti-spam. One
+     *      creation per CREATION_COOLDOWN (60 s) per address.
+     * @param p Token creation parameters: name, symbol, description, imageUrl,
+     *          twitterUrl, telegramUrl, websiteUrl, referrer (address(0) if none).
+     * @return tokenAddress Address of the newly deployed ERC-20 token contract.
+     * @return ammAddress   Address of the newly deployed BondingCurveAMM contract.
      */
     function createToken(
         CreateTokenParams calldata p
@@ -353,49 +354,51 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
 
     // ========== VIEW FUNCTIONS ==========
 
-    /**
-     * @dev Get all created tokens
-     */
+    /// @notice Returns the addresses of all tokens created through this factory.
+    /// @return Array of token contract addresses in creation order.
     function getAllTokens() external view returns (address[] memory) {
         return allTokens;
     }
 
-    /**
-     * @dev Get token configuration
-     */
+    /// @notice Returns the stored configuration for a token (name, symbol, description, supply, etc.).
+    /// @param _tokenAddress Address of the KasPump token.
+    /// @return TokenConfig struct with immutable metadata recorded at creation time.
     function getTokenConfig(address _tokenAddress) external view returns (TokenConfig memory) {
         return tokenConfigs[_tokenAddress];
     }
 
+    /// @notice Returns the social links (Twitter, Telegram, website) for a token.
+    /// @param _tokenAddress Address of the KasPump token.
+    /// @return SocialLinks struct with the URLs set at creation time.
     function getSocialLinks(address _tokenAddress) external view returns (SocialLinks memory) {
         return tokenSocialLinks[_tokenAddress];
     }
 
-    /**
-     * @dev Get AMM address for token
-     */
+    /// @notice Returns the BondingCurveAMM address paired with a token.
+    /// @param _tokenAddress Address of the KasPump token. Reverts if not a valid token.
+    /// @return Address of the paired BondingCurveAMM contract.
     function getTokenAMM(address _tokenAddress) external view returns (address) {
         if (!isKasPumpToken[_tokenAddress]) revert InvalidToken();
         return tokenToAMM[_tokenAddress];
     }
 
-    /**
-     * @dev Get total tokens created
-     */
+    /// @notice Returns the total number of tokens created through this factory.
+    /// @return Count of tokens in the `allTokens` array.
     function getTotalTokens() external view returns (uint256) {
         return allTokens.length;
     }
 
-    /**
-     * @dev Check if address is a KasPump token
-     */
+    /// @notice Returns whether an address is a token deployed by this factory.
+    /// @param _token Address to check.
+    /// @return True if the address was deployed by this factory.
     function isValidToken(address _token) external view returns (bool) {
         return isKasPumpToken[_token];
     }
 
-    /**
-     * @dev Get referrer stats for a given address
-     */
+    /// @notice Returns cumulative referral statistics for a referrer address.
+    /// @param _referrer The referrer's address.
+    /// @return totalEarnings Cumulative native currency earned from referral fees (wei).
+    /// @return tokenCount    Number of tokens launched with this referrer.
     function getReferrerStats(address _referrer) external view returns (
         uint256 totalEarnings,
         uint256 tokenCount
@@ -403,9 +406,9 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         return (referrerTotalEarnings[_referrer], referrerTokenCount[_referrer]);
     }
 
-    /**
-     * @dev Get referrer for a token
-     */
+    /// @notice Returns the referrer address recorded for a specific token.
+    /// @param _token Address of the KasPump token.
+    /// @return Referrer address, or address(0) if none was set.
     function getTokenReferrer(address _token) external view returns (address) {
         return tokenReferrer[_token];
     }
@@ -413,8 +416,9 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     // ========== ADMIN FUNCTIONS ==========
 
     /**
-     * @dev Update fee recipient
-     * SECURITY FIX: Added zero address check
+     * @notice Updates the address that receives platform fees.
+     * @dev Only callable by owner. Zero address rejected.
+     * @param _newRecipient New fee recipient address.
      */
     function updateFeeRecipient(address payable _newRecipient) external onlyOwner {
         if (_newRecipient == address(0)) revert ZeroAddress();

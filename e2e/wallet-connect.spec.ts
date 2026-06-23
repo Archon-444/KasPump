@@ -31,14 +31,13 @@ test.describe('Wallet Connect', () => {
     const connectBtn = page.getByRole('button', { name: /connect/i }).first();
     await connectBtn.click();
 
-    // A modal / dialog should appear with wallet options
-    const modal = page.locator('[role="dialog"]').or(
-      page.locator('[data-testid="wallet-modal"]')
-    ).or(
-      page.locator('.wallet-connect-modal, [class*="modal"], [class*="dialog"]').first()
-    );
-
-    await expect(modal).toBeVisible({ timeout: 5_000 });
+    // WalletSelectModal renders via createPortal with no role="dialog".
+    // Identify it by its heading or a listed wallet name.
+    await expect(
+      page.getByRole('heading', { name: /connect wallet/i }).or(
+        page.getByText('MetaMask').first()
+      )
+    ).toBeVisible({ timeout: 5_000 });
   });
 
   test('navigation links are functional', async ({ page }) => {

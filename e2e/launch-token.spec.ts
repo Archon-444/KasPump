@@ -5,9 +5,10 @@ test.describe('Token Launch Flow', () => {
     await page.goto('/launch');
     await page.waitForLoadState('domcontentloaded');
 
-    // Form fields should be present
-    await expect(page.locator('input[name="name"], input[placeholder*="name" i], input[placeholder*="Name"]').first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator('input[name="symbol"], input[placeholder*="symbol" i], input[placeholder*="Symbol"]').first()).toBeVisible({ timeout: 5_000 });
+    // Input component uses placeholder, not name attribute.
+    // QuickLaunchForm placeholders are "e.g. Doge Coin" and "e.g. DOGE".
+    await expect(page.getByPlaceholder('e.g. Doge Coin')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByPlaceholder('e.g. DOGE')).toBeVisible({ timeout: 5_000 });
   });
 
   test('form requires name and symbol before submitting', async ({ walletPage: page }) => {
@@ -28,8 +29,8 @@ test.describe('Token Launch Flow', () => {
     await page.goto('/launch');
     await page.waitForLoadState('domcontentloaded');
 
-    const nameInput = page.locator('input[name="name"], input[placeholder*="name" i]').first();
-    const symbolInput = page.locator('input[name="symbol"], input[placeholder*="symbol" i]').first();
+    const nameInput = page.getByPlaceholder('e.g. Doge Coin');
+    const symbolInput = page.getByPlaceholder('e.g. DOGE');
 
     await expect(nameInput).toBeVisible({ timeout: 10_000 });
 
@@ -45,14 +46,14 @@ test.describe('Token Launch Flow', () => {
     await page.goto('/launch');
     await page.waitForLoadState('domcontentloaded');
 
-    // File input or drag-drop area should exist
-    const fileInput = page.locator('input[type="file"]').first();
-    const dropZone = page.locator('[class*="upload"], [class*="drop"], [data-testid*="upload"]').first();
+    // The file input has className="sr-only" (invisible but in DOM).
+    // The visible click target is the wrapping <label> showing upload text.
+    const fileInputCount = await page.locator('input[type="file"]').count();
+    const uploadLabel = page.locator('label', { hasText: /click to upload|ipfs not configured/i }).first();
 
-    const hasFileInput = await fileInput.isVisible().catch(() => false);
-    const hasDropZone = await dropZone.isVisible().catch(() => false);
+    const hasUploadLabel = await uploadLabel.isVisible({ timeout: 5_000 }).catch(() => false);
 
-    expect(hasFileInput || hasDropZone).toBe(true);
+    expect(fileInputCount > 0 || hasUploadLabel).toBe(true);
   });
 
   test('wallet address shown when connected via mock provider', async ({ walletPage: page }) => {
