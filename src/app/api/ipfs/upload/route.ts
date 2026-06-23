@@ -37,6 +37,23 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       );
     }
 
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { success: false, error: `File type not allowed. Accepted: ${ALLOWED_TYPES.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    if (file.size > MAX_SIZE_BYTES) {
+      return NextResponse.json(
+        { success: false, error: 'File too large. Maximum size is 5 MB.' },
+        { status: 400 }
+      );
+    }
+
     // Get provider from query or default to Pinata
     const { searchParams } = new URL(request.url);
     const provider = searchParams.get('provider') || 'pinata';

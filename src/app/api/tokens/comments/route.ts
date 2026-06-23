@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { kv } from '@vercel/kv';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +66,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const rl = await rateLimit(request, 'strict');
+  if (!rl.success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: rl.headers });
+  }
+
   try {
     const body = await request.json();
     const { tokenAddress, walletAddress, text, signature, isCreator } = body;
@@ -139,6 +145,11 @@ export async function POST(request: NextRequest) {
  * Body: { tokenAddress, walletAddress, commentId, emoji }
  */
 export async function PATCH(request: NextRequest) {
+  const rl = await rateLimit(request, 'strict');
+  if (!rl.success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: rl.headers });
+  }
+
   try {
     const body = await request.json();
     const { tokenAddress, walletAddress, commentId, emoji } = body;
