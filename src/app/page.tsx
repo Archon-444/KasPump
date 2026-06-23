@@ -55,12 +55,12 @@ export default function DiscoverPage() {
   const router = useRouter();
   const isMobile = useIsMobile();
 
-  // Optimized Data Fetching using React Query
-  // Fetches 100 tokens to allow for client-side sorting/filtering on this batch
-  // Future optimization: Move all filtering/sorting to the API
+  // Progressive loading — start with 50, "Load More" adds 50 more each time
+  const [tokenLimit, setTokenLimit] = useState(50);
+
   const { data, isLoading, refetch, isRefetching } = useTokenQuery({
-    limit: 100, 
-    search: filters.searchQuery // Server-side search optimization
+    limit: tokenLimit,
+    search: filters.searchQuery
   });
 
   const tokens = data?.tokens || [];
@@ -353,11 +353,13 @@ export default function DiscoverPage() {
               )}
             </div>
 
-            <TokenSearchFilters
-              filters={filters}
-              onFiltersChange={setFilters}
-              tokenCount={filteredTokens.length}
-            />
+            <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm -mx-4 px-4 py-2">
+              <TokenSearchFilters
+                filters={filters}
+                onFiltersChange={setFilters}
+                tokenCount={filteredTokens.length}
+              />
+            </div>
           </div>
 
           {/* Token Grid */}
@@ -381,8 +383,8 @@ export default function DiscoverPage() {
           ) : (
             <motion.div
               className={cn(
-                'space-y-3',
-                !isMobile && 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 space-y-0'
+                'space-y-4',
+                !isMobile && 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 space-y-0'
               )}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -409,6 +411,18 @@ export default function DiscoverPage() {
                 </motion.div>
               ))}
             </motion.div>
+          )}
+
+          {/* Load More */}
+          {data?.pagination?.hasMore && !isLoading && (
+            <div className="flex justify-center mt-8">
+              <button
+                onClick={() => setTokenLimit(l => l + 50)}
+                className="px-6 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-sm font-medium text-gray-300 hover:text-white transition-all"
+              >
+                Load More Tokens
+              </button>
+            </div>
           )}
         </section>
       </main>

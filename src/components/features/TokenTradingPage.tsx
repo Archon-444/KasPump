@@ -24,6 +24,7 @@ import { RecentTradesFeed } from './RecentTradesFeed';
 import { TokenCommentThread } from './TokenCommentThread';
 import { HolderList } from './HolderList';
 import { RiskIndicators } from './RiskIndicators';
+import { ConfettiSuccess } from './ConfettiSuccess';
 import { GraduationHUD } from './GraduationHUD';
 import { CreatorVestingPanel } from './CreatorVestingPanel';
 import { MobileTradingInterface } from '../mobile';
@@ -33,9 +34,9 @@ import { useMultichainWallet } from '../../hooks/useMultichainWallet';
 import { useContracts } from '../../hooks/useContracts';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useToast } from '../../contexts/ToastContext';
-import { formatCurrency, formatPercentage, formatTimeAgo, cn } from '../../utils';
+import { formatCurrency, formatPercentage, formatTimeAgo, cn, copyToClipboard } from '../../utils';
 import { getExplorerUrl } from '../../config/chains';
-import { Bell } from 'lucide-react';
+import { Bell, Copy, Check, Shield } from 'lucide-react';
 
 export interface TokenTradingPageProps {
   token: KasPumpToken;
@@ -60,6 +61,9 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
   const [userTokenBalance, setUserTokenBalance] = useState(0);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
   const [showSocialShare, setShowSocialShare] = useState(false);
+  const [addressCopied, setAddressCopied] = useState(false);
+  const [confettiTrigger, setConfettiTrigger] = useState(false);
+  const [detailTab, setDetailTab] = useState<'overview' | 'trades' | 'holders' | 'thread'>('overview');
   const fetchBalances = useCallback(async () => {
     if (!wallet.address) {
       setUserBalance(0);
@@ -111,9 +115,19 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
         const chainId = resolveChainId();
         const explorerUrl = chainId ? getExplorerUrl(chainId, 'tx', txHash) : undefined;
 
+        const isFirstTrade = typeof window !== 'undefined' && !localStorage.getItem('kaspump_first_trade');
+        if (isFirstTrade) {
+          localStorage.setItem('kaspump_first_trade', '1');
+          setConfettiTrigger(true);
+        }
+
         showSuccess(
-          trade.action === 'buy' ? 'Purchase submitted' : 'Sell order submitted',
-          'Your transaction has been sent to the network.',
+          isFirstTrade
+            ? 'First trade complete!'
+            : trade.action === 'buy' ? 'Purchase submitted' : 'Sell order submitted',
+          isFirstTrade
+            ? 'Welcome to KasPump — you\'re officially a trader.'
+            : 'Your transaction has been sent to the network.',
           {
             txHash,
             explorerUrl,
@@ -142,6 +156,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
 
   return (
     <div className={cn('min-h-screen bg-gradient-to-br from-gray-900 via-yellow-900/20 to-gray-900', className)}>
+      <ConfettiSuccess trigger={confettiTrigger} />
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <motion.div
@@ -301,6 +316,26 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
                 Post-graduation: "Graduated — LP active" + DEX pair link. */}
             <GraduationHUD token={token} />
 
+            {/* Anti-sniper protection — top-level visibility */}
+            {(() => {
+              const elapsed = token.createdAt ? (Date.now() - token.createdAt.getTime()) / 1000 : Infinity;
+              const secondsLeft = Math.max(0, Math.ceil(60 - elapsed));
+              if (secondsLeft <= 0) return null;
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-2 px-4 py-3 bg-yellow-500/[0.08] border border-yellow-500/[0.15] rounded-xl animate-pulse"
+                >
+                  <Shield size={16} className="text-yellow-400 flex-shrink-0" />
+                  <p className="text-sm font-semibold text-yellow-400 flex-1">
+                    Anti-sniper protection active — elevated fees for {secondsLeft}s
+                  </p>
+                  <span className="text-sm font-bold text-yellow-400 tabular-nums">{secondsLeft}s</span>
+                </motion.div>
+              );
+            })()}
+
             <TradingChart
               token={token}
               height={isMobile ? 300 : 500}
@@ -335,7 +370,31 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
           </motion.div>
         </div>
 
-        {/* Token Details Section */}
+        {/* Detail Tabs — replaces the old 5-section scroll stack */}
+        <div className="flex items-center gap-1 mb-4 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06] w-fit">
+          {([
+            ['overview', 'Overview'],
+            ['trades', 'Trades'],
+            ['holders', 'Holders'],
+            ['thread', 'Thread'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setDetailTab(key)}
+              className={cn(
+                'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                detailTab === key
+                  ? 'bg-yellow-500/15 text-yellow-400'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Overview tab: token info + vesting + full risk assessment */}
+        <div className={cn(detailTab !== 'overview' && 'hidden')}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Token Information */}
           <motion.div
@@ -399,9 +458,22 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm text-gray-400">Contract Address</label>
-                    <div className="text-sm text-yellow-400 mt-1 font-mono break-all">
+                    <button
+                      onClick={async () => {
+                        const ok = await copyToClipboard(token.address);
+                        if (ok) {
+                          setAddressCopied(true);
+                          setTimeout(() => setAddressCopied(false), 2000);
+                        } else {
+                          showError(new Error('Failed to copy address. Check clipboard permissions.'));
+                        }
+                      }}
+                      className="flex items-center gap-1.5 text-sm text-yellow-400 mt-1 font-mono hover:text-yellow-300 transition-colors cursor-pointer"
+                      title="Click to copy"
+                    >
                       {token.address.slice(0, 8)}...{token.address.slice(-8)}
-                    </div>
+                      {addressCopied ? <Check size={12} className="text-green-400" /> : <Copy size={12} className="opacity-50" />}
+                    </button>
                   </div>
 
                   <div>
@@ -438,56 +510,44 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
             </motion.div>
           )}
 
-          {/* Recent Trades Feed */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
+        </div>
+
+        {/* Full Risk Assessment (overview tab) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="mb-6"
+        >
+          <RiskIndicators token={token} compact={false} />
+        </motion.div>
+        </div>
+
+        {/* Trades tab — kept mounted so the feed stays warm across switches */}
+        <div className={cn('mb-6', detailTab !== 'trades' && 'hidden')}>
           <RecentTradesFeed
             tokenAddress={token.address}
             chainId={resolvedChainId}
-            maxTrades={10}
+            maxTrades={20}
           />
-          </motion.div>
         </div>
 
-        {/* Comment Thread */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.55 }}
-          className="mb-6"
-        >
-          <TokenCommentThread
-            tokenAddress={token.address}
-            creatorAddress={(token as any).creator}
-          />
-        </motion.div>
-
-        {/* Holders List */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mb-6"
-        >
+        {/* Holders tab */}
+        <div className={cn('mb-6', detailTab !== 'holders' && 'hidden')}>
           <HolderList
             tokenAddress={token.address}
             chainId={resolvedChainId}
             maxHolders={20}
           />
-        </motion.div>
+        </div>
 
-        {/* Full Risk Assessment */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.65 }}
-          className="mb-6"
-        >
-          <RiskIndicators token={token} compact={false} />
-        </motion.div>
+        {/* Thread tab */}
+        <div className={cn('mb-6', detailTab !== 'thread' && 'hidden')}>
+          <TokenCommentThread
+            tokenAddress={token.address}
+            creatorAddress={(token as any).creator}
+          />
+        </div>
 
         {/* Social Share Panel */}
         {showSocialShare && (

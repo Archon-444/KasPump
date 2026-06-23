@@ -15,7 +15,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Percent } from 'lucide-react';
+import { Percent, Info } from 'lucide-react';
 import { useContracts } from '../../hooks/useContracts';
 import { Badge } from '../ui';
 import { cn } from '../../utils';
@@ -76,7 +76,15 @@ export const FeeBadge: React.FC<FeeBadgeProps> = ({
         <div className="text-sm font-mono tabular-nums text-white">
           {loading || feePct == null ? '—' : `${feePct.toFixed(2)}%`}
         </div>
-        <div className="text-[10px] text-gray-500">decreases as token grows</div>
+        <div className="text-[10px] text-gray-400 flex items-center gap-1">
+          1% early → 0.1% at graduation
+          <span
+            className="cursor-help"
+            title="Fees follow the supply curve and decrease as the token matures. Split: 50% to creator, 45% platform, 5% referrer."
+          >
+            <Info size={10} className="text-gray-500" />
+          </span>
+        </div>
       </div>
       {feePct != null && feePct > 5 && (
         <Badge variant="warning" className="ml-2 text-[10px]">

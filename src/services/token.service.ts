@@ -170,9 +170,9 @@ export class TokenService {
         createdAt: await this.getTokenCreationTime(factory, tokenAddress),
         analytics: {
           holders: await MoralisService.getHolderCount(tokenAddress, chainId),
-          transactions24h: 0,
-          priceChange24h: 0,
-          volumeChange24h: 0
+          ...(ammAddress
+            ? await this.get24hMetrics(chainId, ammAddress, currentPrice)
+            : { transactions24h: 0, priceChange24h: 0, volumeChange24h: 0 })
         }
       };
     } catch (error) {
@@ -215,6 +215,85 @@ export class TokenService {
       };
     } catch {
       return null;
+    }
+  }
+
+  private static readonly BLOCKS_PER_DAY: Record<number, number> = {
+    56: 28_800,     // BSC: ~3s blocks
+    97: 28_800,     // BSC Testnet: ~3s blocks
+    42161: 345_600, // Arbitrum: ~0.25s blocks
+    421614: 345_600,
+    8453: 43_200,   // Base: ~2s blocks
+    84532: 43_200,
+  };
+
+  private static metricsCache = new Map<string, { data: { transactions24h: number; priceChange24h: number; volumeChange24h: number }; expiresAt: number }>();
+  private static readonly METRICS_CACHE_TTL = 120_000; // 2 minutes
+
+  private static async get24hMetrics(
+    chainId: number,
+    ammAddress: string,
+    currentPrice: number
+  ): Promise<{ transactions24h: number; priceChange24h: number; volumeChange24h: number }> {
+    const cacheKey = `${chainId}:${ammAddress.toLowerCase()}`;
+    const cached = this.metricsCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      return cached.data;
+    }
+
+    const fallback = { transactions24h: 0, priceChange24h: 0, volumeChange24h: 0 };
+
+    try {
+      const provider = BlockchainService.getProvider(chainId);
+      const amm = BlockchainService.getAMM(ammAddress, chainId);
+      const currentBlock = await provider.getBlockNumber();
+      const blocksPerDay = this.BLOCKS_PER_DAY[chainId] || 43_200;
+      const fromBlock = Math.max(0, currentBlock - blocksPerDay);
+
+      const tradeFilter = amm.filters.Trade();
+      const events = await amm.queryFilter(tradeFilter, fromBlock, currentBlock);
+
+      const now = Math.floor(Date.now() / 1000);
+      const oneDayAgo = now - 86_400;
+      const recentTrades = events.filter(e => Number(e.args.timestamp) >= oneDayAgo);
+
+      if (recentTrades.length === 0) {
+        this.metricsCache.set(cacheKey, { data: fallback, expiresAt: Date.now() + this.METRICS_CACHE_TTL });
+        return fallback;
+      }
+
+      const transactions24h = recentTrades.length;
+
+      let volume24h = 0n;
+      for (const event of recentTrades) {
+        volume24h += event.args.nativeAmount;
+      }
+
+      const oldestTrade = recentTrades[0]!;
+      const oldestPrice = parseFloat(ethers.formatEther(oldestTrade.args.newPrice));
+      const priceChange24h = (oldestPrice > 1e-18 && Number.isFinite(currentPrice))
+        ? ((currentPrice - oldestPrice) / oldestPrice) * 100
+        : 0;
+
+      const data = {
+        transactions24h,
+        priceChange24h: Number.isFinite(priceChange24h) ? Math.round(priceChange24h * 100) / 100 : 0,
+        volumeChange24h: parseFloat(ethers.formatEther(volume24h)),
+      };
+
+      // Evict expired entries periodically to prevent unbounded growth
+      if (this.metricsCache.size > 200) {
+        const nowMs = Date.now();
+        for (const [k, v] of this.metricsCache) {
+          if (nowMs >= v.expiresAt) this.metricsCache.delete(k);
+        }
+      }
+
+      this.metricsCache.set(cacheKey, { data, expiresAt: Date.now() + this.METRICS_CACHE_TTL });
+      return data;
+    } catch (error) {
+      console.warn(`Failed to fetch 24h metrics for ${ammAddress}:`, error);
+      return fallback;
     }
   }
 

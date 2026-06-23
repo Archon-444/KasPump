@@ -1,10 +1,19 @@
 /**
- * Comprehensive tests for useContracts hook
+ * Comprehensive tests for useContracts hook (V2)
  * Tests contract interactions, token creation, trading, and error handling
+ *
+ * V2 notes:
+ * - Contracts are created via TypeChain factories (TokenFactory__factory /
+ *   BondingCurveAMM__factory), so those are mocked instead of ethers.Contract
+ *   (which is only used for the generic ERC20 token contract).
+ * - createToken takes a single CreateTokenParams struct; totalSupply, basePrice,
+ *   slope and curveType are protocol constants and no longer passed.
+ * - TokenCreated event parsing uses contract.interface.getEvent().topicHash +
+ *   contract.interface.parseLog().
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useContracts } from './useContracts';
 import { ethers } from 'ethers';
 import type { TokenCreationForm, TradeData } from '../types';
@@ -42,7 +51,13 @@ vi.mock('../config/contracts', () => ({
   getSupportedChains: vi.fn(() => ['BSC', 'Arbitrum', 'Base']),
 }));
 
-// Mock ethers
+// Mock TypeChain factories (V2: contracts connect through these, not ethers.Contract)
+vi.mock('../../typechain-types', () => ({
+  TokenFactory__factory: { connect: vi.fn() },
+  BondingCurveAMM__factory: { connect: vi.fn() },
+}));
+
+// Mock ethers (only the generic ERC20 contract goes through ethers.Contract)
 vi.mock('ethers', async () => {
   const actual = await vi.importActual('ethers');
   return {
@@ -61,68 +76,86 @@ vi.mock('ethers', async () => {
 import { useMultichainWallet } from './useMultichainWallet';
 import { useContractProvider } from './contracts/useContractProvider';
 import { parseContractError } from '../utils/contractErrors';
+import { TokenFactory__factory, BondingCurveAMM__factory } from '../../typechain-types';
+
+const TOKEN_CREATED_TOPIC = '0xtokencreatedtopichash';
+const CREATION_FEE = BigInt('25000000000000000');
 
 describe('useContracts', () => {
   const mockWalletAddress = '0x1234567890123456789012345678901234567890';
   const mockTokenAddress = '0xtoken123456789012345678901234567890abcdef';
   const mockAmmAddress = '0xamm1234567890123456789012345678901234abcdef';
 
-  const mockWallet = {
-    connected: true,
-    address: mockWalletAddress,
-    chainId: 97,
-    connector: null,
-  };
-
-  const mockProvider = {
-    getNetwork: vi.fn().mockResolvedValue({ chainId: 97 }),
-  };
-
-  const mockSigner = {
-    getAddress: vi.fn().mockResolvedValue(mockWalletAddress),
-  };
-
-  const mockContractProvider = {
-    provider: mockProvider,
-    signer: mockSigner,
-    isInitialized: true,
-    isConnected: true,
-    getContractRunner: vi.fn().mockReturnValue(mockSigner),
-  };
+  // Recreated fresh in beforeEach so per-test mutations don't leak across tests
+  let mockWallet: any;
+  let mockProvider: any;
+  let mockSigner: any;
+  let mockContractProvider: any;
 
   // Mock contract instances
   let mockFactoryContract: any;
   let mockAmmContract: any;
   let mockTokenContract: any;
 
-  const abiHasFunction = (abi: any, name: string) =>
-    Array.isArray(abi) &&
-    abi.some((item) => {
-      if (typeof item === 'string') {
-        return item.includes(` ${name}(`) || item.includes(`${name}(`);
-      }
-      return item?.type === 'function' && item?.name === name;
-    });
-
   beforeEach(() => {
     vi.clearAllMocks();
 
+    mockWallet = {
+      connected: true,
+      address: mockWalletAddress,
+      chainId: 97,
+      connector: null,
+    };
+
+    mockProvider = {
+      getNetwork: vi.fn().mockResolvedValue({ chainId: 97 }),
+    };
+
+    mockSigner = {
+      getAddress: vi.fn().mockResolvedValue(mockWalletAddress),
+    };
+
+    mockContractProvider = {
+      provider: mockProvider,
+      readProvider: mockProvider,
+      browserProvider: null,
+      signer: mockSigner,
+      isInitialized: true,
+      isConnected: true,
+      getRunnerOrThrow: vi.fn(() => mockSigner),
+      getReadProviderOrThrow: vi.fn(() => mockProvider),
+      getContractRunner: vi.fn(() => mockSigner),
+    };
+
     // Setup mock contracts
+    const createTokenFn: any = vi.fn();
+    createTokenFn.estimateGas = vi.fn();
+
     mockFactoryContract = {
-      createToken: vi.fn(),
-      CREATION_FEE: vi.fn().mockResolvedValue(BigInt('25000000000000000')),
+      createToken: createTokenFn,
+      CREATION_FEE: vi.fn().mockResolvedValue(CREATION_FEE),
       getAllTokens: vi.fn(),
       getTokenConfig: vi.fn(),
       getTokenAMM: vi.fn(),
       isKasPumpToken: vi.fn(),
+      filters: {
+        TokenCreated: vi.fn(() => ({})),
+      },
+      queryFilter: vi.fn().mockResolvedValue([]),
       interface: {
+        getEvent: vi.fn(() => ({ topicHash: TOKEN_CREATED_TOPIC })),
         parseLog: vi.fn(),
       },
     };
 
+    const buyTokensFn: any = vi.fn();
+    buyTokensFn.estimateGas = vi.fn().mockResolvedValue(BigInt(200000));
+    const sellTokensFn: any = vi.fn();
+    sellTokensFn.estimateGas = vi.fn().mockResolvedValue(BigInt(200000));
+
     mockAmmContract = {
-      buyTokens: vi.fn(),
-      sellTokens: vi.fn(),
+      buyTokens: buyTokensFn,
+      sellTokens: sellTokensFn,
       getTradingInfo: vi.fn(),
       calculateTokensOut: vi.fn(),
       calculateNativeOut: vi.fn(),
@@ -139,13 +172,12 @@ describe('useContracts', () => {
       totalSupply: vi.fn(),
     };
 
-    // Mock ethers Contract constructor
-    (ethers.Contract as any).mockImplementation((address: string, abi: any, runner: any) => {
-      if (abiHasFunction(abi, 'createToken')) return mockFactoryContract;
-      if (abiHasFunction(abi, 'buyTokens')) return mockAmmContract;
-      if (abiHasFunction(abi, 'balanceOf')) return mockTokenContract;
-      return {};
-    });
+    // V2: TypeChain factory connects return the mock contracts
+    (TokenFactory__factory.connect as any).mockReturnValue(mockFactoryContract);
+    (BondingCurveAMM__factory.connect as any).mockReturnValue(mockAmmContract);
+
+    // ethers.Contract is only used for the generic ERC20 token contract
+    (ethers.Contract as any).mockImplementation(() => mockTokenContract);
 
     // Setup default mocks
     (useMultichainWallet as any).mockReturnValue(mockWallet);
@@ -188,25 +220,28 @@ describe('useContracts', () => {
   });
 
   describe('Token Creation', () => {
+    const createdTokenAddress = '0xcreatedtoken1234567890123456789012345678';
+
     const mockTokenData: TokenCreationForm = {
       name: 'Test Token',
       symbol: 'TEST',
       description: 'A test token',
-      totalSupply: 1000000,
-      basePrice: 0.001,
-      slope: 0.00001,
-      curveType: 'linear',
+      image: null,
+      twitterUrl: '',
+      telegramUrl: '',
+      websiteUrl: '',
+      referrer: '',
     };
 
     beforeEach(() => {
       // Mock successful token creation
-      mockFactoryContract.createToken.estimateGas = vi.fn().mockResolvedValue(BigInt(300000));
+      mockFactoryContract.createToken.estimateGas.mockResolvedValue(BigInt(300000));
       mockFactoryContract.createToken.mockResolvedValue({
         wait: vi.fn().mockResolvedValue({
           hash: '0xtxhash',
           logs: [
             {
-              topics: ['0xtopic'],
+              topics: [TOKEN_CREATED_TOPIC],
               data: '0xdata',
             },
           ],
@@ -215,7 +250,7 @@ describe('useContracts', () => {
       mockFactoryContract.interface.parseLog.mockReturnValue({
         name: 'TokenCreated',
         args: {
-          tokenAddress: mockTokenAddress,
+          tokenAddress: createdTokenAddress,
           ammAddress: mockAmmAddress,
         },
       });
@@ -230,7 +265,7 @@ describe('useContracts', () => {
       });
 
       expect(createResult).toEqual({
-        tokenAddress: mockTokenAddress,
+        tokenAddress: createdTokenAddress,
         ammAddress: mockAmmAddress,
         txHash: '0xtxhash',
       });
@@ -254,39 +289,64 @@ describe('useContracts', () => {
       ).rejects.toThrow('Contracts not initialized');
     });
 
-    it('should convert form data to contract parameters correctly', async () => {
+    it('should convert form data to a single createToken params struct', async () => {
       const { result } = renderHook(() => useContracts());
 
       await act(async () => {
         await result.current.createToken(mockTokenData, 'ipfs://test');
       });
 
+      // V2: single struct param; totalSupply/basePrice/slope/curveType are protocol constants
       expect(mockFactoryContract.createToken).toHaveBeenCalledWith(
-        'Test Token',
-        'TEST',
-        'A test token',
-        'ipfs://test',
-        BigInt(1000000 * 1e18),
-        BigInt(0.001 * 1e18),
-        BigInt(0.00001 * 1e18),
-        0, // linear curve type
+        {
+          name: 'Test Token',
+          symbol: 'TEST',
+          description: 'A test token',
+          imageUrl: 'ipfs://test',
+          twitterUrl: '',
+          telegramUrl: '',
+          websiteUrl: '',
+          referrer: ethers.ZeroAddress,
+        },
         expect.objectContaining({
           gasLimit: expect.any(BigInt),
-          value: BigInt('25000000000000000'),
+          value: CREATION_FEE,
         })
       );
     });
 
-    it('should handle exponential curve type', async () => {
-      const exponentialTokenData = { ...mockTokenData, curveType: 'exponential' as const };
+    it('should pass the referrer address when provided', async () => {
+      const referrer = '0xreferrer12345678901234567890123456789012';
       const { result } = renderHook(() => useContracts());
 
       await act(async () => {
-        await result.current.createToken(exponentialTokenData);
+        await result.current.createToken({ ...mockTokenData, referrer });
       });
 
-      const callArgs = mockFactoryContract.createToken.mock.calls[0];
-      expect(callArgs[7]).toBe(1); // exponential = 1
+      const [params] = mockFactoryContract.createToken.mock.calls[0];
+      expect(params.referrer).toBe(referrer);
+    });
+
+    it('should pass social links and default the image URL to empty string', async () => {
+      const socialTokenData: TokenCreationForm = {
+        ...mockTokenData,
+        twitterUrl: 'https://x.com/test',
+        telegramUrl: 'https://t.me/test',
+        websiteUrl: 'https://test.example',
+      };
+      const { result } = renderHook(() => useContracts());
+
+      await act(async () => {
+        await result.current.createToken(socialTokenData); // no image url
+      });
+
+      const [params] = mockFactoryContract.createToken.mock.calls[0];
+      expect(params).toMatchObject({
+        imageUrl: '',
+        twitterUrl: 'https://x.com/test',
+        telegramUrl: 'https://t.me/test',
+        websiteUrl: 'https://test.example',
+      });
     });
 
     it('should estimate and add gas buffer', async () => {
@@ -296,11 +356,14 @@ describe('useContracts', () => {
         await result.current.createToken(mockTokenData);
       });
 
-      expect(mockFactoryContract.createToken.estimateGas).toHaveBeenCalled();
-      const callArgs = mockFactoryContract.createToken.mock.calls[0];
-      const gasLimit = callArgs[8].gasLimit;
+      expect(mockFactoryContract.createToken.estimateGas).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Test Token' }),
+        { value: CREATION_FEE }
+      );
+      const [, overrides] = mockFactoryContract.createToken.mock.calls[0];
       // Gas limit should be 120% of estimate
-      expect(gasLimit).toBeGreaterThan(BigInt(300000));
+      expect(overrides.gasLimit).toBe((BigInt(300000) * BigInt(120)) / BigInt(100));
+      expect(overrides.gasLimit).toBeGreaterThan(BigInt(300000));
     });
 
     it('should cache AMM address after creation', async () => {
@@ -310,10 +373,10 @@ describe('useContracts', () => {
         await result.current.createToken(mockTokenData);
       });
 
-      // Subsequent call to getTokenAMMAddress should use cache
-      mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
-      const ammAddress = await result.current.getTokenAMMAddress(mockTokenAddress);
+      // Subsequent call to getTokenAMMAddress should use cache (no factory call)
+      const ammAddress = await result.current.getTokenAMMAddress(createdTokenAddress);
       expect(ammAddress).toBe(mockAmmAddress);
+      expect(mockFactoryContract.getTokenAMM).not.toHaveBeenCalled();
     });
 
     it('should handle creation errors', async () => {
@@ -340,6 +403,26 @@ describe('useContracts', () => {
         result.current.createToken(mockTokenData)
       ).rejects.toThrow('TokenCreated event not found');
     });
+
+    it('should ignore logs whose topic does not match the TokenCreated topic hash', async () => {
+      mockFactoryContract.createToken.mockResolvedValue({
+        wait: vi.fn().mockResolvedValue({
+          hash: '0xtxhash',
+          logs: [
+            {
+              topics: ['0xsomeothertopic'],
+              data: '0xdata',
+            },
+          ],
+        }),
+      });
+
+      const { result } = renderHook(() => useContracts());
+
+      await expect(
+        result.current.createToken(mockTokenData)
+      ).rejects.toThrow('TokenCreated event not found');
+    });
   });
 
   describe('Trading - Buy Tokens', () => {
@@ -349,11 +432,13 @@ describe('useContracts', () => {
       baseAmount: 1.0, // 1 BNB
       expectedOutput: 1000, // 1000 tokens
       slippageTolerance: 0.5,
+      priceImpact: 0,
+      gasFee: 0,
     };
 
     beforeEach(() => {
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
-      mockAmmContract.buyTokens.estimateGas = vi.fn().mockResolvedValue(BigInt(200000));
+      mockAmmContract.buyTokens.estimateGas.mockResolvedValue(BigInt(200000));
       mockAmmContract.buyTokens.mockResolvedValue({
         wait: vi.fn().mockResolvedValue({ hash: '0xbuytxhash' }),
       });
@@ -396,13 +481,15 @@ describe('useContracts', () => {
     });
 
     it('should resolve AMM address before trading', async () => {
+      // Unique token address so the module-level AMM cache cannot satisfy the lookup
+      const uncachedToken = '0xbuyresolve1234567890123456789012345678901';
       const { result } = renderHook(() => useContracts());
 
       await act(async () => {
-        await result.current.executeTrade(mockBuyTrade);
+        await result.current.executeTrade({ ...mockBuyTrade, tokenAddress: uncachedToken });
       });
 
-      expect(mockFactoryContract.getTokenAMM).toHaveBeenCalledWith(mockTokenAddress);
+      expect(mockFactoryContract.getTokenAMM).toHaveBeenCalledWith(uncachedToken);
     });
 
     it('should throw error when wallet not connected', async () => {
@@ -422,6 +509,8 @@ describe('useContracts', () => {
       baseAmount: 1000, // 1000 tokens
       expectedOutput: 0.95, // 0.95 BNB
       slippageTolerance: 0.5,
+      priceImpact: 0,
+      gasFee: 0,
     };
 
     beforeEach(() => {
@@ -430,7 +519,7 @@ describe('useContracts', () => {
       mockTokenContract.approve.mockResolvedValue({
         wait: vi.fn().mockResolvedValue({ hash: '0xapprovetxhash' }),
       });
-      mockAmmContract.sellTokens.estimateGas = vi.fn().mockResolvedValue(BigInt(200000));
+      mockAmmContract.sellTokens.estimateGas.mockResolvedValue(BigInt(200000));
       mockAmmContract.sellTokens.mockResolvedValue({
         wait: vi.fn().mockResolvedValue({ hash: '0xselltxhash' }),
       });
@@ -455,6 +544,7 @@ describe('useContracts', () => {
         await result.current.executeTrade(mockSellTrade);
       });
 
+      expect(mockTokenContract.allowance).toHaveBeenCalledWith(mockWalletAddress, mockAmmAddress);
       expect(mockTokenContract.approve).toHaveBeenCalledWith(
         mockAmmAddress,
         BigInt(1000 * 1e18)
@@ -485,22 +575,13 @@ describe('useContracts', () => {
       // minNativeOut = 0.95 * (1 - 0.005) = 0.94525
       expect(Number(minNativeOut)).toBeCloseTo(0.94525 * 1e18, -15);
     });
-
-    it('should throw error when wallet address not available', async () => {
-      mockWallet.address = null;
-      const { result } = renderHook(() => useContracts());
-
-      await expect(
-        result.current.executeTrade(mockSellTrade)
-      ).rejects.toThrow('Wallet address not available');
-    });
   });
 
   describe('Swap Quotes', () => {
     beforeEach(() => {
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
       mockAmmContract.getTradingInfo.mockResolvedValue([
-        ethers.parseEther('500000'), // currentSupply
+        ethers.parseEther('500000'), // currentSupply (virtual token reserves)
         ethers.parseEther('0.001'), // currentPrice
         ethers.parseEther('10000'), // totalVolume
         BigInt(5000), // graduation
@@ -525,6 +606,12 @@ describe('useContracts', () => {
         priceImpact: 2,
         route: 'bonding-curve',
       });
+      // V2: calculateTokensOut takes (amountIn, currentSupply)
+      expect(mockAmmContract.calculateTokensOut).toHaveBeenCalledWith(
+        BigInt(1e18),
+        ethers.parseEther('500000')
+      );
+      expect(mockAmmContract.getPriceImpact).toHaveBeenCalledWith(BigInt(1e18), true);
     });
 
     it('should get sell quote', async () => {
@@ -541,6 +628,12 @@ describe('useContracts', () => {
         priceImpact: 2,
         route: 'bonding-curve',
       });
+      // V2: calculateNativeOut takes (amountIn, currentSupply)
+      expect(mockAmmContract.calculateNativeOut).toHaveBeenCalledWith(
+        BigInt(1000 * 1e18),
+        ethers.parseEther('500000')
+      );
+      expect(mockAmmContract.getPriceImpact).toHaveBeenCalledWith(BigInt(1000 * 1e18), false);
     });
 
     it('should show amm route for graduated tokens', async () => {
@@ -593,7 +686,6 @@ describe('useContracts', () => {
         symbol: 'TEST',
         description: 'Test description',
         imageUrl: 'https://example.com/image.png',
-        curveType: 0,
       });
       mockTokenContract.name.mockResolvedValue('Test Token');
       mockTokenContract.symbol.mockResolvedValue('TEST');
@@ -621,7 +713,8 @@ describe('useContracts', () => {
         name: 'Test Token',
         symbol: 'TEST',
         description: 'Test description',
-        curveType: 'linear',
+        // V2: curve type is a protocol constant (sigmoid)
+        curveType: 'sigmoid',
         ammAddress: mockAmmAddress,
       });
     });
@@ -706,46 +799,72 @@ describe('useContracts', () => {
   });
 
   describe('AMM Address Resolution', () => {
+    // Use unique token addresses per test: the AMM address cache is module-level
+    // and persists across tests within this file.
     it('should resolve AMM address from factory', async () => {
+      const token = '0xresolve1234567890123456789012345678901234';
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
 
       const { result } = renderHook(() => useContracts());
 
       let ammAddress: string = '';
       await act(async () => {
-        ammAddress = await result.current.getTokenAMMAddress(mockTokenAddress);
+        ammAddress = await result.current.getTokenAMMAddress(token);
       });
 
       expect(ammAddress).toBe(mockAmmAddress);
+      expect(mockFactoryContract.getTokenAMM).toHaveBeenCalledWith(token);
     });
 
     it('should cache AMM addresses', async () => {
+      const token = '0xcacheme1234567890123456789012345678901234';
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
 
       const { result } = renderHook(() => useContracts());
 
       // First call
       await act(async () => {
-        await result.current.getTokenAMMAddress(mockTokenAddress);
+        await result.current.getTokenAMMAddress(token);
       });
 
       // Second call should use cache
       await act(async () => {
-        await result.current.getTokenAMMAddress(mockTokenAddress);
+        await result.current.getTokenAMMAddress(token);
       });
 
       // Should only call contract once
       expect(mockFactoryContract.getTokenAMM).toHaveBeenCalledTimes(1);
     });
 
-    it('should throw error for zero address', async () => {
+    it('should fall back to TokenCreated event filtering when lookup returns zero address', async () => {
+      const token = '0xeventfallback123456789012345678901234567890';
+      const eventAmm = '0xeventamm12345678901234567890123456789012';
       mockFactoryContract.getTokenAMM.mockResolvedValue(ethers.ZeroAddress);
+      mockFactoryContract.queryFilter.mockResolvedValue([
+        { args: { tokenAddress: token, ammAddress: eventAmm } },
+      ]);
+
+      const { result } = renderHook(() => useContracts());
+
+      let ammAddress: string = '';
+      await act(async () => {
+        ammAddress = await result.current.getTokenAMMAddress(token);
+      });
+
+      expect(ammAddress).toBe(eventAmm);
+      expect(mockFactoryContract.filters.TokenCreated).toHaveBeenCalledWith(token);
+    });
+
+    it('should throw error when AMM cannot be resolved at all', async () => {
+      const token = '0xzeroaddr1234567890123456789012345678901234';
+      mockFactoryContract.getTokenAMM.mockResolvedValue(ethers.ZeroAddress);
+      mockFactoryContract.queryFilter.mockResolvedValue([]);
 
       const { result } = renderHook(() => useContracts());
 
       await expect(
-        result.current.getTokenAMMAddress(mockTokenAddress)
-      ).rejects.toThrow('AMM address not found');
+        result.current.getTokenAMMAddress(token)
+      ).rejects.toThrow('Failed to resolve AMM address');
     });
   });
 
@@ -795,37 +914,38 @@ describe('useContracts', () => {
       );
     });
 
-    it('should throw error on approval when not connected', async () => {
-      mockContractProvider.isConnected = false;
+    it('should throw error on approval when wallet address not available', async () => {
+      mockWallet.address = null;
 
       const { result } = renderHook(() => useContracts());
 
       await expect(
         result.current.approveToken(mockTokenAddress, mockAmmAddress, '100')
-      ).rejects.toThrow('Wallet not connected');
+      ).rejects.toThrow('No wallet');
     });
 
-    it('should return 0 on balance fetch error', async () => {
+    it('should propagate balance fetch errors', async () => {
+      // V2: getTokenBalance no longer swallows errors and returns 0
       mockTokenContract.balanceOf.mockRejectedValue(new Error('Balance error'));
 
       const { result } = renderHook(() => useContracts());
 
-      let balance: number = -1;
-      await act(async () => {
-        balance = await result.current.getTokenBalance(mockTokenAddress, mockWalletAddress);
-      });
-
-      expect(balance).toBe(0);
+      await expect(
+        result.current.getTokenBalance(mockTokenAddress, mockWalletAddress)
+      ).rejects.toThrow('Balance error');
     });
   });
 
   describe('Contract Instances', () => {
-    it('should get factory contract instance', () => {
+    it('should get factory contract instance via TypeChain factory', () => {
       const { result } = renderHook(() => useContracts());
 
       const contract = result.current.getTokenFactoryContract();
-      expect(contract).toBeDefined();
-      expect(ethers.Contract).toHaveBeenCalled();
+      expect(contract).toBe(mockFactoryContract);
+      expect(TokenFactory__factory.connect).toHaveBeenCalledWith(
+        '0xfactory1234567890123456789012345678901234',
+        mockSigner
+      );
     });
 
     it('should throw error getting factory without signer', () => {
@@ -836,11 +956,12 @@ describe('useContracts', () => {
       expect(() => result.current.getTokenFactoryContract()).toThrow('Wallet not connected');
     });
 
-    it('should get bonding curve contract instance', () => {
+    it('should get bonding curve contract instance via TypeChain factory', () => {
       const { result } = renderHook(() => useContracts());
 
       const contract = result.current.getBondingCurveContract(mockAmmAddress);
-      expect(contract).toBeDefined();
+      expect(contract).toBe(mockAmmContract);
+      expect(BondingCurveAMM__factory.connect).toHaveBeenCalledWith(mockAmmAddress, mockSigner);
     });
 
     it('should throw error getting bonding curve without address', () => {
@@ -853,7 +974,8 @@ describe('useContracts', () => {
       const { result } = renderHook(() => useContracts());
 
       const contract = result.current.getTokenContract(mockTokenAddress);
-      expect(contract).toBeDefined();
+      expect(contract).toBe(mockTokenContract);
+      expect(ethers.Contract).toHaveBeenCalled();
     });
 
     it('should throw error getting token contract without address', () => {
@@ -884,6 +1006,7 @@ describe('useContracts', () => {
 
   describe('Error Handling', () => {
     it('should parse contract errors on token creation failure', async () => {
+      mockFactoryContract.createToken.estimateGas.mockResolvedValue(BigInt(300000));
       mockFactoryContract.createToken.mockRejectedValue(new Error('Revert: Insufficient balance'));
 
       const { result } = renderHook(() => useContracts());
@@ -892,10 +1015,11 @@ describe('useContracts', () => {
         name: 'Test',
         symbol: 'TST',
         description: '',
-        totalSupply: 1000000,
-        basePrice: 0.001,
-        slope: 0.00001,
-        curveType: 'linear',
+        image: null,
+        twitterUrl: '',
+        telegramUrl: '',
+        websiteUrl: '',
+        referrer: '',
       };
 
       await expect(
@@ -907,6 +1031,7 @@ describe('useContracts', () => {
 
     it('should parse contract errors on trade failure', async () => {
       mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
+      mockAmmContract.buyTokens.estimateGas.mockResolvedValue(BigInt(200000));
       mockAmmContract.buyTokens.mockRejectedValue(new Error('Revert: Slippage too high'));
 
       const { result } = renderHook(() => useContracts());
@@ -917,6 +1042,8 @@ describe('useContracts', () => {
         baseAmount: 1.0,
         expectedOutput: 1000,
         slippageTolerance: 0.5,
+        priceImpact: 0,
+        gasFee: 0,
       };
 
       await expect(

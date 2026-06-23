@@ -47,45 +47,38 @@ export async function GET(request: NextRequest) {
     }
 
     const amm = BlockchainService.getAMM(ammAddress, chainId);
-    const provider = amm.runner?.provider;
-    if (!provider) {
-      return NextResponse.json({ candles: [] });
-    }
+    const provider = BlockchainService.getProvider(chainId);
 
     const currentBlock = await provider.getBlockNumber();
     const blocksToScan = Math.min(50000, currentBlock);
     const fromBlock = currentBlock - blocksToScan;
 
-    const buyFilter = amm.filters.TokensPurchased();
-    const sellFilter = amm.filters.TokensSold();
-
-    const [buyEvents, sellEvents] = await Promise.all([
-      amm.queryFilter(buyFilter, fromBlock).catch(() => []),
-      amm.queryFilter(sellFilter, fromBlock).catch(() => []),
-    ]);
+    // Query Trade events (the actual event name in BondingCurveAMM.sol)
+    const tradeFilter = amm.filters.Trade();
+    const events = await amm.queryFilter(tradeFilter, fromBlock).catch(() => []);
 
     interface TradePoint {
       price: number;
       volume: number;
-      blockNumber: number;
       timestamp: number;
     }
 
     const tradePoints: TradePoint[] = [];
 
-    for (const e of [...buyEvents, ...sellEvents]) {
-      const args = (e as any).args;
+    for (const e of events) {
+      const args = e.args;
       if (!args) continue;
 
-      const nativeAmt = parseFloat(ethers.formatEther(args.nativeAmount || args.ethAmount || 0));
-      const tokenAmt = parseFloat(ethers.formatEther(args.tokenAmount || 0));
-      if (tokenAmt === 0) continue;
+      const nativeAmt = parseFloat(ethers.formatEther(args.nativeAmount));
+      const price = parseFloat(ethers.formatEther(args.newPrice));
+      const timestamp = Number(args.timestamp);
+
+      if (price <= 0 || timestamp === 0) continue;
 
       tradePoints.push({
-        price: nativeAmt / tokenAmt,
+        price,
         volume: nativeAmt,
-        blockNumber: e.blockNumber,
-        timestamp: 0,
+        timestamp,
       });
     }
 
@@ -108,34 +101,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ candles: [] });
     }
 
-    tradePoints.sort((a, b) => a.blockNumber - b.blockNumber);
-
-    const blockTimestamps = new Map<number, number>();
-    const uniqueBlocks = [...new Set(tradePoints.map(t => t.blockNumber))];
-    const sampleBlocks = uniqueBlocks.filter((_, i) => i % Math.max(1, Math.floor(uniqueBlocks.length / 50)) === 0 || i === uniqueBlocks.length - 1);
-
-    await Promise.all(
-      sampleBlocks.map(async (bn) => {
-        const block = await provider.getBlock(bn).catch(() => null);
-        if (block) blockTimestamps.set(bn, block.timestamp);
-      })
-    );
-
-    for (const tp of tradePoints) {
-      const closest = sampleBlocks.reduce((prev, curr) =>
-        Math.abs(curr - tp.blockNumber) < Math.abs(prev - tp.blockNumber) ? curr : prev
-      );
-      const baseTs = blockTimestamps.get(closest);
-      if (baseTs) {
-        const blockDiff = tp.blockNumber - closest;
-        tp.timestamp = baseTs + blockDiff * 3;
-      }
-    }
+    tradePoints.sort((a, b) => a.timestamp - b.timestamp);
 
     const candleMap = new Map<number, Candle>();
 
     for (const tp of tradePoints) {
-      if (tp.timestamp === 0) continue;
       const bucket = Math.floor(tp.timestamp / interval) * interval;
 
       const existing = candleMap.get(bucket);

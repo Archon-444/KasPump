@@ -24,7 +24,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // eslint: config removed as it's deprecated in next.config.js
+  eslint: {
+    dirs: ['src'],
+  },
 };
 
 module.exports = nextConfig;

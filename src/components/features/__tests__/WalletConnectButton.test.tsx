@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WalletConnectButton, WalletStatus, useWalletGuard, WalletRequired } from '../WalletConnectButton';
 import * as useMultichainWalletModule from '../../../hooks/useMultichainWallet';
@@ -53,8 +53,8 @@ describe('WalletConnectButton', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock window.open
-    global.open = vi.fn();
+    // Mock window.open (the component calls window.open directly)
+    vi.spyOn(window, 'open').mockImplementation(() => null);
   });
 
   afterEach(() => {
@@ -93,7 +93,7 @@ describe('WalletConnectButton', () => {
       expect(button).toBeDisabled();
     });
 
-    it('should show error message when wallet.error exists', () => {
+    it('should still render the connect button when wallet.error exists (errors are not displayed inline)', () => {
       const errorMessage = 'Failed to connect to wallet';
       vi.spyOn(useMultichainWalletModule, 'useMultichainWallet').mockReturnValue({
         ...mockWalletDisconnected,
@@ -102,7 +102,9 @@ describe('WalletConnectButton', () => {
 
       render(<WalletConnectButton />);
 
-      expect(screen.getByText(errorMessage)).toBeInTheDocument();
+      // The V2 button no longer renders hook errors inline; surfacing happens elsewhere (toasts)
+      expect(screen.getByRole('button', { name: /connect wallet/i })).toBeInTheDocument();
+      expect(screen.queryByText(errorMessage)).not.toBeInTheDocument();
     });
 
     it('should open wallet select modal when connect button is clicked', async () => {
@@ -141,17 +143,19 @@ describe('WalletConnectButton', () => {
 
       render(<WalletConnectButton />);
 
-      // Check for truncated address with ... separator
-      expect(screen.getByText(/0x742d/)).toBeInTheDocument();
+      // truncateAddress(address, 4, 3) -> "0x74...Eb1"
+      expect(screen.getByText('0x74...Eb1')).toBeInTheDocument();
     });
 
-    it('should show green indicator when connected', () => {
+    it('should show avatar and dropdown chevron when connected', () => {
       vi.spyOn(useMultichainWalletModule, 'useMultichainWallet').mockReturnValue(mockWalletConnected as any);
 
       render(<WalletConnectButton />);
 
-      const indicator = document.querySelector('.bg-green-500');
-      expect(indicator).toBeInTheDocument();
+      // Gradient avatar with the first two address chars after 0x
+      expect(document.querySelector('.bg-gradient-to-br')).toBeInTheDocument();
+      expect(screen.getByText('74')).toBeInTheDocument();
+      expect(document.querySelector('.lucide-chevron-down')).toBeInTheDocument();
     });
 
     it('should toggle dropdown when button is clicked', async () => {
@@ -162,7 +166,7 @@ describe('WalletConnectButton', () => {
 
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       expect(screen.getByText(/account/i)).toBeInTheDocument();
@@ -177,7 +181,7 @@ describe('WalletConnectButton', () => {
 
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       expect(screen.getByText(mockWalletConnected.address)).toBeInTheDocument();
@@ -191,7 +195,7 @@ describe('WalletConnectButton', () => {
 
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       expect(screen.getByText(/1\.5678/i)).toBeInTheDocument();
@@ -209,7 +213,7 @@ describe('WalletConnectButton', () => {
       // Open dropdown
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       // Click copy button
@@ -219,7 +223,7 @@ describe('WalletConnectButton', () => {
       expect(copyToClipboard).toHaveBeenCalledWith(mockWalletConnected.address);
 
       await waitFor(() => {
-        expect(screen.getByText(/address copied!/i)).toBeInTheDocument();
+        expect(screen.getByText(/copied!/i)).toBeInTheDocument();
       });
     });
 
@@ -232,14 +236,14 @@ describe('WalletConnectButton', () => {
       // Open dropdown
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       // Click explorer button
       const explorerButton = screen.getByTitle(/view on explorer/i);
       await user.click(explorerButton);
 
-      expect(global.open).toHaveBeenCalledWith(
+      expect(window.open).toHaveBeenCalledWith(
         `https://testnet.bscscan.com/address/${mockWalletConnected.address}`,
         '_blank'
       );
@@ -257,14 +261,14 @@ describe('WalletConnectButton', () => {
       // Open dropdown
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       // Click explorer button
       const explorerButton = screen.getByTitle(/view on explorer/i);
       await user.click(explorerButton);
 
-      expect(global.open).toHaveBeenCalledWith(
+      expect(window.open).toHaveBeenCalledWith(
         `https://bscscan.com/address/${mockWalletConnected.address}`,
         '_blank'
       );
@@ -282,14 +286,14 @@ describe('WalletConnectButton', () => {
       // Open dropdown
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       // Click explorer button
       const explorerButton = screen.getByTitle(/view on explorer/i);
       await user.click(explorerButton);
 
-      expect(global.open).toHaveBeenCalledWith(
+      expect(window.open).toHaveBeenCalledWith(
         `https://arbiscan.io/address/${mockWalletConnected.address}`,
         '_blank'
       );
@@ -307,14 +311,14 @@ describe('WalletConnectButton', () => {
       // Open dropdown
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       // Click explorer button
       const explorerButton = screen.getByTitle(/view on explorer/i);
       await user.click(explorerButton);
 
-      expect(global.open).toHaveBeenCalledWith(
+      expect(window.open).toHaveBeenCalledWith(
         `https://basescan.org/address/${mockWalletConnected.address}`,
         '_blank'
       );
@@ -333,7 +337,7 @@ describe('WalletConnectButton', () => {
       // Open dropdown
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       // Click refresh button
@@ -356,7 +360,7 @@ describe('WalletConnectButton', () => {
       // Open dropdown
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       // Click disconnect button
@@ -379,7 +383,7 @@ describe('WalletConnectButton', () => {
       // Open dropdown
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       // Click disconnect
@@ -400,7 +404,7 @@ describe('WalletConnectButton', () => {
       // Open dropdown
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       // Click outside (the overlay)
@@ -419,7 +423,7 @@ describe('WalletConnectButton', () => {
       // Open dropdown
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       const settingsLink = screen.getByRole('link', { name: /settings/i });
@@ -440,7 +444,7 @@ describe('WalletConnectButton', () => {
       // Open dropdown
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       // Click copy button
@@ -448,43 +452,45 @@ describe('WalletConnectButton', () => {
       await user.click(copyButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/address copied!/i)).toBeInTheDocument();
+        expect(screen.getByText(/copied!/i)).toBeInTheDocument();
       });
     });
 
-    it('should hide "Address copied!" message after 2 seconds', async () => {
-      vi.useFakeTimers();
-
+    it('should hide "Copied!" message after 2 seconds', async () => {
       const { copyToClipboard } = await import('../../../utils');
       vi.mocked(copyToClipboard).mockResolvedValue(true);
 
       vi.spyOn(useMultichainWalletModule, 'useMultichainWallet').mockReturnValue(mockWalletConnected as any);
 
-      const user = userEvent.setup({ delay: null, advanceTimers: vi.advanceTimersByTime });
       render(<WalletConnectButton />);
 
-      // Open dropdown
-      // Find button by looking for element containing the truncated address
-      const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
-      await user.click(button);
+      try {
+        // Open dropdown
+        const buttons = screen.getAllByRole('button');
+        const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
+        fireEvent.click(button);
 
-      // Click copy button
-      const copyButton = screen.getByTitle(/copy address/i);
-      await user.click(copyButton);
+        const copyButton = screen.getByTitle(/copy address/i);
 
-      await waitFor(() => {
-        expect(screen.getByText(/address copied!/i)).toBeInTheDocument();
-      });
+        // Switch to fake timers only around the copy interaction so the
+        // 2-second hide timeout can be advanced deterministically.
+        vi.useFakeTimers();
+        fireEvent.click(copyButton);
 
-      // Fast-forward time by 2 seconds
-      await vi.advanceTimersByTimeAsync(2000);
+        // Flush the async copy handler
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(screen.getByText(/copied!/i)).toBeInTheDocument();
 
-      await waitFor(() => {
-        expect(screen.queryByText(/address copied!/i)).not.toBeInTheDocument();
-      });
-
-      vi.useRealTimers();
+        // Fast-forward time by 2 seconds
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(2000);
+        });
+        expect(screen.queryByText(/copied!/i)).not.toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('should not show message if copy fails', async () => {
@@ -499,7 +505,7 @@ describe('WalletConnectButton', () => {
       // Open dropdown
       // Find button by looking for element containing the truncated address
       const buttons = screen.getAllByRole('button');
-      const button = buttons.find(btn => btn.textContent?.includes('0x742d'))!;
+      const button = buttons.find(btn => btn.textContent?.includes('0x74'))!;
       await user.click(button);
 
       // Click copy button
@@ -509,13 +515,13 @@ describe('WalletConnectButton', () => {
       // Wait a bit to ensure no message appears
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      expect(screen.queryByText(/address copied!/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/copied!/i)).not.toBeInTheDocument();
     });
   });
 });
 
 describe('WalletStatus', () => {
-  it('should show "Wallet not installed" when no connectors available', () => {
+  it('should show "Not connected" when no connectors available (connector availability no longer changes the status)', () => {
     vi.spyOn(useMultichainWalletModule, 'useMultichainWallet').mockReturnValue({
       connected: false,
       availableConnectors: [],
@@ -523,7 +529,7 @@ describe('WalletStatus', () => {
 
     render(<WalletStatus />);
 
-    expect(screen.getByText(/wallet not installed/i)).toBeInTheDocument();
+    expect(screen.getByText(/not connected/i)).toBeInTheDocument();
   });
 
   it('should show "Connecting..." when wallet is connecting', () => {
@@ -564,7 +570,7 @@ describe('WalletStatus', () => {
 });
 
 describe('useWalletGuard', () => {
-  it('should throw error when no wallet is available', () => {
+  it('should throw connect error when no wallet is available (no separate "not installed" error)', () => {
     vi.spyOn(useMultichainWalletModule, 'useMultichainWallet').mockReturnValue({
       connected: false,
       availableConnectors: [],
@@ -572,7 +578,7 @@ describe('useWalletGuard', () => {
 
     const { result } = renderHook(() => useWalletGuard());
 
-    expect(() => result.current.requireConnection()).toThrow('Wallet is not installed');
+    expect(() => result.current.requireConnection()).toThrow('Please connect your wallet');
   });
 
   it('should throw error when wallet is not connected', () => {
@@ -625,7 +631,7 @@ describe('useWalletGuard', () => {
 });
 
 describe('WalletRequired', () => {
-  it('should show fallback when no wallet is available', () => {
+  it('should show the connect fallback when no wallet is available', () => {
     vi.spyOn(useMultichainWalletModule, 'useMultichainWallet').mockReturnValue({
       connected: false,
       availableConnectors: [],
@@ -637,11 +643,13 @@ describe('WalletRequired', () => {
       </WalletRequired>
     );
 
-    expect(screen.getByText(/wallet required/i)).toBeInTheDocument();
+    // V2 always shows the connect prompt; there is no separate "install wallet" state
+    expect(screen.getByRole('heading', { name: /connect your wallet/i })).toBeInTheDocument();
+    expect(screen.getByText(/please connect your wallet to continue/i)).toBeInTheDocument();
     expect(screen.queryByText(/protected content/i)).not.toBeInTheDocument();
   });
 
-  it('should show install wallet button when no wallet available', () => {
+  it('should show connect wallet button in fallback when no wallet available', () => {
     vi.spyOn(useMultichainWalletModule, 'useMultichainWallet').mockReturnValue({
       connected: false,
       availableConnectors: [],
@@ -653,28 +661,27 @@ describe('WalletRequired', () => {
       </WalletRequired>
     );
 
-    expect(screen.getByRole('button', { name: /install wallet/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /connect wallet/i })).toBeInTheDocument();
   });
 
-  it('should open MetaMask download page when install button is clicked', async () => {
+  it('should open the wallet select modal when the fallback connect button is clicked', async () => {
     vi.spyOn(useMultichainWalletModule, 'useMultichainWallet').mockReturnValue({
       connected: false,
       availableConnectors: [],
     } as any);
 
-    const user = userEvent.setup();
     render(
       <WalletRequired>
         <div>Protected Content</div>
       </WalletRequired>
     );
 
-    const installButton = screen.getByRole('button', { name: /install wallet/i });
+    const connectButton = screen.getByRole('button', { name: /connect wallet/i });
 
     // Use fireEvent instead of user.click to avoid timing issues
-    fireEvent.click(installButton);
+    fireEvent.click(connectButton);
 
-    expect(global.open).toHaveBeenCalledWith('https://metamask.io/download/', '_blank');
+    expect(screen.getByTestId('wallet-select-modal')).toBeInTheDocument();
   });
 
   it('should show connect prompt when wallet available but not connected', () => {

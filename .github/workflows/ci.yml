@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Next 16 requires Node >=20.9; Hardhat also unsupported on 18
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      # TODO: make blocking once V2 type rot is fixed (~470 pre-existing errors
+      # in page files left behind by the V2 rework)
+      - name: Type check (non-blocking)
+        run: npm run type-check
+        continue-on-error: true
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Compile contracts
+        run: npx hardhat compile
+
+      - name: Contract tests
+        run: npx hardhat test
+
+      - name: Build
+        run: npm run build

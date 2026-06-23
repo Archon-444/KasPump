@@ -4,7 +4,7 @@
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { usePortfolio } from './usePortfolio';
 import { ethers } from 'ethers';
 
@@ -38,6 +38,12 @@ vi.mock('../config/chains', () => ({
   }),
 }));
 
+// Mock contract address registry (addresses are resolved at module load in the
+// real implementation, so env vars set in tests would be ignored)
+vi.mock('../config/contracts', () => ({
+  getTokenFactoryAddress: vi.fn(),
+}));
+
 vi.mock('../utils', () => ({
   formatCurrency: vi.fn((value: number, symbol: string = '', decimals: number = 2) => {
     return `${symbol ? symbol + ' ' : ''}${value.toFixed(decimals)}`;
@@ -62,6 +68,7 @@ vi.mock('ethers', async () => {
 
 import { useMultichainWallet } from './useMultichainWallet';
 import { useContracts } from './useContracts';
+import { getTokenFactoryAddress } from '../config/contracts';
 
 describe('usePortfolio', () => {
   const mockWallet = {
@@ -138,12 +145,10 @@ describe('usePortfolio', () => {
     (useMultichainWallet as any).mockReturnValue(mockWallet);
     (useContracts as any).mockReturnValue(mockContracts);
 
-    // Mock environment variables
-    process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY = '0xfactory123456789012345678901234567890';
-  });
-
-  afterEach(() => {
-    delete process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY;
+    // Factory deployed on BSC mainnet only in these tests
+    (getTokenFactoryAddress as any).mockImplementation((chainId: number) =>
+      chainId === 56 ? '0xfactory1234567890123456789012345678901234' : undefined
+    );
   });
 
   describe('Initial State', () => {
@@ -394,7 +399,8 @@ describe('usePortfolio', () => {
         expect(token.token.symbol).toBe('MYT');
         expect(token.token.description).toBe('My test token');
         expect(token.token.image).toBe('https://example.com/mytoken.png');
-        expect(token.token.curveType).toBe('linear');
+        // V2: all tokens use the sigmoid curve regardless of on-chain curveType
+        expect(token.token.curveType).toBe('sigmoid');
       }
     });
 
@@ -475,13 +481,13 @@ describe('usePortfolio', () => {
       }
     });
 
-    it('should handle exponential curve type', async () => {
+    it('should default curve type to sigmoid for all tokens (V2)', async () => {
       mockFactoryContract.getTokenConfig.mockResolvedValue({
         name: 'Exponential Token',
         symbol: 'EXP',
         description: '',
         imageUrl: '',
-        curveType: 1, // exponential
+        curveType: 1, // legacy exponential value is ignored in V2
       });
 
       const { result } = renderHook(() => usePortfolio());
@@ -491,7 +497,7 @@ describe('usePortfolio', () => {
       });
 
       if (result.current.tokens.length > 0) {
-        expect(result.current.tokens[0].token.curveType).toBe('exponential');
+        expect(result.current.tokens[0].token.curveType).toBe('sigmoid');
       }
     });
 
@@ -748,7 +754,7 @@ describe('usePortfolio', () => {
       mockWallet.address = mockUserAddress;
     });
 
-    it('should set error state on fetch failure', async () => {
+    it('should keep error null when a chain fetch fails (errors handled per-chain)', async () => {
       mockFactoryContract.getAllTokens.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => usePortfolio());
@@ -757,30 +763,46 @@ describe('usePortfolio', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Network error');
+      // V2: fetch failures are caught per-chain and skipped; no global error is set
+      expect(result.current.error).toBeNull();
+      expect(result.current.tokens).toEqual([]);
     });
 
-    it('should clear error on successful refetch', async () => {
+    it('should recover and load tokens on refetch after a failed fetch', async () => {
       mockFactoryContract.getAllTokens.mockRejectedValueOnce(new Error('First error'));
+      mockTokenContract.balanceOf.mockResolvedValue(ethers.parseEther('100'));
+      mockFactoryContract.getTokenConfig.mockResolvedValue({
+        name: 'Recovered Token',
+        symbol: 'REC',
+        description: '',
+        imageUrl: '',
+        curveType: 0,
+      });
+      mockFactoryContract.getTokenAMM.mockResolvedValue(mockAmmAddress);
 
       const { result } = renderHook(() => usePortfolio());
 
       await waitFor(() => {
-        expect(result.current.error).toBe('First error');
+        expect(result.current.loading).toBe(false);
       });
 
-      // Mock successful response
-      mockFactoryContract.getAllTokens.mockResolvedValue([]);
+      // First fetch failed (handled per-chain) -> no tokens, no global error
+      expect(result.current.tokens).toEqual([]);
+      expect(result.current.error).toBeNull();
+
+      // Mock successful response and refetch
+      mockFactoryContract.getAllTokens.mockResolvedValue([mockTokenAddress]);
 
       await act(async () => {
         await result.current.refresh();
       });
 
       expect(result.current.error).toBeNull();
+      expect(result.current.tokens.length).toBe(1);
     });
 
     it('should handle missing factory address gracefully', async () => {
-      delete process.env.NEXT_PUBLIC_BSC_TOKEN_FACTORY;
+      (getTokenFactoryAddress as any).mockReturnValue(undefined);
 
       const { result } = renderHook(() => usePortfolio());
 

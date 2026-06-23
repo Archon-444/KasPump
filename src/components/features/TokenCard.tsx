@@ -2,7 +2,7 @@
 
 import React, { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Users, Clock, Flame, Shield, Zap, Target, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, Clock, Flame, Shield, Zap, Target, Activity, Share2 } from 'lucide-react';
 import { KasPumpToken, TokenCardProps } from '../../types';
 import { Card, Badge, Progress } from '../ui';
 import { FavoriteButton } from './FavoriteButton';
@@ -59,7 +59,8 @@ const calculateHealthMetrics = (token: KasPumpToken): HealthMetrics => {
 const TokenCardComponent: React.FC<TokenCardProps> = ({
   token,
   onClick,
-  showActions = false
+  showActions = false,
+  compact = false
 }) => {
   const isPositive = token.change24h >= 0;
   const health = useMemo(() => calculateHealthMetrics(token), [token]);
@@ -95,6 +96,42 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
   }, [health.overall]);
 
   const HealthIcon = healthConfig.icon;
+
+  // Compact: slim single-row layout for dense lists / search results
+  if (compact) {
+    return (
+      <button
+        onClick={onClick}
+        type="button"
+        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.04] hover:border-white/[0.1] transition-all text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50"
+        aria-label={`View ${token.name} (${token.symbol})`}
+      >
+        <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+          {token.symbol.slice(0, 2)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-medium text-white truncate">{token.name}</span>
+            <span className="text-xs text-gray-500">${token.symbol}</span>
+          </div>
+          <span className="text-xs text-gray-400 font-mono tabular-nums">
+            {formatCurrency(token.price, 'BNB', 8)}
+          </span>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <div className={cn(
+            'text-xs font-semibold tabular-nums',
+            isPositive ? 'text-green-400' : 'text-red-400'
+          )}>
+            {isPositive ? '+' : ''}{formatPercentage(token.change24h)}
+          </div>
+          <div className="text-[10px] text-gray-500 tabular-nums">
+            MC {formatCurrency(token.marketCap, 'BNB')}
+          </div>
+        </div>
+      </button>
+    );
+  }
 
   return (
     <motion.div
@@ -144,6 +181,17 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const text = `Check out $${token.symbol} on KasPump!\n\nPrice: ${formatCurrency(token.price, 'BNB', 8)}\nMCap: ${formatCurrency(token.marketCap, 'BNB')}\n\n${typeof window !== 'undefined' ? `${window.location.origin}/token/${token.address}` : ''}`;
+                window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'width=550,height=420');
+              }}
+              className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-400 hover:text-white transition-colors"
+              title="Share on X"
+            >
+              <Share2 size={13} />
+            </button>
             <FavoriteButton
               tokenAddress={token.address}
               chainId={(token as any).chainId}
@@ -168,21 +216,21 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">MCap</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">MCap</p>
               <p className="text-white text-sm font-medium tabular-nums">
                 {formatCurrency(token.marketCap, 'BNB')}
               </p>
             </div>
             <div>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Volume</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">Volume</p>
               <p className="text-white text-sm font-medium tabular-nums">
                 {formatCurrency(token.volume24h, 'BNB')}
               </p>
             </div>
             <div>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Holders</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">Holders</p>
               <p className="text-white text-sm font-medium tabular-nums flex items-center gap-1">
-                <Users size={11} className="text-gray-500" />
+                <Users size={11} className="text-gray-400" />
                 {token.holders}
               </p>
             </div>
@@ -281,6 +329,7 @@ export const TokenCard = memo(TokenCardComponent, (prevProps, nextProps) => {
     prevProps.token.marketCap === nextProps.token.marketCap &&
     prevProps.token.isGraduated === nextProps.token.isGraduated &&
     prevProps.showActions === nextProps.showActions &&
+    prevProps.compact === nextProps.compact &&
     prevProps.onClick === nextProps.onClick
   );
 });

@@ -17,8 +17,10 @@ import {
   Palette,
   Bell,
   Wallet,
+  Trophy,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { MobileNavigation } from '../mobile';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useFavorites } from '../../hooks/useFavorites';
@@ -56,6 +58,12 @@ const primaryNavItems: NavItem[] = [
     href: '/analytics',
     icon: <BarChart3 size={20} />,
     description: 'Platform metrics',
+  },
+  {
+    label: 'Leaderboard',
+    href: '/leaderboard',
+    icon: <Trophy size={20} />,
+    description: 'Top traders',
   },
 ];
 
@@ -217,6 +225,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         {/* Mobile Content */}
         <main>{children}</main>
 
+        {/* Mobile Footer */}
+        <footer className="border-t border-white/[0.06] py-3 px-4 text-center">
+          <div className="flex items-center justify-center gap-4 text-xs text-gray-500">
+            <Link href="/terms" className="hover:text-gray-300 transition-colors">Terms</Link>
+            <Link href="/privacy" className="hover:text-gray-300 transition-colors">Privacy</Link>
+            <Link href="/disclaimer" className="hover:text-gray-300 transition-colors">Risks</Link>
+          </div>
+        </footer>
+
         {/* Mobile Bottom Navigation */}
         <MobileNavigation
           currentPage={currentMobilePage}
@@ -369,6 +386,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         <main className="flex-1">
           {children}
         </main>
+
+        {/* Footer */}
+        <footer className="border-t border-white/[0.06] py-4 px-6">
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span>&copy; {new Date().getFullYear()} KasPump</span>
+            <div className="flex items-center gap-4">
+              <Link href="/terms" className="hover:text-gray-300 transition-colors">Terms</Link>
+              <Link href="/privacy" className="hover:text-gray-300 transition-colors">Privacy</Link>
+              <Link href="/disclaimer" className="hover:text-gray-300 transition-colors">Risks</Link>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useIPFSUpload } from './useIPFSUpload';
 import * as ipfsLib from '../lib/ipfs';
 
@@ -30,28 +30,36 @@ describe('useIPFSUpload', () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const mockUrl = 'ipfs://QmTest123';
 
+      let resolveUpload: (value: { url: string }) => void;
       (ipfsLib.uploadImageToIPFS as any).mockImplementation(
-        (file: File, options: any) => {
+        (_file: File, options: any) => {
           // Simulate progress
           if (options.onProgress) {
             options.onProgress(50);
             options.onProgress(100);
           }
-          return Promise.resolve({ url: mockUrl });
+          return new Promise<{ url: string }>((resolve) => {
+            resolveUpload = resolve;
+          });
         }
       );
 
       const { result } = renderHook(() => useIPFSUpload());
 
-      const uploadPromise = act(async () => {
-        return result.current.uploadImage(mockFile);
+      let uploadPromise: Promise<string | null>;
+      act(() => {
+        uploadPromise = result.current.uploadImage(mockFile);
       });
 
-      await waitFor(() => {
-        expect(result.current.uploadingImage).toBe(true);
-      });
+      // Upload is in flight
+      expect(result.current.uploadingImage).toBe(true);
+      expect(result.current.imageUploadProgress).toBe(100);
 
-      const url = await uploadPromise;
+      let url: string | null = null;
+      await act(async () => {
+        resolveUpload!({ url: mockUrl });
+        url = await uploadPromise!;
+      });
 
       expect(url).toBe(mockUrl);
       expect(result.current.ipfsImageUrl).toBe(mockUrl);
@@ -61,28 +69,26 @@ describe('useIPFSUpload', () => {
 
     it('should handle upload progress updates', async () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
-      let progressCallback: ((progress: number) => void) | null = null;
+      let progressCallback: ((progress: number) => void) | undefined;
+      let resolveUpload: (value: { url: string }) => void;
 
       (ipfsLib.uploadImageToIPFS as any).mockImplementation(
-        (file: File, options: any) => {
+        (_file: File, options: any) => {
           progressCallback = options.onProgress;
-          return new Promise((resolve) => {
-            setTimeout(() => {
-              resolve({ url: 'ipfs://test' });
-            }, 100);
+          return new Promise<{ url: string }>((resolve) => {
+            resolveUpload = resolve;
           });
         }
       );
 
       const { result } = renderHook(() => useIPFSUpload());
 
+      let uploadPromise: Promise<string | null>;
       act(() => {
-        result.current.uploadImage(mockFile);
+        uploadPromise = result.current.uploadImage(mockFile);
       });
 
-      await waitFor(() => {
-        expect(progressCallback).toBeTruthy();
-      });
+      expect(progressCallback).toBeTruthy();
 
       // Simulate progress updates
       act(() => {
@@ -96,6 +102,14 @@ describe('useIPFSUpload', () => {
       });
 
       expect(result.current.imageUploadProgress).toBe(75);
+
+      // Finish the upload so no state updates leak past the test
+      await act(async () => {
+        resolveUpload!({ url: 'ipfs://test' });
+        await uploadPromise!;
+      });
+
+      expect(result.current.uploadingImage).toBe(false);
     });
 
     it('should handle upload failure', async () => {
@@ -106,12 +120,16 @@ describe('useIPFSUpload', () => {
 
       const { result } = renderHook(() => useIPFSUpload());
 
-      await expect(
-        act(async () => {
-          return result.current.uploadImage(mockFile);
-        })
-      ).rejects.toThrow('Upload failed');
+      let caught: unknown;
+      await act(async () => {
+        try {
+          await result.current.uploadImage(mockFile);
+        } catch (error) {
+          caught = error;
+        }
+      });
 
+      expect(caught).toBe(mockError);
       expect(result.current.uploadingImage).toBe(false);
     });
 
@@ -121,8 +139,9 @@ describe('useIPFSUpload', () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const { result } = renderHook(() => useIPFSUpload());
 
-      const url = await act(async () => {
-        return result.current.uploadImage(mockFile);
+      let url: string | null = 'unset';
+      await act(async () => {
+        url = await result.current.uploadImage(mockFile);
       });
 
       expect(url).toBeNull();

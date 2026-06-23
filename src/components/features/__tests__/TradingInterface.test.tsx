@@ -62,7 +62,10 @@ describe('TradingInterface', () => {
       readProvider: null,
       signer: null,
       getTokenFactoryContract: vi.fn(),
-      getBondingCurveContract: vi.fn(),
+      // FeeBadge + TradingInterface read getPlatformFee() (basis points) from the AMM
+      getBondingCurveContract: vi.fn(() => ({
+        getPlatformFee: vi.fn().mockResolvedValue(100), // 100 bps = 1%
+      })),
       getTokenContract: vi.fn(),
       createToken: vi.fn(),
       getAllTokens: vi.fn(),
@@ -96,7 +99,8 @@ describe('TradingInterface', () => {
       render(<TradingInterface token={mockToken} />);
 
       const buyButton = screen.getByRole('button', { name: /buy/i });
-      expect(buyButton).toHaveClass('bg-green-600');
+      expect(buyButton).toHaveClass('bg-green-500/15');
+      expect(buyButton).toHaveClass('text-green-400');
     });
 
     it('should render all main elements', () => {
@@ -134,7 +138,8 @@ describe('TradingInterface', () => {
       const sellButton = screen.getByRole('button', { name: /sell/i });
       await user.click(sellButton);
 
-      expect(sellButton).toHaveClass('bg-red-600');
+      expect(sellButton).toHaveClass('bg-red-500/15');
+      expect(sellButton).toHaveClass('text-red-400');
       expect(screen.getByText(/you sell/i)).toBeInTheDocument();
     });
 
@@ -150,7 +155,8 @@ describe('TradingInterface', () => {
       const buyButton = screen.getByRole('button', { name: /buy/i });
       await user.click(buyButton);
 
-      expect(buyButton).toHaveClass('bg-green-600');
+      expect(buyButton).toHaveClass('bg-green-500/15');
+      expect(buyButton).toHaveClass('text-green-400');
       expect(screen.getByText(/you pay/i)).toBeInTheDocument();
     });
 
@@ -319,7 +325,9 @@ describe('TradingInterface', () => {
       await user.type(input, '1');
 
       await waitFor(() => {
-        expect(screen.getByText(/price impact/i)).toBeInTheDocument();
+        // "Price Impact" label; the moderate-impact warning banner also mentions
+        // price impact at 2.5%, so match the label exactly
+        expect(screen.getByText('Price Impact')).toBeInTheDocument();
         expect(screen.getByText(/2\.50%/i)).toBeInTheDocument();
       }, { timeout: 1000 });
     });
@@ -337,7 +345,7 @@ describe('TradingInterface', () => {
       }, { timeout: 1000 });
     });
 
-    it('should display platform fee (1% of input)', async () => {
+    it('should display total fee from the contract getPlatformFee() rate (100 bps = 1% of input)', async () => {
       const user = userEvent.setup();
       render(<TradingInterface token={mockToken} userBalance={10} />);
 
@@ -345,7 +353,7 @@ describe('TradingInterface', () => {
       await user.type(input, '1');
 
       await waitFor(() => {
-        expect(screen.getByText(/platform fee/i)).toBeInTheDocument();
+        expect(screen.getByText(/total fee/i)).toBeInTheDocument();
         expect(screen.getByText(/0\.010000 BNB/i)).toBeInTheDocument();
       }, { timeout: 1000 });
     });
@@ -384,7 +392,7 @@ describe('TradingInterface', () => {
 
       // Wait for debounce
       await waitFor(() => {
-        expect(screen.getByText(/fetching quote\.\.\./i)).toBeInTheDocument();
+        expect(screen.getByText(/fetching quote…/i)).toBeInTheDocument();
       }, { timeout: 1000 });
 
       // Resolve the quote
@@ -399,7 +407,7 @@ describe('TradingInterface', () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByText(/fetching quote\.\.\./i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/fetching quote…/i)).not.toBeInTheDocument();
       });
     });
   });
@@ -630,7 +638,7 @@ describe('TradingInterface', () => {
       await user.type(input, '1');
 
       await waitFor(() => {
-        const tradeButton = screen.getByRole('button', { name: /fetching quote\.\.\./i });
+        const tradeButton = screen.getByRole('button', { name: /fetching quote…/i });
         expect(tradeButton).toBeDisabled();
       }, { timeout: 1000 });
 

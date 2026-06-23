@@ -11,6 +11,10 @@ module.exports = {
         enabled: true,
         runs: 100,
       },
+      // V2 BondingCurveAMM.buyTokens has too many locals for the legacy
+      // codegen ("Stack too deep" at the graduation clamp); IR pipeline
+      // handles it and is the production-standard setting.
+      viaIR: true,
     },
   },
   networks: {

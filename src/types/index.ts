@@ -162,6 +162,8 @@ export interface TokenCardProps {
   token: KasPumpToken;
   onClick?: () => void;
   showActions?: boolean;
+  /** Slim single-row layout for dense lists and search results */
+  compact?: boolean;
 }
 
 export interface ChartDataPoint {

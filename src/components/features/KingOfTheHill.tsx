@@ -46,6 +46,11 @@ export const KingOfTheHill: React.FC<{ className?: string }> = ({ className }) =
   const justLaunched = data?.justLaunched || [];
   const graduating = data?.aboutToGraduate || [];
   const fading = data?.fading || [];
+  // Top Volume — highest totalVolume tokens as a "hot" discovery ribbon
+  const topVolume = [...(justLaunched), ...(graduating), ...(fading)]
+    .sort((a, b) => b.totalVolume - a.totalVolume)
+    .filter(t => t.totalVolume > 0)
+    .slice(0, 10);
 
   if (isLoading || !king) return null;
 
@@ -138,6 +143,28 @@ export const KingOfTheHill: React.FC<{ className?: string }> = ({ className }) =
               <span className="text-xs font-medium text-white whitespace-nowrap">{token.symbol}</span>
               <span className="text-[10px] font-bold text-green-400 tabular-nums">
                 {token.graduationProgress.toFixed(0)}%
+              </span>
+            </motion.button>
+          ))}
+        </div>
+      )}
+
+      {/* Hot Volume Ribbon — highest volume tokens for quick discovery */}
+      {topVolume.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+          {topVolume.map((token) => (
+            <motion.button
+              key={`vol-${token.address}`}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={() => router.push(`/token/${token.address}`)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-red-500/15 bg-red-500/[0.04] hover:bg-red-500/[0.08] transition-all flex-shrink-0"
+              title={`Volume: ${formatCurrency(token.totalVolume, 'ETH')}`}
+            >
+              <TrendingUp size={12} className="text-red-400" />
+              <span className="text-xs font-medium text-white whitespace-nowrap">{token.symbol}</span>
+              <span className="text-[10px] font-bold text-red-400 tabular-nums">
+                {formatCurrency(token.totalVolume, 'ETH', 2)}
               </span>
             </motion.button>
           ))}

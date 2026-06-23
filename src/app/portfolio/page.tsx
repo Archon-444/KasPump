@@ -8,8 +8,11 @@ import { WalletConnectButton, WalletRequired } from '../../components/features/W
 import { PortfolioStatsCard } from '../../components/features/PortfolioStatsCard';
 import { ChainBalanceCard } from '../../components/features/ChainBalanceCard';
 import { PortfolioTokenList } from '../../components/features/PortfolioTokenList';
+import { UserTradeHistory } from '../../components/features/UserTradeHistory';
 import { Button, Card } from '../../components/ui';
 import { usePortfolio, PortfolioToken } from '../../hooks/usePortfolio';
+import { useUserTrades } from '../../hooks/useUserTrades';
+import { useMultichainWallet } from '../../hooks/useMultichainWallet';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { cn } from '../../utils';
 import { MobileNavigation } from '../../components/mobile';
@@ -17,6 +20,8 @@ import { MobileNavigation } from '../../components/mobile';
 export default function PortfolioPage() {
   const router = useRouter();
   const { tokens, stats, loading, error, refresh } = usePortfolio();
+  const wallet = useMultichainWallet();
+  const { trades, loading: tradesLoading } = useUserTrades(wallet.address, tokens);
   const isMobile = useIsMobile();
   const [selectedChain, setSelectedChain] = useState<number | 'all'>('all');
 
@@ -173,6 +178,18 @@ export default function PortfolioPage() {
                 tokens={tokens}
                 onTokenClick={handleTokenClick}
               />
+            </motion.div>
+          )}
+
+          {/* Trade History */}
+          {!loading && !error && tokens.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="mt-8"
+            >
+              <UserTradeHistory trades={trades} loading={tradesLoading} />
             </motion.div>
           )}
         </main>

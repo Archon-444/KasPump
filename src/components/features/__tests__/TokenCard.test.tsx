@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TokenCard, TokenCardSkeleton, TokenList } from '../TokenCard';
 import { KasPumpToken } from '../../../types';
@@ -81,18 +81,25 @@ describe('TokenCard Component', () => {
       expect(screen.getByText('$TEST')).toBeInTheDocument();
     });
 
-    it('should render token description', () => {
+    it('should not render the token description (V2 card omits it)', () => {
       const token = createMockToken();
       render(<TokenCard token={token} />);
 
-      expect(screen.getByText('A test token for unit testing')).toBeInTheDocument();
+      expect(screen.queryByText('A test token for unit testing')).not.toBeInTheDocument();
     });
 
-    it('should render default description when none provided', () => {
-      const token = createMockToken({ description: '' });
-      render(<TokenCard token={token} />);
+    it('should render a Share button that opens a twitter intent without triggering card onClick', () => {
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+      const onClick = vi.fn();
+      const token = createMockToken();
+      render(<TokenCard token={token} onClick={onClick} />);
 
-      expect(screen.getByText('No description available')).toBeInTheDocument();
+      fireEvent.click(screen.getByTitle('Share on X'));
+
+      expect(openSpy).toHaveBeenCalledTimes(1);
+      expect(String(openSpy.mock.calls[0][0])).toContain('https://twitter.com/intent/tweet');
+      expect(onClick).not.toHaveBeenCalled();
+      openSpy.mockRestore();
     });
 
     it('should render price with correct formatting', () => {
@@ -166,7 +173,9 @@ describe('TokenCard Component', () => {
   });
 
   describe('Health Scoring System', () => {
-    it('should show "Healthy" badge for excellent health (high volume, holders, low volatility)', () => {
+    // V2 cards render health as a colored footer icon instead of a text badge:
+    // excellent -> green Shield, good -> blue Activity, fair -> yellow Zap, risky -> red Flame
+    it('should show green Shield icon for excellent health (high volume, holders, low volatility)', () => {
       const token = createMockToken({
         volume24h: 60000, // 60% of market cap
         marketCap: 100000,
@@ -174,12 +183,12 @@ describe('TokenCard Component', () => {
         change24h: 3, // Low volatility
         bondingCurveProgress: 90,
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
-      expect(screen.getByText('Healthy')).toBeInTheDocument();
+      expect(container.querySelector('.lucide-shield.text-green-400')).toBeInTheDocument();
     });
 
-    it('should show "Active" badge for good health', () => {
+    it('should show blue Activity icon for good health', () => {
       const token = createMockToken({
         volume24h: 25000, // 25% of market cap
         marketCap: 100000,
@@ -187,12 +196,12 @@ describe('TokenCard Component', () => {
         change24h: 10,
         bondingCurveProgress: 70,
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
-      expect(screen.getByText('Active')).toBeInTheDocument();
+      expect(container.querySelector('.lucide-activity.text-blue-400')).toBeInTheDocument();
     });
 
-    it('should show "Moderate" badge for fair health', () => {
+    it('should show yellow Zap icon for fair health', () => {
       const token = createMockToken({
         volume24h: 12000, // 12% of market cap
         marketCap: 100000,
@@ -200,12 +209,12 @@ describe('TokenCard Component', () => {
         change24h: 25,
         bondingCurveProgress: 50,
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
-      expect(screen.getByText('Moderate')).toBeInTheDocument();
+      expect(container.querySelector('.lucide-zap.text-yellow-400')).toBeInTheDocument();
     });
 
-    it('should show "Volatile" badge for risky health (low volume, few holders, high volatility)', () => {
+    it('should show red Flame icon for risky health (low volume, few holders, high volatility)', () => {
       const token = createMockToken({
         volume24h: 3000, // 3% of market cap
         marketCap: 100000,
@@ -213,9 +222,9 @@ describe('TokenCard Component', () => {
         change24h: 60, // High volatility
         bondingCurveProgress: 20,
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
-      expect(screen.getByText('Volatile')).toBeInTheDocument();
+      expect(container.querySelector('.lucide-flame.text-red-400')).toBeInTheDocument();
     });
 
     it('should calculate health correctly for graduated token (100% liquidity score)', () => {
@@ -226,65 +235,67 @@ describe('TokenCard Component', () => {
         holders: 150,
         change24h: 20,
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
-      // Graduated tokens get 100% liquidity score, which helps overall health
-      expect(screen.getByText(/Healthy|Active|Moderate/)).toBeInTheDocument();
+      // Graduated tokens get 100% liquidity score, which lifts overall health to "good"
+      expect(container.querySelector('.lucide-activity.text-blue-400')).toBeInTheDocument();
+      // And never the risky red flame
+      expect(container.querySelector('.lucide-flame.text-red-400')).not.toBeInTheDocument();
     });
   });
 
   describe('Status Badges', () => {
-    it('should show "New Launch" badge for tokens < 24 hours old', () => {
+    it('should show "NEW" badge for tokens < 24 hours old', () => {
       const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
       const token = createMockToken({
         createdAt: twelveHoursAgo,
       });
       render(<TokenCard token={token} />);
 
-      expect(screen.getByText('New Launch')).toBeInTheDocument();
+      expect(screen.getByText('NEW')).toBeInTheDocument();
     });
 
-    it('should NOT show "New Launch" badge for tokens > 24 hours old', () => {
+    it('should NOT show "NEW" badge for tokens > 24 hours old', () => {
       const thirtyHoursAgo = new Date(Date.now() - 30 * 60 * 60 * 1000);
       const token = createMockToken({
         createdAt: thirtyHoursAgo,
       });
       render(<TokenCard token={token} />);
 
-      expect(screen.queryByText('New Launch')).not.toBeInTheDocument();
+      expect(screen.queryByText('NEW')).not.toBeInTheDocument();
     });
 
-    it('should show "Trending" badge for high volume relative to market cap (>30%)', () => {
+    it('should show orange flame icon for high volume relative to market cap (>30%)', () => {
       const token = createMockToken({
         volume24h: 35000,
         marketCap: 100000, // 35% ratio
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
-      expect(screen.getByText('Trending')).toBeInTheDocument();
+      expect(container.querySelector('.lucide-flame.text-orange-400')).toBeInTheDocument();
     });
 
-    it('should NOT show "Trending" badge for normal volume', () => {
+    it('should NOT show trending flame icon for normal volume', () => {
       const token = createMockToken({
         volume24h: 20000,
         marketCap: 100000, // 20% ratio
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
-      expect(screen.queryByText('Trending')).not.toBeInTheDocument();
+      expect(container.querySelector('.lucide-flame.text-orange-400')).not.toBeInTheDocument();
     });
 
-    it('should show both "New Launch" and "Trending" badges when applicable', () => {
+    it('should show both "NEW" badge and trending flame when applicable', () => {
       const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
       const token = createMockToken({
         createdAt: sixHoursAgo,
         volume24h: 40000,
         marketCap: 100000,
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
-      expect(screen.getByText('New Launch')).toBeInTheDocument();
-      expect(screen.getByText('Trending')).toBeInTheDocument();
+      expect(screen.getByText('NEW')).toBeInTheDocument();
+      expect(container.querySelector('.lucide-flame.text-orange-400')).toBeInTheDocument();
     });
   });
 
@@ -294,44 +305,47 @@ describe('TokenCard Component', () => {
         isGraduated: false,
         bondingCurveProgress: 45,
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
-      expect(screen.getByText('Graduation Progress')).toBeInTheDocument();
-      const progress = screen.getByTestId('progress');
-      expect(progress).toHaveAttribute('data-value', '45');
+      expect(screen.getByText('Graduation')).toBeInTheDocument();
+      expect(screen.getByText('45.0%')).toBeInTheDocument();
+      expect(container.querySelector('[style*="width: 45%"]')).toBeInTheDocument();
     });
 
-    it('should show "Bonding curve" message for low progress (<50%)', () => {
+    it('should render gray progress styling for low progress (<50%)', () => {
       const token = createMockToken({
         bondingCurveProgress: 30,
         isGraduated: false,
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
-      expect(screen.getByText('Bonding curve')).toBeInTheDocument();
-      expect(screen.getByText('70% to DEX')).toBeInTheDocument();
+      const percent = screen.getByText('30.0%');
+      expect(percent).toHaveClass('text-gray-400');
+      expect(container.querySelector('.from-gray-500')).toBeInTheDocument();
     });
 
-    it('should show "Halfway there" message for medium progress (50-79%)', () => {
+    it('should render yellow progress styling for medium progress (50-79%)', () => {
       const token = createMockToken({
         bondingCurveProgress: 65,
         isGraduated: false,
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
-      expect(screen.getByText(/Halfway there/i)).toBeInTheDocument();
-      expect(screen.getByText('35% to DEX')).toBeInTheDocument();
+      const percent = screen.getByText('65.0%');
+      expect(percent).toHaveClass('text-yellow-400');
+      expect(container.querySelector('.from-yellow-500')).toBeInTheDocument();
     });
 
-    it('should show "Near graduation" message for high progress (>=80%)', () => {
+    it('should render green progress styling for high progress (>=80%)', () => {
       const token = createMockToken({
         bondingCurveProgress: 85,
         isGraduated: false,
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
-      expect(screen.getByText(/Near graduation/i)).toBeInTheDocument();
-      expect(screen.getByText('15% to DEX')).toBeInTheDocument();
+      const percent = screen.getByText('85.0%');
+      expect(percent).toHaveClass('text-green-400');
+      expect(container.querySelector('.from-green-500')).toBeInTheDocument();
     });
 
     it('should display progress percentage with correct color coding', () => {
@@ -351,7 +365,7 @@ describe('TokenCard Component', () => {
       });
       render(<TokenCard token={token} />);
 
-      expect(screen.queryByText('Graduation Progress')).not.toBeInTheDocument();
+      expect(screen.queryByText('Graduation')).not.toBeInTheDocument();
     });
   });
 
@@ -458,10 +472,10 @@ describe('TokenCard Component', () => {
         bondingCurveProgress: 99.9,
         isGraduated: false,
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
       expect(screen.getByText('99.9%')).toBeInTheDocument();
-      expect(screen.getByText('0% to DEX')).toBeInTheDocument();
+      expect(container.querySelector('[style*="width: 99.9%"]')).toBeInTheDocument();
     });
 
     it('should handle very low progress', () => {
@@ -469,10 +483,10 @@ describe('TokenCard Component', () => {
         bondingCurveProgress: 0.1,
         isGraduated: false,
       });
-      render(<TokenCard token={token} />);
+      const { container } = render(<TokenCard token={token} />);
 
       expect(screen.getByText('0.1%')).toBeInTheDocument();
-      expect(screen.getByText('100% to DEX')).toBeInTheDocument();
+      expect(container.querySelector('[style*="width: 0.1%"]')).toBeInTheDocument();
     });
 
     it('should handle very long token names', () => {
@@ -486,14 +500,20 @@ describe('TokenCard Component', () => {
       ).toBeInTheDocument();
     });
 
-    it('should handle very long descriptions', () => {
-      const longDescription = 'A'.repeat(500);
-      const token = createMockToken({
-        description: longDescription,
-      });
-      render(<TokenCard token={token} />);
+    it('should render the compact variant as a slim single-row button', () => {
+      const onClick = vi.fn();
+      const token = createMockToken();
+      render(<TokenCard token={token} compact onClick={onClick} />);
 
-      expect(screen.getByText(longDescription)).toBeInTheDocument();
+      const row = screen.getByRole('button', { name: 'View Test Token (TEST)' });
+      expect(row).toBeInTheDocument();
+      expect(screen.getByText('Test Token')).toBeInTheDocument();
+      expect(screen.getByText('$TEST')).toBeInTheDocument();
+      // Compact variant skips the full Card chrome
+      expect(screen.queryByTestId('card')).not.toBeInTheDocument();
+
+      fireEvent.click(row);
+      expect(onClick).toHaveBeenCalledTimes(1);
     });
   });
 });
@@ -610,7 +630,7 @@ describe('Component Memoization', () => {
     const token2 = createMockToken({ isGraduated: true });
 
     const { rerender } = render(<TokenCard token={token1} />);
-    expect(screen.getByText('Graduation Progress')).toBeInTheDocument();
+    expect(screen.getByText('Graduation')).toBeInTheDocument();
 
     rerender(<TokenCard token={token2} />);
     expect(screen.getByText(/Graduated to DEX/i)).toBeInTheDocument();
