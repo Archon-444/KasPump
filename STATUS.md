@@ -22,8 +22,8 @@ All items must be ✅ before mainnet deployment.
 - [ ] IPFS upload validates file type + size
 
 ### TypeScript & CI
-- [x] `tsc` blocking in CI (no `continue-on-error`) — **DONE** (2026-06-23)
-- [x] `next.config.js` `ignoreBuildErrors: false` — **DONE** (2026-06-23)
+- [ ] `tsc` blocking in CI — pre-existing errors must be fixed first (see TECHNICAL_DEBT.md #16)
+- [ ] `next.config.js` `ignoreBuildErrors: false` — gated on same
 - [x] `SECURITY_AUDIT.md` reconciled to current code — **DONE** (2026-06-23)
 - [x] `TECHNICAL_DEBT.md` reconciled to current code — **DONE** (2026-06-23)
 - [ ] Hardhat test suite confirmed green on clean checkout

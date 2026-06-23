@@ -197,13 +197,27 @@
 
 ## 🔵 Future / Post-Launch
 
-### 16. TypeScript 6+ Compatibility
+### 16. Pre-Existing TypeScript Errors (~dozens, blocking CI gate)
 
-**Current state:** The lockfile installs TypeScript 5.9.3. If upgraded to TypeScript 6+, two options in `tsconfig.json` will need updating:
-- `moduleResolution: "node"` → `"bundler"` (requires package export map updates)
-- `baseUrl: "."` → deprecated, handle via paths only
+**Current state:** TypeScript 5.9.3 (installed by `npm ci`) reports real errors with the current strict tsconfig. These were suppressed by `continue-on-error: true` in CI and `ignoreBuildErrors: true` in `next.config.js`. Root causes:
 
-**Not urgent.** Addressing this is gated on ensuring all dependency packages have proper TypeScript 6-compatible type declarations.
+| Error Type | Example Location | Cause |
+|---|---|---|
+| TS2375 `exactOptionalPropertyTypes` | `usePriceAlerts.ts`, `analytics.ts`, `contractErrors.ts` | Optional props typed as `T` not `T \| undefined` |
+| TS2532/TS18048 possibly undefined | `usePortfolio.ts`, `token.service.ts` | `noUncheckedIndexedAccess` strict flag |
+| TS6133 declared but never read | Many hooks/services | `noUnusedLocals`, `noUnusedParameters` |
+| TS2307 cannot find module | `src/lib/tradingview/datafeed.ts` | Missing `charting_library` vendor types |
+| TS2339 property doesn't exist | `rate-limit.ts`, `ipfs.ts` | API surface mismatch |
+| TS2722 cannot invoke possibly undefined | `useReferral.ts` | Contract method optional typing |
+
+**Fix strategy:**
+1. Quickest reduction: address `TS6133` (unused vars) — usually a one-line fix per occurrence
+2. `exactOptionalPropertyTypes` errors: add `| undefined` to optional properties at the type definition level
+3. `noUncheckedIndexedAccess` errors: add null checks or use `?.` access
+4. `charting_library` module: add a `src/lib/tradingview/charting_library.d.ts` stub
+5. Once errors reach 0: remove `continue-on-error: true` from CI and set `ignoreBuildErrors: false` in `next.config.js`
+
+**TypeScript 6+ compatibility note:** Separate from the above — if TypeScript is ever upgraded beyond 5.9.x, `moduleResolution: "node"` and `baseUrl` will need to be updated (`"bundler"` + drop `baseUrl`), but this requires package export maps to be in order first.
 
 ---
 
