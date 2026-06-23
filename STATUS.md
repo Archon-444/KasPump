@@ -12,6 +12,7 @@ All items must be ✅ before mainnet deployment.
 
 ### Security (Hard Gates)
 - [ ] External audit complete — Critical/High resolved, report linked in-app *(firm engaged)*
+- [x] NatSpec (`@notice`/`@param`/`@return`) added to all public/external fns in `BondingCurveAMM.sol` and `TokenFactory.sol` — **DONE** (2026-06-23)
 - [ ] Mainnet contracts owned by Gnosis Safe — EOA `onlyOwner` access revoked and verified on-chain
 - [ ] Fee recipient is Safe-controlled (not EOA)
 - [ ] Testnet Safe rehearsal completed (pause, unpause, updateFeeRecipient through Safe)
@@ -19,6 +20,7 @@ All items must be ✅ before mainnet deployment.
 - [ ] All contracts verified on BSCScan (scripts: `batch-verify-all.ts`, `auto-verify-with-retry.ts`)
 - [x] CSP `connect-src` tightened to explicit allowlist — **DONE** (2026-06-23, `vercel.json`)
 - [x] API rate limiting on Vercel KV (comments POST/PATCH, push/subscribe POST) — **DONE** (2026-06-23)
+- [x] Zod validation on all comment routes (CommentPostSchema + CommentReactionSchema replacing manual validation) — **DONE** (2026-06-23)
 - [x] IPFS upload validates file type (jpeg/png/gif/webp) + size (≤5MB) — **DONE** (2026-06-23)
 
 ### TypeScript & CI
@@ -40,7 +42,7 @@ All items must be ✅ before mainnet deployment.
 - [x] Client-side WS reconnection: exponential backoff (2s→4s→8s→16s→30s cap), degraded polling fallback — **DONE** (2026-06-23)
 - [x] RPC failover: `fallback([primary, secondary])` transport per chain in `wagmi.ts` — **DONE** (2026-06-23)
 - [ ] RPC failover in `BlockchainListener.ts`
-- [ ] Multicall batch reads on token list
+- [x] Multicall batch reads on token list (`BlockchainService.multicall3` + `TokenService.getTokens` rewrite) — **DONE** (2026-06-23)
 
 ### UI/UX
 - [ ] Trading page: `/impeccable` audit complete, all findings closed
@@ -56,6 +58,7 @@ All items must be ✅ before mainnet deployment.
 
 ### Launch Readiness
 - [x] Playwright E2E suite created: wallet-connect, launch-token, trade, graduation specs + CI gate — **DONE** (2026-06-23)
+- [x] E2E selectors fixed to match actual DOM (WalletSelectModal portal, QuickLaunchForm placeholders, sr-only file input) — **DONE** (2026-06-23)
 - [ ] E2E suite passing in CI with staging Vercel URL (currently runs against local dev server; needs `PLAYWRIGHT_BASE_URL` secret set in GitHub Actions to run against staging)
 - [ ] Sentry DSN confirmed active — events reaching dashboard
 - [ ] Uptime monitoring configured (frontend + WS server)

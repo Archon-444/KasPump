@@ -32,11 +32,12 @@ test.describe('Wallet Connect', () => {
     await connectBtn.click();
 
     // WalletSelectModal renders via createPortal with no role="dialog".
-    // Identify it by its heading or a listed wallet name.
+    // Both the h2 and the MetaMask option are visible once open; .first()
+    // prevents strict-mode violation when or() resolves to multiple elements.
     await expect(
       page.getByRole('heading', { name: /connect wallet/i }).or(
-        page.getByText('MetaMask').first()
-      )
+        page.getByText('MetaMask')
+      ).first()
     ).toBeVisible({ timeout: 5_000 });
   });
 

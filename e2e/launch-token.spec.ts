@@ -7,7 +7,7 @@ test.describe('Token Launch Flow', () => {
 
     // Input component uses placeholder, not name attribute.
     // QuickLaunchForm placeholders are "e.g. Doge Coin" and "e.g. DOGE".
-    await expect(page.getByPlaceholder('e.g. Doge Coin')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByPlaceholder('e.g. Doge Coin')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByPlaceholder('e.g. DOGE')).toBeVisible({ timeout: 5_000 });
   });
 
@@ -32,7 +32,7 @@ test.describe('Token Launch Flow', () => {
     const nameInput = page.getByPlaceholder('e.g. Doge Coin');
     const symbolInput = page.getByPlaceholder('e.g. DOGE');
 
-    await expect(nameInput).toBeVisible({ timeout: 10_000 });
+    await expect(nameInput).toBeVisible({ timeout: 30_000 });
 
     await nameInput.fill('Test Meme Token');
     await symbolInput.fill('TMT');
@@ -45,6 +45,9 @@ test.describe('Token Launch Flow', () => {
   test('image upload area is present', async ({ walletPage: page }) => {
     await page.goto('/launch');
     await page.waitForLoadState('domcontentloaded');
+
+    // Gate on form readiness — wagmi auto-connect is async on CI cold start.
+    await expect(page.getByPlaceholder('e.g. Doge Coin')).toBeVisible({ timeout: 30_000 });
 
     // The file input has className="sr-only" (invisible but in DOM).
     // The visible click target is the wrapping <label> showing upload text.
