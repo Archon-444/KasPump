@@ -12,7 +12,7 @@ test.describe('Token Trading Page', () => {
     page.on('pageerror', (err) => errors.push(err.message));
 
     await page.goto(`/token/${STUB_ADDRESS}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const criticalErrors = errors.filter(
       (e) =>
@@ -56,7 +56,7 @@ test.describe('Token Trading Page', () => {
 
   test('slippage warning or fee info visible', async ({ page }) => {
     await page.goto(`/token/${STUB_ADDRESS}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2_000);
 
     const pageText = (await page.locator('body').textContent() || '').toLowerCase();

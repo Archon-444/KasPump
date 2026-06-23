@@ -6,7 +6,7 @@ test.describe('Graduation & Leaderboard', () => {
     page.on('pageerror', (err) => errors.push(err.message));
 
     await page.goto('/leaderboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const criticalErrors = errors.filter(
       (e) => !e.includes('hydration') && !e.includes('Warning:')
@@ -64,7 +64,7 @@ test.describe('Graduation & Leaderboard', () => {
     });
 
     await page.goto('/token/0x1234567890123456789012345678901234567890');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2_000);
 
     // Page should render without crash

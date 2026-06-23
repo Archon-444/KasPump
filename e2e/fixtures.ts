@@ -47,9 +47,10 @@ async function injectMockWallet(page: Page): Promise<void> {
         },
       };
       Object.defineProperty(window, 'ethereum', {
-        value: mockProvider,
-        writable: true,
+        get: () => mockProvider,
+        set: () => {}, // prevent MetaMask SDK from overwriting the mock
         configurable: true,
+        enumerable: true,
       });
     },
     { address: MOCK_ADDRESS, chainId: BSC_TESTNET_CHAIN_ID }
@@ -80,6 +81,11 @@ export const test = base.extend<{ walletPage: Page }>({
       localStorage.setItem('wagmi.injected.connected', 'true');
       localStorage.setItem('wagmi.recentConnectorId', '"injected"');
     });
+    // Reload so wagmi reinitialises with the storage keys already present.
+    // Without the reload, wagmi may have run isAuthorized() during the first
+    // page load (before evaluate() ran) and cached a disconnected decision.
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
 
     await use(page);
   },
