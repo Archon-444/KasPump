@@ -61,7 +61,7 @@ test.describe('Token Launch Flow', () => {
 
   test('wallet address shown when connected via mock provider', async ({ walletPage: page }) => {
     await page.goto('/launch');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Page should contain the truncated address or connect prompt
     // This verifies the wallet context is wired
