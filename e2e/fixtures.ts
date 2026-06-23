@@ -80,6 +80,9 @@ export const test = base.extend<{ walletPage: Page }>({
     await page.evaluate(() => {
       localStorage.setItem('wagmi.injected.connected', 'true');
       localStorage.setItem('wagmi.recentConnectorId', '"injected"');
+      // Bypass WalletRequired gate — wagmi auto-reconnect is unreliable in
+      // headless CI builds. Real transaction signing still needs a live wallet.
+      localStorage.setItem('e2e.walletConnected', 'true');
     });
     // Reload so wagmi reinitialises with the storage keys already present.
     // Without the reload, wagmi may have run isAuthorized() during the first

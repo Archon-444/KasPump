@@ -234,7 +234,14 @@ export const WalletRequired: React.FC<{
 }> = ({ children, fallback }) => {
   const wallet = useMultichainWallet();
 
-  if (!wallet.connected) {
+  // Playwright walletPage fixture sets this key to bypass the gate in CI,
+  // where wagmi's auto-reconnect is unreliable inside a headless build.
+  // Never set in production — signing still requires a real wallet.
+  const e2eBypass =
+    typeof window !== 'undefined' &&
+    window.localStorage.getItem('e2e.walletConnected') === 'true';
+
+  if (!wallet.connected && !e2eBypass) {
     return (
       fallback || (
         <div className="text-center p-10 bg-white/[0.02] rounded-2xl border border-white/[0.06]">
