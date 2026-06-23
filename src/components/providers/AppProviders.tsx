@@ -11,30 +11,17 @@ import { PerformanceMonitor } from '../features/PerformanceMonitor';
 import { ErrorBoundary } from '../features/ErrorBoundary';
 import { ToastProvider } from '../../contexts/ToastContext';
 import { AriaLiveProvider } from '../features/ARIALiveRegion';
+import { Web3Provider } from '../../providers/Web3Provider';
 
 export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isMounted, setIsMounted] = useState(false);
-  const [Web3Provider, setWeb3Provider] = useState<React.ComponentType<{ children: React.ReactNode }> | null>(null);
 
-  // Dynamically load Web3Provider only on client side
   useEffect(() => {
     setIsMounted(true);
-
-    // Dynamically import Web3Provider to prevent webpack from evaluating it during SSR
-    import('../../providers/Web3Provider')
-      .then((module) => {
-        setWeb3Provider(() => module.Web3Provider);
-      })
-      .catch((error) => {
-        console.error('Failed to load Web3Provider:', error);
-      });
   }, []);
 
-  // Wait for Web3Provider to load before rendering children. Rendering
-  // children without Web3Provider causes wagmi hooks (useAccount etc.) to
-  // throw WagmiProviderNotFoundError, which trips the ErrorBoundary and
-  // leaves it stuck in fallback mode even after Web3Provider loads.
-  if (!isMounted || !Web3Provider) {
+  // Guard against SSR — Web3Provider's own useEffect handles wagmi loading
+  if (!isMounted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-yellow-900/20 to-orange-900/20 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
@@ -42,7 +29,6 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
     );
   }
 
-  // Wrap providers in ErrorBoundary for better isolation
   return (
     <>
       <ServiceWorkerRegistration />

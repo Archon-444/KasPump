@@ -83,12 +83,11 @@ async function createConnectors(): Promise<any[]> {
           })
         : null,
       // Coinbase Wallet connector for Base + EVM chains
+      // preference: 'eoaOnly' avoids smart-wallet network calls on init
       coinbaseWallet({
         appName: brand.name,
-        preference: 'all',
+        preference: 'eoaOnly',
         appLogoUrl: logoUrl || undefined,
-        enableMobileLinks: true,
-        chainId: chains[0]?.id,
       }),
     ];
 
