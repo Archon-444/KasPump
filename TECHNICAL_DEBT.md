@@ -1,456 +1,248 @@
-# KasPump Technical Debt & Future Enhancements
+# KasPump Technical Debt & Open Work
 
-**Last Updated:** 2025-11-15
-**Status:** Production-Ready with Known Limitations
-
----
-
-## Overview
-
-This document tracks placeholder implementations, known limitations, and future enhancements needed for KasPump. The platform is production-ready for launch, but these items should be addressed as the platform scales.
+**Original Date:** 2025-11-15  
+**Reconciled:** 2026-06-23  
+**Status:** Reconciled against current source code. Many items listed as TODO in the original doc are shipped.
 
 ---
 
-## 🔴 High Priority (Post-Launch)
+## What's Shipped (was listed as TODO)
 
-### 1. Token Holder Count Tracking
-
-**Location:** `src/app/api/tokens/route.ts:261-269`
-
-**Current State:**
-```typescript
-async function getHolderCount(provider: ethers.JsonRpcProvider, tokenAddress: string): Promise<number> {
-  try {
-    // Placeholder for holder count calculation
-    // In production, we'd need to track Transfer events or use indexing service
-    return 0;
-  } catch (error) {
-    return 0;
-  }
-}
-```
-
-**Issue:** Always returns `0`, making holder analytics inaccurate.
-
-**Impact:**
-- Analytics dashboard shows 0 holders for all tokens
-- Partnership integrations lack holder count data
-- User trust may be affected by missing metrics
-
-**Solution Options:**
-
-#### Option A: Event Indexing (Recommended)
-Use The Graph protocol or similar indexing service:
-
-```typescript
-async function getHolderCount(provider: ethers.JsonRpcProvider, tokenAddress: string): Promise<number> {
-  try {
-    // Query Transfer events
-    const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-    const filter = tokenContract.filters.Transfer();
-    const events = await tokenContract.queryFilter(filter, 0, 'latest');
-
-    // Count unique addresses (excluding zero address)
-    const holders = new Set<string>();
-    for (const event of events) {
-      if (event.args && event.args.to !== ethers.ZeroAddress) {
-        holders.add(event.args.to);
-      }
-      if (event.args && event.args.from !== ethers.ZeroAddress) {
-        // Check if sender still holds tokens
-        const balance = await tokenContract.balanceOf(event.args.from);
-        if (balance > 0n) {
-          holders.add(event.args.from);
-        }
-      }
-    }
-
-    return holders.size;
-  } catch (error) {
-    console.error('Error calculating holder count:', error);
-    return 0;
-  }
-}
-```
-
-**Pros:** Accurate, no external dependencies
-**Cons:** Expensive RPC calls, slow for tokens with many transfers
-
-#### Option B: The Graph Subgraph (Best for Scale)
-Deploy a subgraph to index Transfer events:
-
-1. Create subgraph schema
-2. Deploy to The Graph network
-3. Query via GraphQL
-
-```typescript
-async function getHolderCount(tokenAddress: string): Promise<number> {
-  const query = `
-    query {
-      token(id: "${tokenAddress.toLowerCase()}") {
-        holderCount
-      }
-    }
-  `;
-
-  const response = await fetch('https://api.thegraph.com/subgraphs/name/kaspump/tokens', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query })
-  });
-
-  const data = await response.json();
-  return data.data.token?.holderCount || 0;
-}
-```
-
-**Pros:** Fast, scalable, real-time
-**Cons:** Requires subgraph deployment and maintenance
-
-#### Option C: Moralis API (Fastest Implementation)
-Use Moralis or similar service:
-
-```typescript
-async function getHolderCount(tokenAddress: string): Promise<number> {
-  const response = await fetch(
-    `https://deep-index.moralis.io/api/v2/erc20/${tokenAddress}/owners?chain=bsc`,
-    {
-      headers: { 'X-API-Key': process.env.MORALIS_API_KEY }
-    }
-  );
-
-  const data = await response.json();
-  return data.total || 0;
-}
-```
-
-**Pros:** Instant implementation, accurate
-**Cons:** Requires paid API key, external dependency
-
-**Recommendation:** Start with Option C (Moralis) for quick launch, migrate to Option B (The Graph) as scale increases.
-
-**Estimated Effort:**
-- Option A: 2-4 hours (but slow performance)
-- Option B: 8-16 hours (includes subgraph development)
-- Option C: 1-2 hours (plus API key setup)
+| Item | Status | How it's done |
+|------|--------|--------------|
+| Token holder count | ✅ Shipped | `src/services/moralis.service.ts` — Moralis API integration |
+| Mobile navigation | ✅ Shipped | `src/components/mobile/MobileNavigation.tsx` — wired into `AppLayout.tsx` |
+| Mobile token cards | ✅ Shipped | `src/components/mobile/MobileTokenCard.tsx` — used in `src/app/page.tsx` |
+| Mobile trading UI | ✅ Shipped | `src/components/mobile/MobileTradingInterface.tsx` — used in `TokenTradingPage.tsx` |
+| Performance optimizations | ✅ Shipped | All 7 categories in `MOBILE_PERFORMANCE_OPTIMIZATIONS.md` |
+| Transaction history | ✅ Shipped | `src/hooks/useUserTrades.ts` |
+| Token search | ✅ Shipped | `src/components/features/TokenSearchFilters.tsx` |
+| Copy-to-clipboard | ✅ Shipped | Present across token/wallet address displays |
+| Favorite tokens | ✅ Shipped | `src/hooks/useFavorites.ts` |
+| Sentry monitoring | ✅ Shipped | All 3 layers (`sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`) |
+| Analytics dashboard | ✅ Shipped | `src/app/analytics/` page exists |
+| Leaderboard | ✅ Shipped | `src/app/leaderboard/` with `KingOfTheHill.tsx`, `LeaderboardTable.tsx` |
+| Price alerts | ✅ Shipped | `src/hooks/usePriceAlerts.ts`, `src/app/alerts/` |
+| Portfolio tracking | ✅ Shipped | `src/app/portfolio/` with hooks and components |
+| Push notifications | ✅ Shipped | `src/hooks/usePushNotifications.ts`, `src/app/api/push/subscribe/` |
+| Wallet balance display | ✅ Shipped | `src/hooks/useMultichainWallet.ts` |
+| Share token button | ✅ Shipped | Present in token detail components |
+| IPFS upload | ✅ Shipped | `src/app/api/ipfs/upload/route.ts`, `src/hooks/useIPFSUpload.ts` |
 
 ---
 
-### 2. 24-Hour Trading Metrics
+## 🔴 Critical — Mainnet Blockers
 
-**Location:** `src/app/api/tokens/route.ts:203-206`
+### 1. Gnosis Safe Ownership Transfer
 
-**Current State:**
-```typescript
-return {
-  // ... other fields
-  transactions24h: 0,
-  priceChange24h: 0,
-  volumeChange24h: 0
-};
-```
-
-**Issue:** All 24-hour metrics return `0`, making trending/analytics incomplete.
-
-**Impact:**
-- Cannot identify trending tokens
-- Missing key data for user trading decisions
-- Analytics dashboard incomplete
-
-**Solution:**
-
-Implement time-series event tracking:
-
-```typescript
-async function get24hMetrics(ammAddress: string, provider: ethers.JsonRpcProvider) {
-  try {
-    const ammContract = new ethers.Contract(ammAddress, BONDING_CURVE_ABI, provider);
-
-    // Get current block and 24h ago block
-    const currentBlock = await provider.getBlockNumber();
-    const blocksPerDay = 28800; // ~3 sec per block on BSC
-    const startBlock = currentBlock - blocksPerDay;
-
-    // Query trade events from last 24h
-    const buyFilter = ammContract.filters.TokensPurchased();
-    const sellFilter = ammContract.filters.TokensSold();
-
-    const [buyEvents, sellEvents] = await Promise.all([
-      ammContract.queryFilter(buyFilter, startBlock, currentBlock),
-      ammContract.queryFilter(sellFilter, startBlock, currentBlock)
-    ]);
-
-    // Calculate metrics
-    const transactions24h = buyEvents.length + sellEvents.length;
-
-    let volume24h = 0n;
-    for (const event of [...buyEvents, ...sellEvents]) {
-      if (event.args) {
-        volume24h += event.args.nativeAmount || 0n;
-      }
-    }
-
-    // Get price 24h ago vs now
-    const currentPrice = await ammContract.getCurrentPrice();
-    // Would need to store historical prices or reconstruct from events
-    const priceChange24h = 0; // Placeholder
-
-    return {
-      transactions24h,
-      volume24h: parseFloat(ethers.formatEther(volume24h)),
-      priceChange24h,
-      volumeChange24h: 0 // Need previous 24h volume for comparison
-    };
-  } catch (error) {
-    console.error('Error getting 24h metrics:', error);
-    return {
-      transactions24h: 0,
-      volume24h: 0,
-      priceChange24h: 0,
-      volumeChange24h: 0
-    };
-  }
-}
-```
-
-**Alternative:** Use The Graph subgraph with time-series aggregation.
-
-**Estimated Effort:** 4-8 hours for event-based, 8-16 hours for subgraph
-
----
-
-## 🟡 Medium Priority
-
-### 3. Real-Time Price Feeds
-
-**Location:** `src/components/features/TradingChart.tsx:42-43`
-
-**Current State:** Price data loaded on component mount, no WebSocket updates.
-
-**Enhancement:** Add WebSocket connection for live price updates:
-
-```typescript
-useEffect(() => {
-  const ws = new WebSocket('wss://api.kaspump.io/price-feed');
-
-  ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.token === tokenAddress) {
-      setPriceData(prev => [...prev, {
-        time: data.timestamp,
-        value: data.price
-      }]);
-    }
-  };
-
-  return () => ws.close();
-}, [tokenAddress]);
-```
-
-**Estimated Effort:** 4-8 hours (frontend + backend WebSocket server)
-
----
-
-### 4. IPFS Metadata Storage
-
-**Location:** Token creation flow uses URLs, not IPFS hashes
-
-**Enhancement:** Upload token images/metadata to IPFS:
-
-```typescript
-async function uploadToIPFS(file: File, metadata: TokenMetadata) {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.PINATA_JWT}`
-    },
-    body: formData
-  });
-
-  const { IpfsHash } = await response.json();
-  return `ipfs://${IpfsHash}`;
-}
-```
-
-**Estimated Effort:** 3-6 hours
-
----
-
-### 5. Mobile Optimization
-
-**Status:** Desktop-first design, mobile needs refinement
+**Current state:** All contracts (`TokenFactory`, `DexRouterRegistry`, `DeterministicDeployer`) owned by deployer EOA. Single private key controls pause, fee config, and router registry.
 
 **Required:**
-- Touch-optimized trading interface
-- Mobile-specific wallet connect flow
-- Responsive chart sizing
-- Bottom sheet modals for mobile
+- Deploy Gnosis Safe (2-of-3 or 3-of-5, hardware-backed keys distinct from deployer)
+- Update `scripts/deploy-deterministic.ts:137` — change `deployer.address` to `process.env.SAFE_OWNER_ADDRESS`
+- Create `scripts/transfer-ownership.ts` for post-deploy ownership transfer
+- Set fee recipient to a Safe-controlled address
+- Rehearse pause/unpause/updateFeeRecipient through Safe on testnet before mainnet
 
-**Estimated Effort:** 16-24 hours
-
----
-
-## 🟢 Low Priority / Nice-to-Have
-
-### 6. Advanced Analytics Dashboard
-
-**Features:**
-- Platform-wide statistics
-- Revenue tracking
-- Token leaderboard
-- Creator analytics
-
-**Estimated Effort:** 40-60 hours
+**Files:** `scripts/deploy-deterministic.ts`, `scripts/transfer-ownership.ts` (new), `.env.local.example`
 
 ---
 
-### 7. Limit Orders & Stop Loss
+### 2. External Professional Audit
 
-**Location:** Stub components exist in `src/components/trading/`
+**Current state:** Firm engaged. Supporting materials need to be prepared.
 
-**Current State:** UI exists but not connected to contracts
-
-**Enhancement:** Implement off-chain order book or on-chain limit orders
-
-**Estimated Effort:** 40-80 hours (complex feature)
-
----
-
-### 8. Multi-Language Support
-
-**Enhancement:** i18n for global audience
-
-**Estimated Effort:** 20-30 hours initial setup, ongoing translations
+**Required:**
+- `audit-package/BRIEF.md` — threat model, design decisions
+- `audit-package/COVERAGE_REPORT.md` — from `npx hardhat coverage`
+- `audit-package/GAS_SNAPSHOT.md` — from hardhat-gas-reporter
+- `audit-package/SLITHER_OUTPUT.md` — from `slither contracts/`
+- NatSpec completion on `BondingCurveAMM.sol`, `TokenFactory.sol`, `BondingCurveMath.sol`
+- Resolve all Critical/High findings; document accepted Medium/Lows
 
 ---
 
-### 9. Advanced Trading Features
+### 3. Fuzz / Invariant Tests
 
-From `FEATURE_E_ADVANCED_TRADING.md`:
-- Portfolio tracking
-- Price alerts
-- Trading bots API
-- Advanced charting tools
+**Current state:** No invariant or fuzz tests exist. The Hardhat suite covers functional paths well but doesn't stress mathematical invariants.
 
-**Estimated Effort:** 60-100 hours
+**Required (Foundry):**
+- `test/invariant/BondingCurveMath.t.sol` — curve monotonicity, no-free-tokens
+- `test/invariant/BondingCurveAMM.t.sol` — graduation seam, refund accounting, fee-decay bounds
 
----
-
-## 📋 Recommended Implementation Order
-
-### Phase 1: Critical Data (Week 1-2)
-1. ✅ Fix Sentry dependency conflict
-2. ✅ Mainnet deployment
-3. 🔴 Implement holder count (Option C: Moralis)
-4. 🔴 Implement 24h metrics (basic event querying)
-
-### Phase 2: UX Polish (Week 3-4)
-5. 🟡 Mobile optimization
-6. 🟡 Real-time price feeds
-7. 🟡 IPFS metadata storage
-
-### Phase 3: Advanced Features (Month 2)
-8. 🟢 Analytics dashboard
-9. 🟢 Advanced trading features
-10. 🟢 Multi-language support
-
-### Phase 4: Scale & Optimize (Month 3+)
-11. Migrate to The Graph subgraph
-12. Implement caching layer (Redis)
-13. Add CDN for static assets
-14. Performance optimization
-15. Security hardening
+**Estimated effort:** 8–16 hours
 
 ---
 
-## 🔧 Quick Wins (< 2 hours each)
+### 4. E2E Tests (Playwright) — None Exist
 
-These can be tackled immediately:
+**Current state:** No `playwright.config.ts`, no `e2e/` directory, no browser-based test automation.
 
-1. **Add Wallet Balance Display**
-   - Show user's BNB balance in header
-   - 30 minutes
+**Required:**
+- `playwright.config.ts`
+- `e2e/wallet-connect.spec.ts`
+- `e2e/launch-token.spec.ts`
+- `e2e/trade.spec.ts` — buy → sell flow
+- `e2e/graduation.spec.ts` — graduation trigger + KotH
 
-2. **Transaction History**
-   - Show recent trades for current wallet
-   - 1-2 hours
-
-3. **Token Search**
-   - Client-side filtering of token list
-   - 1 hour
-
-4. **Copy-to-Clipboard for Addresses**
-   - One-click copy for token/wallet addresses
-   - 30 minutes
-
-5. **Share Token Button**
-   - Social media sharing for tokens
-   - 1 hour
-
-6. **Favorite Tokens**
-   - Local storage for user favorites
-   - 1-2 hours
+**Add to CI as blocking gate.**
 
 ---
 
-## 🎯 Success Metrics to Track
+## 🟡 High Priority — Production Hardening
 
-Once analytics are implemented, track:
+### 5. Moralis Holder Count Cache → Vercel KV
 
-### Technical Metrics
-- Average response time (<500ms target)
-- Error rate (<0.1% target)
-- Contract gas costs (optimize below current)
-- RPC call efficiency
+**Current state:** `src/services/moralis.service.ts` uses an in-memory `Map<string, {count, expiresAt}>`. Dies on cold starts; not shared across Vercel serverless instances.
 
-### Business Metrics
-- Daily active users (DAU)
-- Token creation rate
-- Total trading volume
-- Platform revenue
-- User retention (7-day, 30-day)
+**Fix:** Replace with `@vercel/kv` calls. `KV_REST_API_URL` already in `.env.local.example`.
 
-### User Experience Metrics
-- Time to first trade
-- Trading success rate
-- Wallet connection success rate
-- Page load time
+**Also fix:** Silent zero on API failure → explicit Sentry alert. Distinguish "0 holders" from "lookup failed".
 
 ---
 
-## 📝 Notes
+### 6. 24-Hour Metrics — Still Returns 0
 
-### Why These Are Acceptable for Launch
+**Current state:** `transactions24h`, `priceChange24h`, `volumeChange24h` are hardcoded to 0 in `src/app/api/tokens/route.ts`.
 
-1. **Holder Count:** Not critical for initial launch when token counts are low
-2. **24h Metrics:** Platform is new, trending will develop over time
-3. **Real-time Feeds:** Refresh on page load is acceptable for MVP
-4. **IPFS:** Traditional URLs work fine, IPFS is optimization
-
-### When to Address
-
-- **Holder Count:** When user complaints arise or analytics become important
-- **24h Metrics:** After 1 week of mainnet operation (need data history)
-- **Real-time Feeds:** When concurrent users exceed 100
-- **IPFS:** When considering decentralization/permanence
+**Fix:** Deploy subgraph (see #7) and wire `TokenHourlyMetric`/`TokenDailyMetric` entities.
 
 ---
 
-## 🤝 Community Contributions
+### 7. Subgraph Deployment — Hosted Service Decommissioned
 
-These items are good candidates for open-source contributions:
+**Current state:** Subgraph code in `subgraph/` is complete. However:
+- The Graph hosted service was shut down mid-2024
+- `subgraph/package.json` deploy scripts still target `--product hosted-service`
+- `src/lib/graphql/client.ts` has dead `api.thegraph.com/subgraphs/name/...` URLs as fallbacks
+- `NEXT_PUBLIC_SUBGRAPH_URL_*` env vars are not defined anywhere
 
-1. The Graph subgraph development
-2. Mobile UI improvements
-3. Multi-language translations
-4. Advanced charting integration
-5. Trading bot examples
+**Fix:**
+- Re-target deploy scripts to Goldsky or Alchemy Subgraphs
+- Fix `client.ts` — remove dead fallback URLs (fail loudly on missing endpoint)
+- Add `NEXT_PUBLIC_SUBGRAPH_URL` to env examples
+- Proxy GraphQL queries through an API route (don't expose API key as `NEXT_PUBLIC_`)
+- Deploy testnet subgraph first to validate end-to-end
 
 ---
 
-**Maintained by:** Development Team
-**For questions:** See INTEGRATION_STATUS.md
-**Report issues:** Create GitHub issue with "Technical Debt" label
+### 8. CSP — Too Broad
+
+**Current state:** `vercel.json` `connect-src` contains `wss:` and `https:` catch-alls.
+
+**Fix:** Replace with an explicit allowlist (BSC/Arbitrum/Base RPCs, Moralis, IPFS, WalletConnect relay, BSCScan, WS server origin).
+
+---
+
+### 9. API Rate Limiting — In-Memory Store
+
+**Current state:** `src/lib/rate-limit.ts` has a working implementation with presets BUT uses an in-memory store that resets on cold starts and doesn't share across Vercel instances. The Upstash Redis implementation is already written but commented out.
+
+**Fix:**
+1. Enable the commented-out Upstash implementation (lines 252–299 in `rate-limit.ts`)
+2. Add `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` to `.env.local.example`
+3. Wire `withRateLimit()` into: `tokens/comments/route.ts` (strict), `ipfs/upload/route.ts` (upload), `analytics/events/route.ts` (analytics), `push/subscribe/route.ts` (strict)
+
+---
+
+### 10. WebSocket Server — No Deploy Platform
+
+**Current state:** `server/` is production-quality code with Redis support, but has no deployed instance and uses self-hosted Redis (localhost:6379).
+
+**Fix:**
+- Choose deploy platform (Render recommended)
+- `server/src/services/RedisService.ts` — add Upstash TLS support (`rediss://` URLs)
+- `src/lib/websocket.ts` — add reconnection with exponential backoff + heartbeat + polling degradation
+- Pin WS server origin in CSP
+
+---
+
+## 🟢 Medium Priority
+
+### 11. RPC Failover Pool
+
+**Current state:** Single RPC per network with a public-node default. `BlockchainListener.ts` uses a fixed 5s reconnect delay.
+
+**Fix:** `src/config/wagmi.ts` — use `fallback([http(primary), http(secondary)])` wagmi transport. `BlockchainListener.ts` — exponential backoff reconnect, rotate through RPC list.
+
+---
+
+### 12. Multicall / Batch Reads on Token List
+
+**Current state:** Token list page makes sequential per-token RPC calls (N+1 pattern).
+
+**Fix:** Use Multicall3 batch reads in `src/app/api/tokens/route.ts`.
+
+---
+
+### 13. Edge Caching on Read-Heavy API Routes
+
+**Fix:** Add `Cache-Control: s-maxage=30, stale-while-revalidate=60` to GET handlers in `tokens/route.ts`, `tokens/trending/route.ts`, `leaderboard/route.ts`.
+
+---
+
+### 14. Monitoring — Sentry Configured But "Planning Phase"
+
+**Current state:** All 3 Sentry layers are configured in code. `MONITORING_IMPLEMENTATION_GUIDE.md` is still in "Planning Phase" — no live alerting verified.
+
+**Fix:** Confirm `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` are set in Vercel environment. Verify events reach Sentry dashboard. Add uptime monitoring (BetterStack/UptimeRobot). Update guide from "Planning Phase" → "Active".
+
+---
+
+### 15. IPFS Upload Route — File Validation
+
+**Current state:** `src/app/api/ipfs/upload/route.ts` exists but needs explicit file type (image/jpeg, png, gif, webp) and size (≤5MB) validation.
+
+---
+
+## 🔵 Future / Post-Launch
+
+### 16. TypeScript 6+ Compatibility
+
+**Current state:** The lockfile installs TypeScript 5.9.3. If upgraded to TypeScript 6+, two options in `tsconfig.json` will need updating:
+- `moduleResolution: "node"` → `"bundler"` (requires package export map updates)
+- `baseUrl: "."` → deprecated, handle via paths only
+
+**Not urgent.** Addressing this is gated on ensuring all dependency packages have proper TypeScript 6-compatible type declarations.
+
+---
+
+### 17. Brand String Centralization
+
+**Current state:** Product name, description, and social handles are hardcoded in 4+ locations: `src/app/layout.tsx` metadata, `src/config/wagmi.ts` connector metadata, `package.json`, `subgraph/package.json`.
+
+**Fix:** Create `src/config/brand.ts` as a single source of truth. Consume in layout.tsx and wagmi.ts. Enables a one-file rebrand when the final name is confirmed.
+
+---
+
+### 18. Limit Orders / Stop Loss
+
+UI stubs exist in trading components but are not connected to any on-chain logic. This is a complex feature requiring either off-chain order book or on-chain implementation.
+
+**Estimated effort:** 40–80 hours
+
+---
+
+### 19. Multi-Language Support
+
+**Estimated effort:** 20–30 initial setup + ongoing translations
+
+---
+
+## 📋 Implementation Order (pre-mainnet)
+
+1. Gnosis Safe (#1) — hardest-to-do, not code-heavy
+2. Audit support materials (#2) — in parallel with all other work
+3. Subgraph deploy (#7) — unblocks holder count and 24h metrics
+4. Moralis → Vercel KV (#5) + 24h metrics (#6) — once subgraph is live
+5. Fuzz tests (#3) — before audit freeze
+6. E2E tests (#4) — before mainnet dry-run
+7. CSP (#8) + Rate limiting (#9) — security hardening
+8. WS server deploy (#10) + RPC failover (#11) — scalability
+9. Monitoring activation (#14) — ops readiness
+10. Brand centralization (#17) — no-regret prep for eventual rename
+
+---
+
+**Maintained by:** Development Team  
+**Reconciled against:** Live source as of 2026-06-23

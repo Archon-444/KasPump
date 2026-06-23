@@ -22,7 +22,7 @@ const nextConfig = {
     return config;
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
     dirs: ['src'],
