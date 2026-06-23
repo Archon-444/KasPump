@@ -14,7 +14,6 @@ import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { QuickLaunchForm } from '../../components/features/QuickLaunchForm';
-import { WalletRequired } from '../../components/features/WalletConnectButton';
 import { Button } from '../../components/ui';
 import { AmbientBackground } from '../../components/ui/enhanced';
 
@@ -36,9 +35,7 @@ export default function LaunchPage() {
             </Button>
           </div>
 
-          <WalletRequired>
-            <QuickLaunchForm />
-          </WalletRequired>
+          <QuickLaunchForm />
         </div>
       </main>
     </AmbientBackground>
