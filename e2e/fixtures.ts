@@ -41,6 +41,16 @@ async function injectMockWallet(page: Page): Promise<void> {
         writable: true,
         configurable: true,
       });
+
+      // Seed wagmi v2 storage so the injected connector auto-reconnects.
+      // wagmi's injected connector checks 'wagmi.injected.connected' before
+      // calling isAuthorized(); without it, reconnect is skipped unconditionally
+      // (consent shim — wagmi/core injected.js isAuthorized).
+      // Values are JSON-serialised by wagmi's serialize util (JSON.stringify).
+      try {
+        localStorage.setItem('wagmi.injected.connected', 'true');
+        localStorage.setItem('wagmi.recentConnectorId', '"injected"');
+      } catch { /* storage may be restricted in some contexts */ }
     },
     { address: MOCK_ADDRESS, chainId: BSC_TESTNET_CHAIN_ID }
   );
