@@ -8,7 +8,7 @@ test.describe('Token Launch Flow', () => {
     // Input component uses placeholder, not name attribute.
     // QuickLaunchForm placeholders are "e.g. Doge Coin" and "e.g. DOGE".
     await expect(page.getByPlaceholder('e.g. Doge Coin')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByPlaceholder('e.g. DOGE')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByPlaceholder('e.g. DOGE', { exact: true })).toBeVisible({ timeout: 5_000 });
   });
 
   test('form requires name and symbol before submitting', async ({ walletPage: page }) => {
@@ -30,7 +30,7 @@ test.describe('Token Launch Flow', () => {
     await page.waitForLoadState('domcontentloaded');
 
     const nameInput = page.getByPlaceholder('e.g. Doge Coin');
-    const symbolInput = page.getByPlaceholder('e.g. DOGE');
+    const symbolInput = page.getByPlaceholder('e.g. DOGE', { exact: true });
 
     await expect(nameInput).toBeVisible({ timeout: 30_000 });
 
