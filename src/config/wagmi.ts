@@ -51,28 +51,31 @@ async function createConnectors(): Promise<any[]> {
   }
 
   try {
-    // Dynamically import the connectors we need
-    const { injected, metaMask, walletConnect, coinbaseWallet } = await import('wagmi/connectors');
-    const chains = await getChains();
+    // `injected` lives in @wagmi/core (re-exported by the main `wagmi` package)
+    // and carries zero SDK dependencies — it initialises instantly with no network calls.
+    // MetaMask / Coinbase / WalletConnect connectors are in `wagmi/connectors` which pulls
+    // in @metamask/sdk, @coinbase/wallet-sdk and @walletconnect/universal-provider; one or
+    // more of those SDKs makes an outbound network call during module evaluation that can
+    // hang indefinitely in network-restricted environments (CI).  Load them with a timeout
+    // so a slow/blocked SDK init never prevents the app from rendering.
+    const { injected } = await import('wagmi');
 
     const origin = getOrigin();
     const logoUrl = getLogoUrl();
 
-    const connectorList = [
-      // MetaMask (highest priority for BSC)
-      metaMask({
-        dappMetadata: {
-          name: brand.name,
-          url: origin,
-        },
-      }),
-      // Generic injected wallet (Trust Wallet, Binance Wallet, etc.)
-      injected({
-        shimDisconnect: true,
-      }),
-      // WalletConnect (if project ID configured)
-      hasValidProjectId
-        ? walletConnect({
+    const baseConnectors: any[] = [
+      injected({ shimDisconnect: true }),
+    ];
+
+    const sdkConnectors = await Promise.race<any[]>([
+      (async () => {
+        const { metaMask, walletConnect, coinbaseWallet } = await import('wagmi/connectors');
+        const extras: any[] = [
+          metaMask({ dappMetadata: { name: brand.name, url: origin } }),
+          coinbaseWallet({ appName: brand.name, preference: 'eoaOnly', appLogoUrl: logoUrl || undefined }),
+        ];
+        if (hasValidProjectId) {
+          extras.push(walletConnect({
             projectId,
             metadata: {
               name: brand.name,
@@ -80,36 +83,23 @@ async function createConnectors(): Promise<any[]> {
               url: origin,
               icons: logoUrl ? [logoUrl] : [],
             },
-          })
-        : null,
-      // Coinbase Wallet connector for Base + EVM chains
-      // preference: 'eoaOnly' avoids smart-wallet network calls on init
-      coinbaseWallet({
-        appName: brand.name,
-        preference: 'eoaOnly',
-        appLogoUrl: logoUrl || undefined,
-      }),
-    ];
+          }));
+        }
+        return extras;
+      })(),
+      // 8 s safety valve: if any SDK init hangs (e.g. network-restricted CI),
+      // proceed without it rather than blocking the page forever.
+      new Promise<any[]>(resolve => setTimeout(() => resolve([]), 8000)),
+    ]);
 
-    return connectorList.filter(Boolean); // Remove any null/undefined connectors
+    return [...baseConnectors, ...sdkConnectors];
   } catch (error) {
     console.error('Error initializing wagmi connectors:', error);
-    // Fallback to minimal connector set
+    // Fallback: injected only (no SDK deps)
     try {
-      const { metaMask, injected } = await import('wagmi/connectors');
-      return [
-        metaMask({
-          dappMetadata: {
-            name: 'KasPump',
-            url: getOrigin(),
-          },
-        }),
-        injected({ 
-          shimDisconnect: true,
-        }),
-      ].filter(Boolean);
+      const { injected } = await import('wagmi');
+      return [injected({ shimDisconnect: true })];
     } catch {
-      // Last resort: return empty array
       return [];
     }
   }

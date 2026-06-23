@@ -59,6 +59,15 @@ async function injectMockWallet(page: Page): Promise<void> {
 
 export const test = base.extend<{ walletPage: Page }>({
   walletPage: async ({ page }, use) => {
+    // Forward browser console to Node stdout so CI logs capture wagmi/React errors
+    page.on('console', msg => {
+      const type = msg.type();
+      if (type === 'error' || type === 'warning') {
+        console.log(`[browser:${type}] ${msg.text()}`);
+      }
+    });
+    page.on('pageerror', err => console.error(`[page-error] ${err}`));
+
     await injectMockWallet(page);
 
     // Navigate to the app root so localStorage is scoped to the correct
