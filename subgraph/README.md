@@ -34,10 +34,29 @@ npm run deploy:mainnet
 
 ## Configuration
 
-### BSC Testnet (current)
-- Network: `chapel`
-- TokenFactory: `0x7Af627Bf902549543701C58366d424eE59A4ee08`
-- Start Block: `70735503`
+### Per-network deployment (Lane 1A.4)
+
+Network and factory address are no longer hardcoded in `subgraph.yaml`.
+Each network's `TokenFactory` address + `startBlock` lives in
+`networks.json`; `graph build --network <name>` renders the manifest
+against that network's values before deploy.
+
+```bash
+# After deploying TokenFactory to a chain, fill the address + startBlock:
+$EDITOR networks.json
+
+# Then build + deploy for the target network:
+npx graph build --network base-sepolia
+npx graph deploy --network base-sepolia kaspump-subgraph
+```
+
+Networks currently registered in `networks.json`:
+
+| Network        | Status                                   |
+|----------------|------------------------------------------|
+| `chapel`       | BSC testnet — historical / V1 backfill   |
+| `base-sepolia` | Phase-1 V2 smoke target — fill after deploy |
+| `base`         | Phase-1 V2 mainnet — fill after deploy   |
 
 ### Environment Setup
 

@@ -12,7 +12,13 @@ const root = path.resolve(__dirname, '..');
 const contractsDir = path.join(root, 'contracts');
 
 const TARGETS = ['BondingCurveAMM', 'TokenFactory', 'CreatorVesting'];
-const OUT_DIRS = ['src/abis', 'server/src/abis'].map((d) => path.join(root, d));
+// Frontend (`src/abis`), server (`server/src/abis`), and subgraph
+// (`subgraph/abis`) all read the same on-chain shape. Lane 1A.2 added
+// `subgraph/abis` so a single regen keeps the indexer in sync — without
+// it, the subgraph silently lags PR-1-onward event additions.
+const OUT_DIRS = ['src/abis', 'server/src/abis', 'subgraph/abis'].map((d) =>
+  path.join(root, d)
+);
 
 function listSolFiles(dir) {
   const out = [];

@@ -6,6 +6,14 @@ import {
   LiquidityAdded as LiquidityAddedEvent,
   LPTokensLocked as LPTokensLockedEvent,
   LPTokensWithdrawn as LPTokensWithdrawnEvent,
+  // Lane 1A.3 — V2 event surface from PR 1-3.
+  TradeExecuted as TradeExecutedRawEvent,
+  GraduationTriggered as GraduationTriggeredRawEvent,
+  SoftLaunchCapHit as SoftLaunchCapHitRawEvent,
+  SoftLaunchCapUpdated as SoftLaunchCapUpdatedRawEvent,
+  LiquidityPairPrePolluted as LiquidityPairPrePollutedRawEvent,
+  CreatorVestingCreated as CreatorVestingCreatedRawEvent,
+  TreasuryAllocated as TreasuryAllocatedRawEvent,
 } from "../generated/templates/BondingCurveAMM/BondingCurveAMM"
 import { BondingCurveAMM } from "../generated/templates/BondingCurveAMM/BondingCurveAMM"
 import {
@@ -18,6 +26,14 @@ import {
   PlatformDailyMetric,
   Factory,
   TokenGraduatedEvent,
+  // Lane 1A.3 — additive V2 event entities.
+  TradeExecutedEvent,
+  GraduationTriggeredEvent,
+  SoftLaunchCapHitEvent,
+  SoftLaunchCapUpdatedEvent,
+  LiquidityPairPrePollutedEvent,
+  CreatorVestingCreatedEvent,
+  TreasuryAllocatedEvent,
 } from "../generated/schema"
 import { getOrCreateUser, getOrCreateFactory } from "./token-factory"
 
@@ -530,4 +546,135 @@ export function handleLPTokensWithdrawn(event: LPTokensWithdrawnEvent): void {
     token.name,
     amount.toString(),
   ])
+}
+
+// ============================================================
+// V2 event handlers (Lane 1A.3 — additive)
+//
+// Each handler stores one event entity keyed on `tx.hash + log.index`.
+// Token + User are loaded by id (no `getOrCreateUser` writes here so a
+// stale lookup just bails — the legacy handlers above already keep
+// those entities current). Nothing in this block mutates the
+// write-once Token / Trade / TokenHolder / metric entities; the V2
+// surface is read-only-augmenting from the subgraph's POV.
+// ============================================================
+
+function eventId(event: ethereum.Event): string {
+  return event.transaction.hash.toHexString() + "-" + event.logIndex.toString()
+}
+
+export function handleTradeExecuted(event: TradeExecutedRawEvent): void {
+  let entity = new TradeExecutedEvent(eventId(event))
+  entity.token = event.params.token.toHexString()
+  entity.trader = event.params.trader.toHexString()
+  entity.isBuy = event.params.isBuy
+  entity.supplyBefore = event.params.supplyBefore
+  entity.supplyAfter = event.params.supplyAfter
+  entity.nativeGross = event.params.nativeGross
+  entity.nativeNet = event.params.nativeNet
+  entity.tokenAmount = event.params.tokenAmount
+  entity.feeAmount = event.params.feeAmount
+  entity.feeBps = event.params.feeBps
+  entity.priceAfter = event.params.priceAfter
+  entity.txHash = event.transaction.hash
+  entity.blockNumber = event.block.number
+  entity.timestamp = event.block.timestamp
+  entity.logIndex = event.logIndex
+  entity.save()
+}
+
+export function handleGraduationTriggered(event: GraduationTriggeredRawEvent): void {
+  let entity = new GraduationTriggeredEvent(eventId(event))
+  entity.token = event.params.token.toHexString()
+  entity.finalSupply = event.params.finalSupply
+  entity.finalPrice = event.params.finalPrice
+  entity.lpAdded = event.params.lpAdded
+  entity.nativeTargetForLP = event.params.nativeTargetForLP
+  entity.tokensTargetForLP = event.params.tokensTargetForLP
+  entity.nativeUsedForLP = event.params.nativeUsedForLP
+  entity.tokensUsedForLP = event.params.tokensUsedForLP
+  entity.txHash = event.transaction.hash
+  entity.blockNumber = event.block.number
+  entity.timestamp = event.block.timestamp
+  entity.logIndex = event.logIndex
+  entity.save()
+}
+
+export function handleSoftLaunchCapHit(event: SoftLaunchCapHitRawEvent): void {
+  let entity = new SoftLaunchCapHitEvent(eventId(event))
+  entity.token = event.params.token.toHexString()
+  entity.buyer = event.params.buyer.toHexString()
+  entity.requestedNative = event.params.requestedNative
+  entity.acceptedNative = event.params.acceptedNative
+  entity.refundedNative = event.params.refundedNative
+  entity.txHash = event.transaction.hash
+  entity.blockNumber = event.block.number
+  entity.timestamp = event.block.timestamp
+  entity.logIndex = event.logIndex
+  entity.save()
+}
+
+export function handleSoftLaunchCapUpdated(event: SoftLaunchCapUpdatedRawEvent): void {
+  // The cap-update event doesn't carry a `token` indexed param; resolve
+  // via the AMM's `token()` getter (matches the pattern already used by
+  // handleTrade / handleLiquidityAdded / etc.).
+  let ammContract = BondingCurveAMM.bind(event.address)
+  let tokenAddress = ammContract.token()
+
+  let entity = new SoftLaunchCapUpdatedEvent(eventId(event))
+  entity.token = tokenAddress.toHexString()
+  entity.oldCap = event.params.oldCap
+  entity.newCap = event.params.newCap
+  entity.txHash = event.transaction.hash
+  entity.blockNumber = event.block.number
+  entity.timestamp = event.block.timestamp
+  entity.logIndex = event.logIndex
+  entity.save()
+}
+
+export function handleLiquidityPairPrePolluted(event: LiquidityPairPrePollutedRawEvent): void {
+  // Same lookup pattern: the event indexes `pair`, not `token`.
+  let ammContract = BondingCurveAMM.bind(event.address)
+  let tokenAddress = ammContract.token()
+
+  let entity = new LiquidityPairPrePollutedEvent(eventId(event))
+  entity.token = tokenAddress.toHexString()
+  entity.pair = event.params.pair
+  entity.txHash = event.transaction.hash
+  entity.blockNumber = event.block.number
+  entity.timestamp = event.block.timestamp
+  entity.logIndex = event.logIndex
+  entity.save()
+}
+
+export function handleCreatorVestingCreated(event: CreatorVestingCreatedRawEvent): void {
+  let entity = new CreatorVestingCreatedEvent(eventId(event))
+  entity.token = event.params.token.toHexString()
+  entity.creator = event.params.creator.toHexString()
+  entity.vestingContract = event.params.vestingContract
+  entity.totalAmount = event.params.totalAmount
+  entity.startTime = event.params.startTime
+  entity.endTime = event.params.endTime
+  entity.txHash = event.transaction.hash
+  entity.blockNumber = event.block.number
+  entity.timestamp = event.block.timestamp
+  entity.logIndex = event.logIndex
+  entity.save()
+}
+
+export function handleTreasuryAllocated(event: TreasuryAllocatedRawEvent): void {
+  // Resolve token via the AMM (event carries recipient, not token).
+  let ammContract = BondingCurveAMM.bind(event.address)
+  let tokenAddress = ammContract.token()
+
+  let entity = new TreasuryAllocatedEvent(eventId(event))
+  entity.token = tokenAddress.toHexString()
+  entity.recipient = event.params.recipient
+  entity.nativeAmount = event.params.nativeAmount
+  entity.tokenAmount = event.params.tokenAmount
+  entity.txHash = event.transaction.hash
+  entity.blockNumber = event.block.number
+  entity.timestamp = event.block.timestamp
+  entity.logIndex = event.logIndex
+  entity.save()
 }

@@ -325,6 +325,148 @@ type TokenGraduatedEvent @entity {
 }
 
 # ============================================================
+# V2 event entities (Lane 1A.3)
+#
+# These are purely additive: each indexes a distinct V2 AMM event so
+# downstream dashboards can query them without joining against the
+# write-once Token / Trade / User / TokenHolder entities. Existing
+# entities are intentionally untouched.
+# ============================================================
+
+"""
+TradeExecutedEvent - V2 structured trade record (PR 1).
+Sits alongside the legacy `Trade` entity; richer fields make charts
+unambiguous about gross vs net and pre/post supply without inference.
+"""
+type TradeExecutedEvent @entity {
+  id: ID!
+  token: Token!
+  trader: User!
+  isBuy: Boolean!
+  supplyBefore: BigInt!
+  supplyAfter: BigInt!
+  nativeGross: BigInt!
+  nativeNet: BigInt!
+  tokenAmount: BigInt!
+  feeAmount: BigInt!
+  feeBps: BigInt!
+  priceAfter: BigInt!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  logIndex: BigInt!
+}
+
+"""
+GraduationTriggeredEvent - V2 structured graduation record (PR 3).
+Carries planned vs actual LP amounts so dashboards can show whether
+graduation truly produced liquidity (lpAdded == false means LP was
+skipped — pre-polluted pair, DEX failure, or zero earmark).
+"""
+type GraduationTriggeredEvent @entity {
+  id: ID!
+  token: Token!
+  finalSupply: BigInt!
+  finalPrice: BigInt!
+  lpAdded: Boolean!
+  nativeTargetForLP: BigInt!
+  tokensTargetForLP: BigInt!
+  nativeUsedForLP: BigInt!
+  tokensUsedForLP: BigInt!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  logIndex: BigInt!
+}
+
+"""
+SoftLaunchCapHitEvent - PR 1 partial-fill refund record.
+"""
+type SoftLaunchCapHitEvent @entity {
+  id: ID!
+  token: Token!
+  buyer: User!
+  requestedNative: BigInt!
+  acceptedNative: BigInt!
+  refundedNative: BigInt!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  logIndex: BigInt!
+}
+
+"""
+SoftLaunchCapUpdatedEvent - admin cap-change record.
+"""
+type SoftLaunchCapUpdatedEvent @entity {
+  id: ID!
+  token: Token!
+  oldCap: BigInt!
+  newCap: BigInt!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  logIndex: BigInt!
+}
+
+"""
+LiquidityPairPrePollutedEvent - PR 3 follow-up pre-seeded pair defense.
+Fires when graduation finds a token/WETH pair with non-zero reserves
+and refuses to LP into it; LP earmarks roll to treasury via the
+graduation failure branch.
+"""
+type LiquidityPairPrePollutedEvent @entity {
+  id: ID!
+  token: Token!
+  pair: Bytes!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  logIndex: BigInt!
+}
+
+"""
+CreatorVestingCreatedEvent - PR 3 vesting deploy record.
+Emits the deployed vesting contract address + window so consumers can
+read CreatorVesting state directly without scanning factory creations.
+"""
+type CreatorVestingCreatedEvent @entity {
+  id: ID!
+  token: Token!
+  creator: User!
+  vestingContract: Bytes!
+  totalAmount: BigInt!
+  startTime: BigInt!
+  endTime: BigInt!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  logIndex: BigInt!
+}
+
+"""
+TreasuryAllocatedEvent - PR 3 graduation treasury allocation record.
+"""
+type TreasuryAllocatedEvent @entity {
+  id: ID!
+  token: Token!
+  recipient: Bytes!
+  nativeAmount: BigInt!
+  tokenAmount: BigInt!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  logIndex: BigInt!
+}
+
+# ============================================================
 # Enums
 # ============================================================
 

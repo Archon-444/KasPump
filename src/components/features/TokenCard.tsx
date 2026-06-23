@@ -6,7 +6,7 @@ import { TrendingUp, TrendingDown, Users, Clock, Flame, Shield, Zap, Target, Act
 import { KasPumpToken, TokenCardProps } from '../../types';
 import { Card, Badge, Progress } from '../ui';
 import { FavoriteButton } from './FavoriteButton';
-import { formatCurrency, formatPercentage, formatTimeAgo, cn } from '../../utils';
+import { formatCurrency, formatPercentage, formatTimeAgo, cn, curveTypeLabel } from '../../utils';
 
 // Health scoring system
 type LaunchHealth = 'excellent' | 'good' | 'fair' | 'risky';
@@ -234,8 +234,8 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
           </div>
           
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium text-gray-500 bg-white/[0.04] px-2 py-0.5 rounded-md capitalize">
-              {token.curveType}
+            <span className="text-[10px] font-medium text-gray-500 bg-white/[0.04] px-2 py-0.5 rounded-md">
+              {curveTypeLabel(token.curveType)}
             </span>
             <HealthIcon size={12} className={cn(
               health.overall === 'excellent' ? 'text-green-400' :

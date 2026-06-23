@@ -20,7 +20,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { ethers } from 'ethers';
-import { Lock, Loader, CheckCircle, ExternalLink } from 'lucide-react';
+import { Lock, Loader, CheckCircle, ExternalLink, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { Card, Button, Progress } from '../ui';
 import { useContracts } from '../../hooks/useContracts';
@@ -28,6 +28,8 @@ import { getExplorerUrl } from '../../config/chains';
 import { cn } from '../../utils';
 import CreatorVestingABI from '../../abis/CreatorVesting.json';
 import type { KasPumpToken } from '../../types';
+
+type ReadStatus = 'loading' | 'ready' | 'error' | 'no-vesting';
 
 // Local minimal typings — typechain types don't include the PR 3
 // additions (`creatorVesting()` on the AMM, the CreatorVesting contract
@@ -72,25 +74,36 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
   const { address: connectedWallet, chainId } = useAccount();
 
   const [state, setState] = useState<VestingState | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [readStatus, setReadStatus] = useState<ReadStatus>('loading');
+  const [readError, setReadError] = useState<string>('');
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string>('');
+  // Tracks the totalClaimed value at the time of a successful claim so we
+  // can show the green "Claimed X tokens" confirmation banner; cleared on
+  // the next refresh interaction.
+  const [claimSuccessAmount, setClaimSuccessAmount] = useState<bigint | null>(null);
 
   const refresh = useCallback(async () => {
     if (!token.ammAddress) {
-      setLoading(false);
+      setReadStatus('no-vesting');
       return;
     }
+    setReadStatus(prev => (prev === 'ready' ? 'ready' : 'loading'));
     try {
       const amm = contracts.getBondingCurveContract(token.ammAddress) as unknown as AmmWithVesting;
       const vestingAddress: string = await amm.creatorVesting();
       if (!vestingAddress || vestingAddress === ethers.ZeroAddress) {
         setState(null);
+        setReadStatus('no-vesting');
         return;
       }
       // Read-only provider is sufficient for these views.
       const runner = contracts.signer ?? contracts.readProvider ?? contracts.provider;
-      if (!runner) return;
+      if (!runner) {
+        setReadStatus('error');
+        setReadError('No provider available');
+        return;
+      }
       const vesting = new ethers.Contract(
         vestingAddress,
         CreatorVestingABI.abi,
@@ -123,10 +136,12 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
         startTime: BigInt(startTime.toString()),
         endTime: BigInt(endTime.toString()),
       });
+      setReadStatus('ready');
+      setReadError('');
     } catch (err) {
       console.warn('CreatorVestingPanel: refresh failed', err);
-    } finally {
-      setLoading(false);
+      setReadStatus('error');
+      setReadError(err instanceof Error ? err.message : 'Read failed');
     }
   }, [contracts, token.ammAddress]);
 
@@ -138,6 +153,8 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
     if (!state || !contracts.signer) return;
     setClaiming(true);
     setClaimError('');
+    setClaimSuccessAmount(null);
+    const claimedTarget = state.claimable;
     try {
       const vesting = new ethers.Contract(
         state.vestingAddress,
@@ -146,6 +163,7 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
       ) as unknown as CreatorVestingContract;
       const tx = await vesting.claim();
       await tx.wait();
+      setClaimSuccessAmount(claimedTarget);
       await refresh();
     } catch (err: unknown) {
       const message =
@@ -156,7 +174,8 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
     }
   }, [contracts.signer, refresh, state]);
 
-  if (loading) {
+  // Loading on first read — show a slim skeleton row, never a silent blank.
+  if (readStatus === 'loading' && state == null) {
     return (
       <Card className={cn('p-4 flex items-center gap-2 text-sm text-gray-500', className)}>
         <Loader size={14} className="animate-spin" />
@@ -165,8 +184,37 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
     );
   }
 
+  // Read failed and we have no cached state to fall back on. Render a
+  // visible error with a Retry CTA so smoke testers see what's wrong
+  // instead of a silent disappearance.
+  if (readStatus === 'error' && state == null) {
+    return (
+      <Card
+        className={cn(
+          'p-4 flex items-center justify-between gap-3 border-yellow-500/20 bg-yellow-500/[0.04]',
+          className
+        )}
+      >
+        <div
+          className="flex items-center gap-2 text-sm text-yellow-300"
+          title={readError}
+        >
+          <AlertTriangle size={14} />
+          <span>Couldn&apos;t read vesting state</span>
+        </div>
+        <button
+          onClick={() => void refresh()}
+          className="flex items-center gap-1 text-xs text-yellow-300 hover:text-yellow-200"
+          title={readError}
+        >
+          <RefreshCw size={12} /> Retry
+        </button>
+      </Card>
+    );
+  }
+
   // No vesting deployed yet (token not graduated). Hide entirely.
-  if (!state) return null;
+  if (readStatus === 'no-vesting' || !state) return null;
 
   const isBeneficiary =
     connectedWallet != null &&
@@ -238,7 +286,9 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
           onClick={() => void handleClaim()}
           icon={fullyClaimed ? <CheckCircle size={14} /> : undefined}
         >
-          {fullyClaimed
+          {claiming
+            ? 'Confirming claim…'
+            : fullyClaimed
             ? 'Fully claimed'
             : hasClaimable
             ? `Claim ${fmt(state.claimable).toLocaleString()} ${token.symbol}`
@@ -249,10 +299,31 @@ export const CreatorVestingPanel: React.FC<CreatorVestingPanelProps> = ({
             Only the creator can claim vested tokens.
           </p>
         )}
+        {claimSuccessAmount != null && claimError === '' && (
+          <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-green-400">
+            <CheckCircle size={12} />
+            <span>
+              Claimed {fmt(claimSuccessAmount).toLocaleString()} {token.symbol}
+            </span>
+          </div>
+        )}
         {claimError && (
-          <p className="text-[11px] text-red-400 mt-2 text-center break-all">
-            {claimError}
-          </p>
+          <div className="mt-2 flex items-start justify-center gap-1.5 text-[11px] text-red-400 text-center">
+            <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+            <span className="break-all">{claimError}</span>
+          </div>
+        )}
+        {readStatus === 'error' && state != null && (
+          <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-yellow-300">
+            <AlertTriangle size={12} />
+            <span>Live state read failed — showing last known values.</span>
+            <button
+              onClick={() => void refresh()}
+              className="ml-1 inline-flex items-center gap-1 underline hover:text-yellow-200"
+            >
+              <RefreshCw size={10} /> Retry
+            </button>
+          </div>
         )}
       </div>
     </Card>

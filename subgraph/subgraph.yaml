@@ -1,10 +1,16 @@
 specVersion: 0.0.5
 schema:
   file: ./schema.graphql
+# Lane 1A.4 — factory address + network are now driven by `networks.json`
+# instead of being hardcoded. Run:
+#   npx graph build --network base-sepolia
+# to render this manifest against the right deployment per chain.
+# The defaults below remain BSC testnet so existing graph-cli flows that
+# don't pass --network keep working.
 dataSources:
   - kind: ethereum
     name: TokenFactory
-    network: chapel # BSC Testnet network name in The Graph
+    network: chapel
     source:
       address: "0x7Af627Bf902549543701C58366d424eE59A4ee08"
       abi: TokenFactory
@@ -47,10 +53,19 @@ templates:
         - TokenHolder
         - TokenHourlyMetric
         - TokenDailyMetric
+        # Lane 1A.3 — V2 event entities (additive).
+        - TradeExecutedEvent
+        - GraduationTriggeredEvent
+        - SoftLaunchCapHitEvent
+        - SoftLaunchCapUpdatedEvent
+        - LiquidityPairPrePollutedEvent
+        - CreatorVestingCreatedEvent
+        - TreasuryAllocatedEvent
       abis:
         - name: BondingCurveAMM
           file: ./abis/BondingCurveAMM.json
       eventHandlers:
+        # Legacy V1 event surface — preserved for indexer compatibility.
         - event: Trade(indexed address,indexed bool,uint256,uint256,uint256,uint256,uint256)
           handler: handleTrade
         - event: Graduated(uint256,uint256,uint256)
@@ -63,4 +78,21 @@ templates:
           handler: handleLPTokensLocked
         - event: LPTokensWithdrawn(indexed address,uint256,indexed address)
           handler: handleLPTokensWithdrawn
+        # V2 structured event surface — Lane 1A.3 additions. Each handler
+        # writes one event entity keyed on tx hash + log index. None of the
+        # handlers mutate the legacy Token/Trade/User/TokenHolder entities.
+        - event: TradeExecuted(indexed address,indexed address,bool,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleTradeExecuted
+        - event: GraduationTriggered(indexed address,uint256,uint256,bool,uint256,uint256,uint256,uint256)
+          handler: handleGraduationTriggered
+        - event: SoftLaunchCapHit(indexed address,indexed address,uint256,uint256,uint256)
+          handler: handleSoftLaunchCapHit
+        - event: SoftLaunchCapUpdated(uint256,uint256)
+          handler: handleSoftLaunchCapUpdated
+        - event: LiquidityPairPrePolluted(indexed address)
+          handler: handleLiquidityPairPrePolluted
+        - event: CreatorVestingCreated(indexed address,indexed address,indexed address,uint256,uint256,uint256)
+          handler: handleCreatorVestingCreated
+        - event: TreasuryAllocated(indexed address,uint256,uint256)
+          handler: handleTreasuryAllocated
       file: ./src/bonding-curve-amm.ts
