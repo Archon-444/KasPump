@@ -30,8 +30,11 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
       });
   }, []);
 
-  // Don't render children during SSR - prevents wagmi hook errors
-  if (!isMounted) {
+  // Wait for Web3Provider to load before rendering children. Rendering
+  // children without Web3Provider causes wagmi hooks (useAccount etc.) to
+  // throw WagmiProviderNotFoundError, which trips the ErrorBoundary and
+  // leaves it stuck in fallback mode even after Web3Provider loads.
+  if (!isMounted || !Web3Provider) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-yellow-900/20 to-orange-900/20 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
@@ -52,19 +55,12 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
       >
         <ToastProvider>
           <AriaLiveProvider>
-            {Web3Provider ? (
-              <Web3Provider>
-                <div className="min-h-screen bg-gradient-to-br from-gray-900 via-yellow-900/20 to-orange-900/20">
-                  {children}
-                  <PerformanceMonitor />
-                </div>
-              </Web3Provider>
-            ) : (
+            <Web3Provider>
               <div className="min-h-screen bg-gradient-to-br from-gray-900 via-yellow-900/20 to-orange-900/20">
                 {children}
                 <PerformanceMonitor />
               </div>
-            )}
+            </Web3Provider>
           </AriaLiveProvider>
         </ToastProvider>
       </ErrorBoundary>
