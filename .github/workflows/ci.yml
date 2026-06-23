@@ -39,3 +39,27 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      # E2E: Start production server built in the previous step, wait for it,
+      # then run Playwright against it. PLAYWRIGHT_BASE_URL suppresses the
+      # playwright.config.ts webServer block (which would redundantly run dev).
+      - name: Start production server for E2E
+        run: npx next start &
+        env:
+          PORT: 3000
+
+      - name: E2E tests
+        run: npx wait-on http://localhost:3000 --timeout 60000 && npm run test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

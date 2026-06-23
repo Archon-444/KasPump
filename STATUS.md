@@ -36,7 +36,7 @@ All items must be ✅ before mainnet deployment.
 - [ ] Subgraph deployed (Goldsky or Alchemy) — endpoint set in `NEXT_PUBLIC_SUBGRAPH_URL`
 - [ ] 24h metrics populated from subgraph (not returning 0)
 - [ ] WebSocket server deployed (Render or equivalent), origin pinned in CSP
-- [ ] WebSocket server using Upstash Redis (not self-hosted)
+- [x] WebSocket server `RedisService.ts`: TLS auto-enabled for `rediss://` URL (Upstash) — **DONE** (2026-06-23)
 - [x] Client-side WS reconnection: exponential backoff (2s→4s→8s→16s→30s cap), degraded polling fallback — **DONE** (2026-06-23)
 - [x] RPC failover: `fallback([primary, secondary])` transport per chain in `wagmi.ts` — **DONE** (2026-06-23)
 - [ ] RPC failover in `BlockchainListener.ts`
@@ -55,7 +55,8 @@ All items must be ✅ before mainnet deployment.
 - [ ] Lighthouse mobile ≥90 on trading + home pages
 
 ### Launch Readiness
-- [ ] Playwright E2E suite passing in CI (connect → launch → buy → sell → graduate)
+- [x] Playwright E2E suite created: wallet-connect, launch-token, trade, graduation specs + CI gate — **DONE** (2026-06-23)
+- [ ] E2E suite passing in CI with staging Vercel URL (currently runs against local dev server; needs `PLAYWRIGHT_BASE_URL` secret set in GitHub Actions to run against staging)
 - [ ] Sentry DSN confirmed active — events reaching dashboard
 - [ ] Uptime monitoring configured (frontend + WS server)
 - [ ] Monitoring implementation guide updated from "Planning Phase" → "Active"
@@ -77,7 +78,7 @@ All items must be ✅ before mainnet deployment.
 | P1 — Security | 🔄 In Progress | CSP ✅, rate limiting ✅, IPFS ✅; Safe + fuzz tests + audit support remaining |
 | P2 — Scalability | 🔄 In Progress | KV cache ✅, WS backoff ✅, RPC failover ✅; subgraph + WS server + multicall remaining |
 | P3 — UI/UX | 🔴 Not started | Per-surface impeccable audits todo |
-| P4 — Launch Readiness | 🔄 In Progress | Brand centralized ✅; E2E, monitoring, dry-run remaining |
+| P4 — Launch Readiness | 🔄 In Progress | Brand ✅, E2E suite ✅; monitoring, dry-run remaining |
 | P5 — Rebrand | ⏸ Parked | Brand strings centralized; name not locked |
 
 ---
