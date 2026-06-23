@@ -15,6 +15,11 @@ vi.mock('@vercel/kv', () => ({
   },
 }));
 
+// Rate limiting is infrastructure, not business logic — always allow in unit tests.
+vi.mock('@/lib/rate-limit', () => ({
+  rateLimit: vi.fn().mockResolvedValue({ success: true, limit: 10, remaining: 9, reset: Date.now() + 60_000, headers: {} }),
+}));
+
 import { GET, POST, PATCH } from './route';
 import { kv } from '@vercel/kv';
 

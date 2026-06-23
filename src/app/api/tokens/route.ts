@@ -52,7 +52,9 @@ export async function GET(request: NextRequest) {
     // 2. Fetch paginated list
     const search = searchParams.get('search') || undefined;
     const result = await TokenService.getTokens(chainId, pageSize, offset, search);
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60' },
+    });
 
   } catch (error: any) {
     console.error('Tokens API Error:', error);
