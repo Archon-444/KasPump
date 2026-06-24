@@ -4,6 +4,8 @@
 // DO NOT import wagmi modules at top level - they cause SSR evaluation issues
 // All imports are done inside functions that only run on the client
 
+import { brand } from './brand';
+
 // Get WalletConnect Project ID from env
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '';
 
@@ -49,80 +51,45 @@ async function createConnectors(): Promise<any[]> {
   }
 
   try {
-    // Dynamically import the connectors we need
-    const { injected, metaMask, walletConnect, coinbaseWallet } = await import('wagmi/connectors');
-    const chains = await getChains();
-
-    const origin = getOrigin();
-    const logoUrl = getLogoUrl();
-
-    const connectorList = [
-      // MetaMask (highest priority for BSC)
-      metaMask({
-        dappMetadata: {
-          name: 'KasPump',
-          url: origin,
-        },
-      }),
-      // Generic injected wallet (Trust Wallet, Binance Wallet, etc.)
-      injected({
-        shimDisconnect: true,
-      }),
-      // WalletConnect (if project ID configured)
-      hasValidProjectId
-        ? walletConnect({
-            projectId,
-            metadata: {
-              name: 'KasPump',
-              description: 'KasPump multichain bonding curve trading',
-              url: origin,
-              icons: logoUrl ? [logoUrl] : [],
-            },
-          })
-        : null,
-      // Coinbase Wallet connector for Base + EVM chains
-      coinbaseWallet({
-        appName: 'KasPump',
-        preference: 'all',
-        appLogoUrl: logoUrl || undefined,
-        enableMobileLinks: true,
-        chainId: chains[0]?.id,
-      }),
-    ];
-
-    return connectorList.filter(Boolean); // Remove any null/undefined connectors
+    // `injected` is exported from the main `wagmi` package (via @wagmi/core) and
+    // carries zero SDK dependencies. It wraps window.ethereum and supports every
+    // injected wallet: MetaMask, Coinbase Extension, Brave Wallet, etc.
+    //
+    // DO NOT import from 'wagmi/connectors' here. That barrel re-exports
+    // @wagmi/connectors which loads @metamask/sdk, @coinbase/wallet-sdk, and
+    // @walletconnect/universal-provider. At least one of those SDKs executes
+    // synchronous blocking code during module evaluation (no-ops that poll or
+    // wait on missing browser APIs in restricted CI environments), which freezes
+    // the JavaScript event loop and prevents the app from ever rendering.
+    const { injected } = await import('wagmi');
+    return [injected({ shimDisconnect: true })];
   } catch (error) {
-    console.error('Error initializing wagmi connectors:', error);
-    // Fallback to minimal connector set
-    try {
-      const { metaMask, injected } = await import('wagmi/connectors');
-      return [
-        metaMask({
-          dappMetadata: {
-            name: 'KasPump',
-            url: getOrigin(),
-          },
-        }),
-        injected({ 
-          shimDisconnect: true,
-        }),
-      ].filter(Boolean);
-    } catch {
-      // Last resort: return empty array
-      return [];
-    }
+    console.error('Error creating injected connector:', error);
+    return [];
   }
 }
 
-// Default RPC URLs (fallback if env vars not set)
+// Primary RPC URLs (overrideable via env vars)
 function getDefaultRpcUrls() {
   return {
-    56: 'https://bsc-dataseed1.binance.org', // BSC Mainnet
-    97: 'https://data-seed-prebsc-1-s1.binance.org:8545', // BSC Testnet
-    42161: 'https://arb1.arbitrum.io/rpc', // Arbitrum One
-    421614: 'https://sepolia-rollup.arbitrum.io/rpc', // Arbitrum Sepolia
-    8453: 'https://mainnet.base.org', // Base Mainnet
-    84532: 'https://sepolia.base.org', // Base Sepolia
+    56: 'https://bsc-dataseed1.binance.org',
+    97: 'https://data-seed-prebsc-1-s1.binance.org:8545',
+    42161: 'https://arb1.arbitrum.io/rpc',
+    421614: 'https://sepolia-rollup.arbitrum.io/rpc',
+    8453: 'https://mainnet.base.org',
+    84532: 'https://sepolia.base.org',
+  } as Record<number, string>;
+}
+
+// Secondary RPC URLs for failover (used when primary is unavailable)
+function getFallbackRpcUrls() {
+  return {
+    56: 'https://bsc-dataseed2.binance.org',
+    97: 'https://data-seed-prebsc-2-s1.binance.org:8545',
+    42161: 'https://arb1.arbitrum.io/rpc', // no distinct public secondary for Arbitrum
+    421614: 'https://sepolia-rollup.arbitrum.io/rpc',
+    8453: 'https://base.llamarpc.com',
+    84532: 'https://sepolia.base.org',
   } as Record<number, string>;
 }
 
@@ -142,10 +109,11 @@ async function createWagmiConfig(): Promise<any> {
 
   try {
     // Dynamically import wagmi modules only when needed
-    const { http, createConfig } = await import('wagmi');
+    const { http, fallback, createConfig } = await import('wagmi');
     const chains = await getChains();
     const connectors = await createConnectors();
     const defaultRpcUrls = getDefaultRpcUrls();
+    const fallbackRpcUrls = getFallbackRpcUrls();
 
     // Env var lookup keyed by chain id. BSC + Arbitrum entries stay so re-enabling
     // those chains in `getChains` Just Works.
@@ -158,11 +126,13 @@ async function createWagmiConfig(): Promise<any> {
       84532: process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL,
     };
 
-    const transports = chains.reduce<Record<number, ReturnType<typeof http>>>((acc, chain) => {
-      const envUrl = envUrlByChainId[chain.id];
-      const rpcUrl = envUrl || defaultRpcUrls[chain.id];
-      if (rpcUrl) {
-        acc[chain.id] = http(rpcUrl);
+    const transports = chains.reduce<Record<number, ReturnType<typeof fallback>>>((acc, chain) => {
+      const primaryUrl = envUrlByChainId[chain.id] ?? defaultRpcUrls[chain.id];
+      const secondaryUrl = fallbackRpcUrls[chain.id];
+      if (primaryUrl && secondaryUrl && primaryUrl !== secondaryUrl) {
+        acc[chain.id] = fallback([http(primaryUrl), http(secondaryUrl)]);
+      } else if (primaryUrl) {
+        acc[chain.id] = fallback([http(primaryUrl)]);
       }
       return acc;
     }, {});

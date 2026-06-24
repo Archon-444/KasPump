@@ -125,6 +125,8 @@ export async function GET(request: NextRequest) {
         .slice(0, 5),
       fading,
       totalTokens: allTokens.length,
+    }, {
+      headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60' },
     });
   } catch (error: any) {
     console.error('Trending API Error:', error);

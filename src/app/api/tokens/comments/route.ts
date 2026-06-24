@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { kv } from '@vercel/kv';
+import { rateLimit } from '@/lib/rate-limit';
+import { CommentPostSchema, CommentReactionSchema } from '@/schemas';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,22 +67,21 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const rl = await rateLimit(request, 'strict');
+  if (!rl.success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: rl.headers });
+  }
+
   try {
     const body = await request.json();
-    const { tokenAddress, walletAddress, text, signature, isCreator } = body;
-
-    if (!tokenAddress || !ethers.isAddress(tokenAddress)) {
-      return NextResponse.json({ error: 'Valid token address required' }, { status: 400 });
+    const parsed = CommentPostSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? 'Invalid request body' },
+        { status: 400 }
+      );
     }
-    if (!walletAddress || !ethers.isAddress(walletAddress)) {
-      return NextResponse.json({ error: 'Valid wallet address required' }, { status: 400 });
-    }
-    if (!text || typeof text !== 'string' || text.trim().length === 0) {
-      return NextResponse.json({ error: 'Comment text required' }, { status: 400 });
-    }
-    if (text.length > 500) {
-      return NextResponse.json({ error: 'Comment too long (max 500 chars)' }, { status: 400 });
-    }
+    const { tokenAddress, walletAddress, text, signature, isCreator } = parsed.data;
 
     if (signature) {
       try {
@@ -139,22 +140,21 @@ export async function POST(request: NextRequest) {
  * Body: { tokenAddress, walletAddress, commentId, emoji }
  */
 export async function PATCH(request: NextRequest) {
+  const rl = await rateLimit(request, 'strict');
+  if (!rl.success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: rl.headers });
+  }
+
   try {
     const body = await request.json();
-    const { tokenAddress, walletAddress, commentId, emoji } = body;
-
-    if (!tokenAddress || !ethers.isAddress(tokenAddress)) {
-      return NextResponse.json({ error: 'Valid token address required' }, { status: 400 });
+    const parsed = CommentReactionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? 'Invalid request body' },
+        { status: 400 }
+      );
     }
-    if (!walletAddress || !ethers.isAddress(walletAddress)) {
-      return NextResponse.json({ error: 'Valid wallet address required' }, { status: 400 });
-    }
-    if (!commentId || typeof commentId !== 'string') {
-      return NextResponse.json({ error: 'Comment ID required' }, { status: 400 });
-    }
-    if (!ALLOWED_REACTIONS.includes(emoji)) {
-      return NextResponse.json({ error: 'Invalid reaction' }, { status: 400 });
-    }
+    const { tokenAddress, walletAddress, commentId, emoji } = parsed.data;
 
     const lockKey = `lock:${commentKey(tokenAddress)}`;
     const acquired = await kv.set(lockKey, '1', { nx: true, ex: 5 });

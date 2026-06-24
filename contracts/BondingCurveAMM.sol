@@ -408,15 +408,12 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     // ========== EXTERNAL FUNCTIONS ==========
 
     /**
-     * @dev Buy tokens with native currency (ETH/BNB)
-     * @param minTokensOut Minimum tokens to receive (slippage protection)
-     *
-     * SECURITY FIXES APPLIED:
-     * - nonReentrant: Prevents reentrancy attacks
-     * - whenNotPaused: Allows emergency stop
-     * - Checks-Effects-Interactions pattern
-     * - SafeERC20 for token transfer
-     * - Address.sendValue for ETH transfer
+     * @notice Buy tokens with native currency (ETH/BNB). Executes against the
+     *         bonding curve at the current supply. Partial fills applied at the
+     *         soft-launch cap and at the graduation threshold; excess native is
+     *         refunded to the caller.
+     * @dev Uses Checks-Effects-Interactions. nonReentrant + whenNotPaused.
+     * @param minTokensOut Minimum tokens to receive (slippage protection); reverts if output < this value
      */
     function buyTokens(uint256 minTokensOut)
         external
@@ -626,15 +623,13 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @dev Sell tokens for native currency
-     * @param tokenAmount Amount of tokens to sell
-     * @param minNativeOut Minimum native currency to receive
-     *
-     * SECURITY FIXES APPLIED:
-     * - nonReentrant: Prevents reentrancy
-     * - SafeERC20: Safe token transfers
-     * - Address.sendValue: Safe ETH transfer
-     * - Proper state updates before external calls
+     * @notice Sell tokens back to the bonding curve for native currency. The
+     *         curve always bids; there is no liquidity crunch before graduation.
+     *         Same-block sells after a buy are blocked during the sniper window
+     *         or when the sell is unusually large (anti-sandwich).
+     * @dev Uses Checks-Effects-Interactions. nonReentrant + whenNotPaused.
+     * @param tokenAmount Amount of tokens to sell (must be > 0 and <= currentSupply)
+     * @param minNativeOut Minimum native currency to receive; reverts if output < this value
      */
     function sellTokens(uint256 tokenAmount, uint256 minNativeOut)
         external
@@ -827,8 +822,12 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     // ========== VIEW FUNCTIONS ==========
 
     /**
-     * @dev Calculate tokens received for given native amount.
-     * Pure pass-through to the standardized sigmoid library.
+     * @notice Estimate tokens received for a given native currency amount at a
+     *         given supply. Does not account for fees or the graduation clamp.
+     *         Use for price-impact estimates; actual trade output will differ.
+     * @param nativeIn Amount of native currency in (wei). Returns 0 if zero.
+     * @param supply Token supply at which to evaluate the curve.
+     * @return Tokens the curve would output for `nativeIn` at `supply`.
      */
     function calculateTokensOut(uint256 nativeIn, uint256 supply) public pure returns (uint256) {
         if (nativeIn == 0) return 0;
@@ -836,7 +835,11 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @dev Calculate native currency received for given token amount.
+     * @notice Estimate native currency received for selling a given token amount
+     *         at a given supply. Does not deduct fees. Returns 0 for invalid inputs.
+     * @param tokensIn Amount of tokens to sell.
+     * @param supply Current token supply (tokensIn must not exceed this).
+     * @return Native currency (wei) the curve would return.
      */
     function calculateNativeOut(uint256 tokensIn, uint256 supply) public pure returns (uint256) {
         if (tokensIn == 0 || tokensIn > supply) return 0;
@@ -844,7 +847,9 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @dev Get current spot price (wei per full token) at the live supply.
+     * @notice Returns the current spot price of one full token (1e18 units) in wei,
+     *         evaluated at the live `currentSupply` against the sigmoid curve.
+     * @return Spot price in wei per 1e18 tokens.
      */
     function getCurrentPrice() public view returns (uint256) {
         return BondingCurveMath.getPriceSigmoid(currentSupply);
@@ -967,7 +972,12 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @dev Get trading information for UI
+     * @notice Snapshot of key trading metrics for frontend/API consumption.
+     * @return _currentSupply  Tokens currently in circulation (excluding graduation reserve).
+     * @return _currentPrice   Spot price in wei per 1e18 tokens at current supply.
+     * @return _totalVolume    Cumulative native currency traded through the curve (wei).
+     * @return _graduationProgress Proportion of graduation threshold reached, in basis points (0–10000).
+     * @return _isGraduated    True once the token has graduated to a DEX liquidity pool.
      */
     function getTradingInfo() external view returns (
         uint256 _currentSupply,
@@ -986,7 +996,11 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @dev Calculate price impact for a trade, in basis points.
+     * @notice Estimate the price impact of a hypothetical trade in basis points (100 = 1%).
+     *         Impact is computed as |newPrice - currentPrice| / currentPrice * 10000.
+     * @param amount For a buy: native currency in (wei). For a sell: token amount.
+     * @param isBuy  True for a buy trade, false for a sell trade.
+     * @return Price impact in basis points (0–10000+).
      */
     function getPriceImpact(uint256 amount, bool isBuy) external view returns (uint256) {
         uint256 currentPrice = getCurrentPrice();

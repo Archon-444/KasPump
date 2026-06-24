@@ -133,8 +133,17 @@ async function main() {
 
     // ========== STEP 6: Transfer Ownership ==========
 
-    console.log("\n📄 Step 6: Transferring TokenFactory ownership to deployer...");
-    await deterministicDeployer.transferTokenFactoryOwnership(DEPLOYMENT_SALT, deployer.address);
+    const safeOwner = process.env.SAFE_OWNER_ADDRESS;
+    const newOwner = safeOwner ?? deployer.address;
+
+    if (!safeOwner) {
+        console.warn("\n⚠️  WARNING: SAFE_OWNER_ADDRESS is not set.");
+        console.warn("   Ownership will remain with the deployer EOA — NOT SAFE FOR MAINNET.");
+        console.warn("   Create a Gnosis Safe (app.safe.global) and set SAFE_OWNER_ADDRESS before mainnet.\n");
+    }
+
+    console.log(`\n📄 Step 6: Transferring TokenFactory ownership to ${newOwner}...`);
+    await deterministicDeployer.transferTokenFactoryOwnership(DEPLOYMENT_SALT, newOwner);
     console.log("✅ Ownership transferred");
 
     // ========== STEP 7: Test Factory ==========

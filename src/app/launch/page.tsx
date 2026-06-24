@@ -14,7 +14,6 @@ import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { QuickLaunchForm } from '../../components/features/QuickLaunchForm';
-import { WalletRequired } from '../../components/features/WalletConnectButton';
 import { Button } from '../../components/ui';
 import { AmbientBackground } from '../../components/ui/enhanced';
 
@@ -22,7 +21,8 @@ export default function LaunchPage() {
   const router = useRouter();
 
   return (
-    <AmbientBackground>
+    <div className="min-h-screen relative">
+      <AmbientBackground />
       <main className="min-h-screen px-4 py-8 md:py-12">
         <div className="max-w-5xl mx-auto">
           <div className="mb-6">
@@ -36,11 +36,9 @@ export default function LaunchPage() {
             </Button>
           </div>
 
-          <WalletRequired>
-            <QuickLaunchForm />
-          </WalletRequired>
+          <QuickLaunchForm />
         </div>
       </main>
-    </AmbientBackground>
+    </div>
   );
 }

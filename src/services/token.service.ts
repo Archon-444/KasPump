@@ -1,7 +1,8 @@
 import { ethers } from 'ethers';
 import { BlockchainService } from './blockchain';
 import { MoralisService } from './moralis.service';
-import { TokenFactory, BondingCurveAMM } from '../../typechain-types';
+import { TokenFactory, BondingCurveAMM__factory } from '../../typechain-types';
+import { getTokenFactoryAddress } from '../config/contracts';
 
 export interface TokenDetails {
   address: string;
@@ -63,15 +64,19 @@ export class TokenService {
   }
 
   /**
-   * Fetch a paginated list of tokens
+   * Fetch a paginated list of tokens.
+   * View-function calls (getTokenConfig, getTokenAMM, getTradingInfo) are
+   * batched via Multicall3 — two round-trips regardless of page size instead
+   * of N×3 individual calls.
    */
   static async getTokens(
-    chainId: number, 
-    limit: number = 20, 
+    chainId: number,
+    limit: number = 20,
     offset: number = 0,
     search?: string
   ): Promise<PaginatedTokens> {
     const factory = BlockchainService.getTokenFactory(chainId);
+    const factoryAddress = getTokenFactoryAddress(chainId);
     const allTokens = await factory.getAllTokens();
 
     let tokenAddresses = allTokens;
@@ -80,36 +85,157 @@ export class TokenService {
       const query = search.trim().toLowerCase();
 
       if (ethers.isAddress(query)) {
-        tokenAddresses = allTokens.filter(
-          addr => addr.toLowerCase() === query
-        );
+        tokenAddresses = allTokens.filter(addr => addr.toLowerCase() === query);
       } else {
-        const configs = await Promise.all(
-          allTokens.map(async (addr) => {
-            try {
-              const config = await factory.getTokenConfig(addr);
-              return { addr, name: config.name, symbol: config.symbol };
-            } catch {
-              return null;
-            }
-          })
-        );
+        // Batch all getTokenConfig calls for search filtering in one multicall.
+        const searchCalls = allTokens.map(addr => ({
+          target: factoryAddress!,
+          callData: factory.interface.encodeFunctionData('getTokenConfig', [addr]),
+        }));
+        const searchResults = factoryAddress
+          ? await BlockchainService.multicall3(chainId, searchCalls)
+          : [];
 
-        tokenAddresses = configs
-          .filter((c): c is NonNullable<typeof c> =>
-            c !== null && (
-              c.name.toLowerCase().includes(query) ||
-              c.symbol.toLowerCase().includes(query)
-            )
-          )
-          .map(c => c.addr);
+        tokenAddresses = allTokens.filter((_addr, i) => {
+          const r = searchResults[i];
+          if (!r?.success) return false;
+          try {
+            const [cfg] = factory.interface.decodeFunctionResult('getTokenConfig', r.returnData);
+            return (
+              (cfg.name as string).toLowerCase().includes(query) ||
+              (cfg.symbol as string).toLowerCase().includes(query)
+            );
+          } catch {
+            return false;
+          }
+        });
       }
     }
 
     const paginatedAddresses = tokenAddresses.slice(offset, offset + limit);
 
+    if (paginatedAddresses.length === 0) {
+      return {
+        tokens: [],
+        pagination: { total: tokenAddresses.length, offset, limit, hasMore: false },
+      };
+    }
+
+    // Batch 1: getTokenConfig + getTokenAMM for all tokens in the page.
+    let configResults: Array<{ success: boolean; returnData: string }> = [];
+    let ammResults: Array<{ success: boolean; returnData: string }> = [];
+
+    if (factoryAddress) {
+      const batch1 = [
+        ...paginatedAddresses.map(addr => ({
+          target: factoryAddress,
+          callData: factory.interface.encodeFunctionData('getTokenConfig', [addr]),
+        })),
+        ...paginatedAddresses.map(addr => ({
+          target: factoryAddress,
+          callData: factory.interface.encodeFunctionData('getTokenAMM', [addr]),
+        })),
+      ];
+      const batch1Results = await BlockchainService.multicall3(chainId, batch1);
+      configResults = batch1Results.slice(0, paginatedAddresses.length);
+      ammResults = batch1Results.slice(paginatedAddresses.length);
+    }
+
+    // Decode AMM addresses.
+    const ammAddresses: Array<string | null> = ammResults.map(r => {
+      if (!r?.success) return null;
+      try {
+        const [addr] = factory.interface.decodeFunctionResult('getTokenAMM', r.returnData);
+        return addr && addr !== ethers.ZeroAddress ? (addr as string) : null;
+      } catch {
+        return null;
+      }
+    });
+
+    // Batch 2: getTradingInfo for each AMM that was found.
+    const ammIface = BondingCurveAMM__factory.createInterface();
+    const ammBatchInput = ammAddresses
+      .map((addr, i) => (addr ? { addr, i } : null))
+      .filter((x): x is { addr: string; i: number } => x !== null)
+      .map(({ addr, i }) => ({
+        index: i,
+        call: { target: addr, callData: ammIface.encodeFunctionData('getTradingInfo') },
+      }));
+
+    const tradingInfoByIndex = new Map<
+      number,
+      { currentSupply: number; currentPrice: number; totalVolume: number; graduation: number; isGraduated: boolean }
+    >();
+
+    if (ammBatchInput.length > 0) {
+      const batch2Results = await BlockchainService.multicall3(
+        chainId,
+        ammBatchInput.map(x => x.call)
+      );
+      for (let j = 0; j < ammBatchInput.length; j++) {
+        const r = batch2Results[j];
+        if (!r?.success) continue;
+        try {
+          const info = ammIface.decodeFunctionResult('getTradingInfo', r.returnData);
+          tradingInfoByIndex.set(ammBatchInput[j]!.index, {
+            currentSupply: parseFloat(ethers.formatEther(info[0] as bigint)),
+            currentPrice: parseFloat(ethers.formatEther(info[1] as bigint)),
+            totalVolume: parseFloat(ethers.formatEther(info[2] as bigint)),
+            graduation: parseFloat(ethers.formatUnits(info[3] as bigint, 2)),
+            isGraduated: info[4] as boolean,
+          });
+        } catch { /* skip bad result */ }
+      }
+    }
+
+    // Assemble final token list; creator/time still use event filters.
     const tokensWithData = await Promise.all(
-      paginatedAddresses.map(address => this.fetchTokenData(factory, chainId, address))
+      paginatedAddresses.map(async (address, i) => {
+        const configResult = configResults[i];
+        if (!configResult?.success) return this.fetchTokenData(factory, chainId, address);
+        try {
+          const [cfg] = factory.interface.decodeFunctionResult('getTokenConfig', configResult.returnData);
+          const ammAddress = ammAddresses[i] ?? null;
+          const td = tradingInfoByIndex.get(i) ?? null;
+          const currentSupply = td?.currentSupply ?? 0;
+          const currentPrice = td?.currentPrice ?? 0;
+
+          const [creator, createdAt, holders] = await Promise.all([
+            this.getTokenCreator(factory, address),
+            this.getTokenCreationTime(factory, address),
+            MoralisService.getHolderCount(address, chainId),
+          ]);
+          const metrics = ammAddress
+            ? await this.get24hMetrics(chainId, ammAddress, currentPrice)
+            : { transactions24h: 0, priceChange24h: 0, volumeChange24h: 0 };
+
+          return {
+            address,
+            name: cfg.name as string,
+            symbol: cfg.symbol as string,
+            description: cfg.description as string,
+            imageUrl: cfg.imageUrl as string,
+            creator,
+            totalSupply: parseFloat(ethers.formatEther(cfg.totalSupply as bigint)),
+            currentSupply,
+            currentPrice,
+            marketCap: currentSupply * currentPrice,
+            basePrice: 0,
+            slope: 0,
+            curveType: 'sigmoid' as const,
+            graduationThreshold: parseFloat(ethers.formatEther(cfg.graduationThreshold as bigint)),
+            graduationProgress: td?.graduation ?? 0,
+            volume24h: td?.totalVolume ?? 0,
+            isGraduated: td?.isGraduated ?? false,
+            ammAddress,
+            createdAt,
+            analytics: { holders, ...metrics },
+          } satisfies TokenDetails;
+        } catch {
+          // Multicall decode failed; fall back to individual calls.
+          return this.fetchTokenData(factory, chainId, address);
+        }
+      })
     );
 
     const validTokens = tokensWithData.filter((t): t is TokenDetails => t !== null);
@@ -120,8 +246,8 @@ export class TokenService {
         total: tokenAddresses.length,
         offset,
         limit,
-        hasMore: offset + limit < tokenAddresses.length
-      }
+        hasMore: offset + limit < tokenAddresses.length,
+      },
     };
   }
 
@@ -193,7 +319,7 @@ export class TokenService {
       const events = await factory.queryFilter(filter);
       
       if (events.length > 0) {
-        return events[0].args.ammAddress;
+        return events[0]!.args.ammAddress;
       }
     } catch (e) {
       console.warn(`Failed to filter events for ${tokenAddress}`, e);
@@ -301,7 +427,7 @@ export class TokenService {
     try {
       const filter = factory.filters.TokenCreated(tokenAddress);
       const events = await factory.queryFilter(filter);
-      return events.length > 0 ? events[0].args.creator : ethers.ZeroAddress;
+      return events.length > 0 ? events[0]!.args.creator : ethers.ZeroAddress;
     } catch {
       return ethers.ZeroAddress;
     }
@@ -316,7 +442,7 @@ export class TokenService {
       const events = await factory.queryFilter(filter);
       
       if (events.length > 0) {
-        const block = await events[0].getBlock();
+        const block = await events[0]!.getBlock();
         return new Date(block.timestamp * 1000).toISOString();
       }
     } catch { /* ignore */ }

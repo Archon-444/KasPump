@@ -43,7 +43,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: ipfs:; font-src 'self' data:; connect-src 'self' https://*.binance.org https://*.bnbchain.org https://data-seed-prebsc-*.binance.org:* https://*.arbitrum.io https://*.base.org https://gateway.ipfs.io wss: https:; frame-src 'none'; object-src 'none'; base-uri 'self'"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: ipfs:; font-src 'self' data:; connect-src 'self' https://bsc-dataseed1.binance.org https://bsc-dataseed2.binance.org https://bsc-dataseed3.binance.org https://bsc-dataseed4.binance.org https://data-seed-prebsc-1-s1.binance.org:8545 https://data-seed-prebsc-2-s1.binance.org:8545 https://rpc-bsc.48.club https://*.bnbchain.org https://arb1.arbitrum.io https://sepolia-rollup.arbitrum.io https://mainnet.base.org https://sepolia.base.org https://deep-index.moralis.io https://api.pinata.cloud https://ipfs.io https://gateway.ipfs.io https://api.thegraph.com https://explorer-api.walletconnect.com https://verify.walletconnect.com https://pulse.walletconnect.org wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.ingest.sentry.io https://api.bscscan.com; frame-src 'none'; object-src 'none'; base-uri 'self'"
         }
       ]
     }
