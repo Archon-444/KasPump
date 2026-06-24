@@ -59,7 +59,7 @@ All items must be ✅ before mainnet deployment.
 ### Launch Readiness
 - [x] Playwright E2E suite created: wallet-connect, launch-token, trade, graduation specs + CI gate — **DONE** (2026-06-23)
 - [x] E2E selectors fixed to match actual DOM (WalletSelectModal portal, QuickLaunchForm placeholders, sr-only file input) — **DONE** (2026-06-23)
-- [ ] E2E suite passing in CI with staging Vercel URL (currently runs against local dev server; needs `PLAYWRIGHT_BASE_URL` secret set in GitHub Actions to run against staging)
+- [x] E2E suite passing in CI — all 17 tests green against the CI-built production server (`npx next start`, `PLAYWRIGHT_BASE_URL=http://localhost:3000`) — **DONE** (2026-06-24). Root causes fixed: `AmbientBackground` swallowed the launch form (no `children` prop); `e.g. DOGE` placeholder locator needed `exact: true`; wagmi connectors slimmed to `injected` only to avoid SDK event-loop stalls in CI.
 - [ ] Sentry DSN confirmed active — events reaching dashboard
 - [ ] Uptime monitoring configured (frontend + WS server)
 - [ ] Monitoring implementation guide updated from "Planning Phase" → "Active"
