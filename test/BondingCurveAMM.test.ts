@@ -101,8 +101,10 @@ describe("BondingCurveAMM precision", function () {
     const ammBalanceAfterSell = await ethers.provider.getBalance(
       await amm.getAddress()
     );
-    // After selling, accumulated creator fees remain in the contract
-    const accumulatedFees = await amm.creatorAccumulatedFees();
+    // After selling, accumulated creator + platform fees remain in the
+    // contract (both are pull-payment buckets, settled separately).
+    const accumulatedFees =
+      (await amm.creatorAccumulatedFees()) + (await amm.platformAccumulatedFees());
     expect(ammBalanceAfterSell).to.equal(accumulatedFees);
 
     // AMM token balance returns to TOTAL_SUPPLY after a clean buy/sell round-trip.
@@ -160,7 +162,7 @@ describe("BondingCurveAMM emergencyWithdraw", function () {
     ).to.emit(amm, "EmergencyWithdraw");
   });
 
-  it("preserves reserved creator fees", async function () {
+  it("preserves all reserved buckets (curve liquidity, creator + platform fees)", async function () {
     const { amm, deployer, user } = await deployFixture();
     await skipSniperWindow();
 
@@ -169,11 +171,22 @@ describe("BondingCurveAMM emergencyWithdraw", function () {
     const creatorFees = await amm.creatorAccumulatedFees();
     expect(creatorFees).to.be.gt(0n);
 
+    const reserved =
+      (await amm.curveNativeBalance()) +
+      creatorFees +
+      (await amm.referrerAccumulatedFees()) +
+      (await amm.platformAccumulatedFees()) +
+      (await amm.totalGraduationFunds());
+
+    const balBefore = await ethers.provider.getBalance(await amm.getAddress());
+
     await amm.connect(deployer).pause();
     await amm.connect(deployer).emergencyWithdraw("test withdrawal");
 
+    // No stray native → nothing is withdrawn; every owed bucket is preserved.
     const balanceAfter = await ethers.provider.getBalance(await amm.getAddress());
-    expect(balanceAfter).to.equal(creatorFees);
+    expect(balanceAfter).to.equal(balBefore);
+    expect(balanceAfter).to.equal(reserved);
   });
 });
 
