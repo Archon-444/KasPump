@@ -19,26 +19,29 @@ export class RedisService {
 
   private connect() {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const isTLS = redisUrl.startsWith('rediss://');
+
+    const baseOptions = {
+      retryStrategy: (times: number) => {
+        if (times > 10) {
+          logger.error('Redis connection failed after 10 retries');
+          return null;
+        }
+        return Math.min(times * 50, 2000);
+      },
+      maxRetriesPerRequest: 3,
+      ...(isTLS && { tls: {} }),
+    };
 
     try {
       // Main client for get/set operations
-      this.client = new Redis(redisUrl, {
-        retryStrategy: (times) => {
-          if (times > 10) {
-            logger.error('Redis connection failed after 10 retries');
-            return null;
-          }
-          const delay = Math.min(times * 50, 2000);
-          return delay;
-        },
-        maxRetriesPerRequest: 3,
-      });
+      this.client = new Redis(redisUrl, baseOptions);
 
       // Subscriber for pub/sub
-      this.subscriber = new Redis(redisUrl);
+      this.subscriber = new Redis(redisUrl, isTLS ? { tls: {} } : {});
 
       // Publisher for pub/sub
-      this.publisher = new Redis(redisUrl);
+      this.publisher = new Redis(redisUrl, isTLS ? { tls: {} } : {});
 
       this.client.on('connect', () => {
         logger.info('Redis client connected');

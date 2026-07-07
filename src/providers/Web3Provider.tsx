@@ -51,6 +51,7 @@ export function Web3Provider({ children }: Web3ProviderProps) {
 
     const loadWagmiSetup = async () => {
       try {
+        console.log('[Web3Provider] loading wagmi…');
         // Load both the provider and config in parallel
         const [wagmiModule, loadedConfig] = await Promise.all([
           import('wagmi'),
@@ -61,16 +62,17 @@ export function Web3Provider({ children }: Web3ProviderProps) {
 
         // Validate config
         if (!loadedConfig || typeof loadedConfig !== 'object' || !('chains' in loadedConfig)) {
-          console.error('Invalid wagmi config');
+          console.error('[Web3Provider] invalid wagmi config:', loadedConfig);
           setMounted(true);
           return;
         }
 
+        console.log('[Web3Provider] wagmi ready');
         setWagmiProvider(() => wagmiModule.WagmiProvider);
         setConfig(loadedConfig);
         setMounted(true);
       } catch (error) {
-        console.error('Failed to load wagmi setup:', error);
+        console.error('[Web3Provider] failed to load wagmi:', error);
         if (!cancelled) {
           setMounted(true);
         }

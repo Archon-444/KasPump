@@ -56,7 +56,8 @@ class WebSocketClient {
   private url: string;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
+  private reconnectDelay = 2_000; // 2s base → 4s → 8s → 16s → 30s (capped)
+  private degradedRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
   private isConnecting = false;
   private pingInterval: NodeJS.Timeout | null = null;
@@ -154,19 +155,23 @@ class WebSocketClient {
         this.ws.onclose = () => {
           this.isConnecting = false;
           this.stopPing();
-          console.log('WebSocket disconnected');
-          
-          // Attempt to reconnect if not manually closed
+
           if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
-            const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-            console.log(`Reconnecting in ${delay}ms... (attempt ${this.reconnectAttempts})`);
-            
-            setTimeout(() => {
-              this.connect().catch(console.error);
-            }, delay);
+            const delay = Math.min(
+              this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
+              30_000
+            );
+            console.log(`WebSocket disconnected — reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+            setTimeout(() => { this.connect().catch(console.error); }, delay);
           } else {
-            console.error('Max reconnection attempts reached');
+            // Degrade to polling: notify listeners and retry every 60s
+            console.warn('WebSocket max reconnect attempts reached — entering degraded mode (polling every 60s)');
+            const listeners = this.listeners.get('connection_lost');
+            if (listeners) {
+              listeners.forEach(fn => { try { fn(null); } catch { /* ignore */ } });
+            }
+            this.scheduleDegradedRetry();
           }
         };
       } catch (error) {
@@ -178,6 +183,11 @@ class WebSocketClient {
 
   disconnect(): void {
     this.stopPing();
+    if (this.degradedRetryTimer) {
+      clearTimeout(this.degradedRetryTimer);
+      this.degradedRetryTimer = null;
+    }
+    this.reconnectAttempts = 0;
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -230,6 +240,17 @@ class WebSocketClient {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
     }
+  }
+
+  private scheduleDegradedRetry(): void {
+    if (this.degradedRetryTimer) {
+      clearTimeout(this.degradedRetryTimer);
+    }
+    this.degradedRetryTimer = setTimeout(() => {
+      this.degradedRetryTimer = null;
+      this.reconnectAttempts = 0;
+      this.connect().catch(console.error);
+    }, 60_000);
   }
 
   get readyState(): number {
