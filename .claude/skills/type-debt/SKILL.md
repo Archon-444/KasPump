@@ -10,21 +10,22 @@ Incrementally fix the pre-existing TypeScript errors left behind by the V2 rewor
 
 ## Background
 
-- `next.config.js` sets `typescript.ignoreBuildErrors: true` and `.github/workflows/ci.yml` runs `type-check` with `continue-on-error: true`. The ci.yml comment says "~470 pre-existing errors", but the real baseline is far larger: **~5,100 `error TS` lines** as of July 2026.
-- `tsc` aborts on tsconfig deprecation errors (`moduleResolution: node10`, `baseUrl`) unless invoked with `--ignoreDeprecations 6.0`.
-- Worst files (errors, descending): `src/components/features/LaunchPad.tsx` (legacy, orphaned — consider whether deleting beats fixing), `src/components/features/TokenCard.tsx`, `src/components/mobile/MobileTokenCard.tsx`, `src/components/features/MultichainWalletButton.tsx`, `src/components/admin/AdminDeploymentDashboard.tsx`, `src/app/settings/page.tsx`, `src/app/disclaimer/page.tsx`, `src/components/features/TokenTradingPage.tsx`, `src/components/features/TradingInterface.tsx`, `src/app/privacy/page.tsx`, `src/app/page.tsx`, `src/app/terms/page.tsx`.
+- `next.config.js` sets `typescript.ignoreBuildErrors: true` and `.github/workflows/ci.yml` runs `type-check` with `continue-on-error: true`.
+- Baseline: **284 `error TS` lines** as of July 2026 (was 450 before the first burn-down pass fixed the jest-dom/Vitest matcher augmentation and the `features/__tests__/` files). Run `npm install --legacy-peer-deps` first — measuring with a missing `node_modules` makes npx fetch a different TypeScript and produces wildly inflated counts (an earlier audit got ~5,100 this way).
+- Plain `npx tsc --noEmit` works: `tsconfig.json` already carries `"ignoreDeprecations": "5.0"`. Do NOT pass `--ignoreDeprecations` on the CLI (the installed TS 5.9 rejects `6.0`).
+- Worst remaining files (errors, descending): `src/hooks/useCreatorTokens.test.ts` (22), `src/hooks/usePortfolio.test.ts` (18), `src/hooks/useContracts.ts` (17), `src/hooks/usePortfolio.ts` (13), `src/hooks/usePriceAlerts.test.ts` (12), `src/hooks/useCreatorTokens.ts` (12), `src/lib/ipfs.ts` (10), `src/integrations/PartnershipIntegration.ts` (8), `src/components/features/TradingChart.tsx` (8), `src/contexts/ToastContext.tsx` (7).
 
 ## Workflow
 
-1. **Scope**: use the argument as the target directory or file. With no argument, pick the worst not-yet-clean file from the list above (skip `LaunchPad.tsx` unless asked — it may be deleted instead).
+1. **Scope**: use the argument as the target directory or file. With no argument, pick the worst not-yet-clean file from the list above. When errors in a scope share one root cause (e.g. a missing type augmentation in `src/test/setup.ts` once accounted for 157 errors), fix the cause, not the symptoms.
 
 2. **Baseline**:
    ```bash
-   npx tsc --noEmit --ignoreDeprecations 6.0 2>&1 | grep -c "error TS"
+   npx tsc --noEmit 2>&1 | grep -c "error TS"
    ```
    Also capture the per-file errors for the scope:
    ```bash
-   npx tsc --noEmit --ignoreDeprecations 6.0 2>&1 | grep "^<scope-path>"
+   npx tsc --noEmit 2>&1 | grep "^<scope-path>"
    ```
 
 3. **Fix** every error in scope. Rules:
@@ -34,12 +35,12 @@ Incrementally fix the pre-existing TypeScript errors left behind by the V2 rewor
 
 4. **Verify**:
    ```bash
-   npx tsc --noEmit --ignoreDeprecations 6.0 2>&1 | grep -c "error TS"   # must be lower
-   npm run test:unit                                                     # must still pass
+   npx tsc --noEmit 2>&1 | grep -c "error TS"   # must be lower
+   npm run test:unit                            # must still pass
    ```
 
 5. **Report**: global count before → after, files touched, and any genuine bugs the types uncovered.
 
 ## End goal
 
-When the global count reaches 0: remove `continue-on-error: true` from the type-check step in `.github/workflows/ci.yml`, set `typescript.ignoreBuildErrors: false` in `next.config.js`, and clean up the tsconfig deprecations so the `--ignoreDeprecations` flag can be dropped.
+When the global count reaches 0: remove `continue-on-error: true` from the type-check step in `.github/workflows/ci.yml`, set `typescript.ignoreBuildErrors: false` in `next.config.js`, and migrate `moduleResolution`/`baseUrl` off the deprecated settings so `"ignoreDeprecations"` can leave `tsconfig.json`.

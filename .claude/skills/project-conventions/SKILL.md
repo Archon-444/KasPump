@@ -24,7 +24,7 @@ New features must not accept, validate, or display a curve choice.
 
 **Current**: `src/components/features/QuickLaunchForm.tsx` (name/ticker/image only, "30-second launch"), used by `src/app/launch/page.tsx` and `src/app/creator/page.tsx`.
 
-**Legacy**: `src/components/features/LaunchPad.tsx` — the old 5-step wizard with curve configuration. It is orphaned (no page imports it) and is also the single worst type-rot file. Never use it as a reference. `tools/token-launch-wizard/` is likewise legacy.
+**Legacy**: `src/components/features/LaunchPad.tsx` — the old 5-step wizard with curve configuration. It is orphaned (no page imports it) and a deletion candidate. Never use it as a reference. `tools/token-launch-wizard/` is likewise legacy.
 
 ## Dead and generated files
 
@@ -40,4 +40,4 @@ New features must not accept, validate, or display a curve choice.
 
 ## Type errors
 
-~5,100 pre-existing `error TS` lines, concentrated in page/component files (worst: `LaunchPad.tsx`, `TokenCard.tsx`, `MobileTokenCard.tsx`, `MultichainWalletButton.tsx`, `AdminDeploymentDashboard.tsx`, static pages). Treat these files' patterns as anti-examples. Don't add new errors: run `npx tsc --noEmit --ignoreDeprecations 6.0` and compare the error count against baseline rather than expecting zero. The `/type-debt` skill exists to burn this down.
+A few hundred pre-existing `error TS` lines remain (284 as of July 2026), concentrated in hooks and their tests (`useCreatorTokens`, `usePortfolio`, `useContracts`, `src/lib/ipfs.ts`). Don't add new errors: run plain `npx tsc --noEmit` (after `npm install --legacy-peer-deps` — never measure without `node_modules`) and compare the count against baseline rather than expecting zero. The `/type-debt` skill exists to burn this down.

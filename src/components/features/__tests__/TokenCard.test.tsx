@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TokenCard, TokenCardSkeleton, TokenList } from '../TokenCard';
@@ -58,6 +58,11 @@ const createMockToken = (overrides: Partial<KasPumpToken> = {}): KasPumpToken =>
   name: 'Test Token',
   symbol: 'TEST',
   description: 'A test token for unit testing',
+  image: '',
+  creator: '0x9876543210987654321098765432109876543210',
+  totalSupply: 1_000_000_000,
+  currentSupply: 450_000_000,
+  ammAddress: '0x1111111111111111111111111111111111111111',
   price: 0.001,
   marketCap: 100000,
   volume24h: 50000,
@@ -97,7 +102,7 @@ describe('TokenCard Component', () => {
       fireEvent.click(screen.getByTitle('Share on X'));
 
       expect(openSpy).toHaveBeenCalledTimes(1);
-      expect(String(openSpy.mock.calls[0][0])).toContain('https://twitter.com/intent/tweet');
+      expect(String(openSpy.mock.calls[0]?.[0])).toContain('https://twitter.com/intent/tweet');
       expect(onClick).not.toHaveBeenCalled();
       openSpy.mockRestore();
     });
