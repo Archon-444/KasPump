@@ -64,6 +64,12 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     // Creator revenue sharing — accumulated from per-trade fee split
     uint256 public creatorAccumulatedFees;
 
+    // Platform revenue — accumulated (pull-payment) rather than pushed on every
+    // trade. A push to `feeRecipient` on each buy/sell/graduation would let a
+    // reverting or non-payable recipient brick all trading and graduation for
+    // this token. Settled to `feeRecipient` via `withdrawPlatformFees`.
+    uint256 public platformAccumulatedFees;
+
     // Referral tracking
     address payable public immutable referrer; // Address that referred token creation (can be zero)
     uint256 public constant REFERRAL_TRADE_SHARE = 500; // 5% of platform fee goes to referrer (basis points)
@@ -99,6 +105,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     // Invariant: address(this).balance ==
     //     curveNativeBalance
     //   + creatorAccumulatedFees + referrerAccumulatedFees
+    //   + platformAccumulatedFees
     //   + totalGraduationFunds
     // (any leftover beyond these buckets is ignored on purpose).
     uint256 public curveNativeBalance;
@@ -229,6 +236,17 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
 
     event ReferrerFeesWithdrawn(
         address indexed referrer,
+        uint256 amount
+    );
+
+    event PlatformFeeAccumulated(
+        address indexed feeRecipient,
+        uint256 amount,
+        uint256 totalAccumulated
+    );
+
+    event PlatformFeesWithdrawn(
+        address indexed feeRecipient,
         uint256 amount
     );
 
@@ -559,9 +577,12 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Safe token transfer to buyer
         token.safeTransfer(msg.sender, tokensOut);
 
-        // Safe platform fee transfer (only platform's share)
+        // Platform fee accrues to a pull-payment bucket (see
+        // platformAccumulatedFees) instead of being pushed to feeRecipient, so
+        // a reverting/non-payable recipient cannot brick the buy.
         if (platformCut > 0) {
-            feeRecipient.sendValue(platformCut);
+            platformAccumulatedFees += platformCut;
+            emit PlatformFeeAccumulated(feeRecipient, platformCut, platformAccumulatedFees);
         }
 
         // Combined refund (soft-launch overflow + graduation overpayment).
@@ -732,9 +753,12 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // Safe native currency transfer to seller
         payable(msg.sender).sendValue(nativeAfterFee);
 
-        // Safe platform fee transfer (only platform's share)
+        // Platform fee accrues to a pull-payment bucket (see
+        // platformAccumulatedFees) instead of being pushed to feeRecipient, so
+        // a reverting/non-payable recipient cannot brick the sell.
         if (platformCut > 0) {
-            feeRecipient.sendValue(platformCut);
+            platformAccumulatedFees += platformCut;
+            emit PlatformFeeAccumulated(feeRecipient, platformCut, platformAccumulatedFees);
         }
 
         if (creatorCut > 0) {
@@ -822,6 +846,26 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         payable(msg.sender).sendValue(amount);
 
         emit ReferrerFeesWithdrawn(msg.sender, amount);
+    }
+
+    /**
+     * @dev Settle accumulated platform fees + treasury native to `feeRecipient`
+     * (pull payment). Permissionless — the destination is the immutable
+     * `feeRecipient`, so anyone may trigger the transfer but it can only ever
+     * pay the platform. If `feeRecipient` reverts on receipt the funds simply
+     * stay accumulated; trading and graduation are never blocked.
+     */
+    function withdrawPlatformFees() external nonReentrant {
+        uint256 amount = platformAccumulatedFees;
+        if (amount == 0) revert NoWithdrawableFunds();
+
+        // Effects before interactions
+        platformAccumulatedFees = 0;
+
+        // Safe transfer to the immutable platform recipient
+        feeRecipient.sendValue(amount);
+
+        emit PlatformFeesWithdrawn(feeRecipient, amount);
     }
 
     // ========== VIEW FUNCTIONS ==========
@@ -1143,9 +1187,13 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             }
         }
 
-        // 4) Treasury native push.
+        // 4) Treasury native accrues to the platform pull-payment bucket rather
+        //    than being pushed. A push here would let a reverting/non-payable
+        //    feeRecipient brick graduation (and thus all curve trading, since
+        //    the graduating buy reverts with it). Settled via withdrawPlatformFees.
         if (treasuryNative > 0) {
-            feeRecipient.sendValue(treasuryNative);
+            platformAccumulatedFees += treasuryNative;
+            emit PlatformFeeAccumulated(feeRecipient, treasuryNative, platformAccumulatedFees);
         }
         emit TreasuryAllocated(
             feeRecipient,
@@ -1319,9 +1367,18 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
      * @param reason Reason for emergency withdrawal (for transparency)
      */
     function emergencyWithdraw(string calldata reason) external onlyOwner whenPaused {
-        uint256 reservedFees = creatorAccumulatedFees + referrerAccumulatedFees;
-        uint256 withdrawable = address(this).balance > reservedFees
-            ? address(this).balance - reservedFees
+        // Reserve every bucket that is owed to users/creator/platform so this
+        // can only ever sweep genuinely stray native (forced ETH, donations),
+        // never trader liquidity (curveNativeBalance), the graduated creator's
+        // pull payment (totalGraduationFunds), or accrued fees. This matches
+        // the accounting invariant documented on `curveNativeBalance`.
+        uint256 reserved = creatorAccumulatedFees
+            + referrerAccumulatedFees
+            + platformAccumulatedFees
+            + curveNativeBalance
+            + totalGraduationFunds;
+        uint256 withdrawable = address(this).balance > reserved
+            ? address(this).balance - reserved
             : 0;
 
         emit EmergencyWithdraw(owner(), withdrawable, reason);

@@ -73,6 +73,15 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     address payable public feeRecipient;
     IDexRouterRegistry public dexRouterRegistry;
 
+    // Admin that owns every deployed BondingCurveAMM. Each AMM is created by
+    // this factory (so the factory is its initial Ownable owner) and ownership
+    // is transferred to `ammAdmin` inside `deployAMM`. Without this, every AMM
+    // would be owned by the factory contract — which has no forwarding path —
+    // leaving pause()/unpause()/setSoftLaunchCap()/emergencyWithdraw()
+    // permanently uncallable. Defaults to the factory deployer; set to the
+    // platform multisig via `setAmmAdmin`.
+    address public ammAdmin;
+
     // Rate limiting
     mapping(address => uint256) public lastTokenCreation;
     uint256 public constant CREATION_COOLDOWN = 60; // 1 minute between creations
@@ -114,6 +123,11 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         address indexed newRecipient
     );
 
+    event AmmAdminUpdated(
+        address indexed oldAdmin,
+        address indexed newAdmin
+    );
+
     event DexRouterRegistryUpdated(
         address indexed oldRegistry,
         address indexed newRegistry
@@ -151,6 +165,8 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     constructor(address payable _feeRecipient) Ownable(msg.sender) {
         if (_feeRecipient == address(0)) revert ZeroAddress();
         feeRecipient = _feeRecipient;
+        // Default AMM admin to the deployer; move to a multisig via setAmmAdmin.
+        ammAdmin = msg.sender;
     }
 
     // ========== EXTERNAL FUNCTIONS ==========
@@ -348,6 +364,12 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
             _referrer
         );
 
+        // The AMM is Ownable(msg.sender) == this factory at construction. Hand
+        // ownership to the platform admin so the AMM's emergency controls
+        // (pause / unpause / setSoftLaunchCap / emergencyWithdraw) are actually
+        // callable in production rather than stranded on the factory.
+        amm.transferOwnership(ammAdmin);
+
         return address(amm);
     }
 
@@ -423,6 +445,20 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         feeRecipient = _newRecipient;
 
         emit FeeRecipientUpdated(oldRecipient, _newRecipient);
+    }
+
+    /**
+     * @dev Update the admin that future deployed AMMs are handed to.
+     * @notice Only affects AMMs created after this call. Ownership of
+     * already-deployed AMMs must be moved via their own transferOwnership.
+     */
+    function setAmmAdmin(address _newAdmin) external onlyOwner {
+        if (_newAdmin == address(0)) revert ZeroAddress();
+
+        address oldAdmin = ammAdmin;
+        ammAdmin = _newAdmin;
+
+        emit AmmAdminUpdated(oldAdmin, _newAdmin);
     }
 
     /**

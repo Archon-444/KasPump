@@ -188,11 +188,14 @@ describe("PR 3 — graduation correctness", function () {
       const residualBalance = await ethers.provider.getBalance(await amm.getAddress());
       const creatorFees = await amm.creatorAccumulatedFees();
       const referrerFees = await amm.referrerAccumulatedFees();
+      const platformFees = await amm.platformAccumulatedFees();
       const totalGrad = await amm.totalGraduationFunds();
 
-      // Everything sitting in the AMM is accounted for via these three
-      // pull-payment buckets. No untracked leak.
-      expect(residualBalance).to.equal(creatorFees + referrerFees + totalGrad);
+      // Everything sitting in the AMM is accounted for via these pull-payment
+      // buckets (creator, referrer, platform/treasury, graduation). No leak.
+      expect(residualBalance).to.equal(
+        creatorFees + referrerFees + platformFees + totalGrad
+      );
     });
   });
 
@@ -309,8 +312,12 @@ describe("PR 3 — graduation correctness", function () {
       const treasuryTokenAfter = await token.balanceOf(treasury.address);
       expect(treasuryTokenAfter - treasuryTokenBefore).to.equal(expectedTreasuryToken);
 
-      // Native refund also flows to treasury. Without pinning exact wei, just
-      // confirm treasury got strictly more than zero in native.
+      // Treasury/LP-refund native now accrues to the platform pull-payment
+      // bucket (rather than being pushed during graduation). Settling it via
+      // withdrawPlatformFees pays the treasury (feeRecipient), whose balance
+      // then strictly increases.
+      expect(await amm.platformAccumulatedFees()).to.be.gt(0n);
+      await amm.connect(buyer).withdrawPlatformFees();
       const treasuryNativeAfter = await ethers.provider.getBalance(treasury.address);
       expect(treasuryNativeAfter).to.be.gt(treasuryNativeBefore);
 
@@ -318,8 +325,9 @@ describe("PR 3 — graduation correctness", function () {
       const ammBalance = await ethers.provider.getBalance(await amm.getAddress());
       const creatorFees = await amm.creatorAccumulatedFees();
       const referrerFees = await amm.referrerAccumulatedFees();
+      const platformFees = await amm.platformAccumulatedFees();
       const totalGrad = await amm.totalGraduationFunds();
-      expect(ammBalance).to.equal(creatorFees + referrerFees + totalGrad);
+      expect(ammBalance).to.equal(creatorFees + referrerFees + platformFees + totalGrad);
 
       // No untracked tokens sit in the AMM either.
       expect(await token.balanceOf(await amm.getAddress())).to.equal(0n);
@@ -367,12 +375,14 @@ describe("PR 3 — graduation correctness", function () {
       const treasuryTokenAfter = await token.balanceOf(treasury.address);
       expect(treasuryTokenAfter - treasuryTokenBefore).to.equal(expectedTreasuryToken);
 
-      // Accounting closure: no untracked native or tokens in the AMM.
+      // Accounting closure: no untracked native or tokens in the AMM. The
+      // LP-earmarked native rolled into the platform pull-payment bucket.
       const ammBalance = await ethers.provider.getBalance(await amm.getAddress());
       const creatorFees = await amm.creatorAccumulatedFees();
       const referrerFees = await amm.referrerAccumulatedFees();
+      const platformFees = await amm.platformAccumulatedFees();
       const totalGrad = await amm.totalGraduationFunds();
-      expect(ammBalance).to.equal(creatorFees + referrerFees + totalGrad);
+      expect(ammBalance).to.equal(creatorFees + referrerFees + platformFees + totalGrad);
       expect(await token.balanceOf(await amm.getAddress())).to.equal(0n);
     });
 
