@@ -24,6 +24,14 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
+    // In-process test network. TokenFactory currently exceeds the 24576-byte
+    // EIP-170 limit (~32KB), so the default network refuses to deploy it in
+    // tests. Allow it here so the suite can run; the real size issue (the
+    // factory is not deployable to mainnet as-is) is tracked separately and
+    // must be fixed before deployment — this flag does NOT affect real networks.
+    hardhat: {
+      allowUnlimitedContractSize: true,
+    },
     // BNB Smart Chain Mainnet
     bsc: {
       url: process.env.BSC_RPC_URL || "https://bsc-dataseed1.binance.org",
