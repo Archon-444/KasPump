@@ -51,7 +51,7 @@ Node 20+ is required (Next 16 needs >=20.9; Hardhat is unsupported on 18). CI us
 
 ### Type-check caveat
 
-`next.config.js` sets `typescript.ignoreBuildErrors: true`, and CI runs `type-check` as **non-blocking** because of pre-existing type errors left behind by the V2 rework — roughly **5,100 `error TS` lines** as of July 2026 (the "~470" figure in ci.yml's comment is stale), concentrated in page/component files. `tsc` also aborts on tsconfig deprecations unless run as `npx tsc --noEmit --ignoreDeprecations 6.0`. A passing build does NOT mean the types are clean. Don't add new type errors; compare the error count against baseline rather than expecting zero. Use the `/type-debt` skill to burn errors down directory by directory.
+`next.config.js` sets `typescript.ignoreBuildErrors: true`, and CI runs `type-check` as **non-blocking** because of pre-existing type errors left behind by the V2 rework — **284 `error TS` lines** as of July 2026, concentrated in hooks and their tests. Plain `npx tsc --noEmit` works (`tsconfig.json` already sets `"ignoreDeprecations": "5.0"`); always `npm install --legacy-peer-deps` first, since measuring without `node_modules` makes npx fetch a different TypeScript and inflates the count wildly. A passing build does NOT mean the types are clean. Don't add new type errors; compare the error count against baseline rather than expecting zero. Use the `/type-debt` skill to burn errors down directory by directory.
 
 ## Architecture
 
