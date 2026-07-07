@@ -3,18 +3,14 @@
  * Provides typed queries for KasPump data indexed by The Graph
  */
 
-const SUBGRAPH_URLS: Record<number, string> = {
-  // BSC Testnet
-  97: process.env.NEXT_PUBLIC_SUBGRAPH_URL_BSC_TESTNET || 'https://api.thegraph.com/subgraphs/name/kaspump/kaspump-bsc-testnet',
-
-  // BSC Mainnet
-  56: process.env.NEXT_PUBLIC_SUBGRAPH_URL_BSC || 'https://api.thegraph.com/subgraphs/name/kaspump/kaspump-bsc-mainnet',
-
-  // Arbitrum
-  42161: process.env.NEXT_PUBLIC_SUBGRAPH_URL_ARBITRUM || 'https://api.thegraph.com/subgraphs/name/kaspump/kaspump-arbitrum',
-
-  // Base
-  8453: process.env.NEXT_PUBLIC_SUBGRAPH_URL_BASE || 'https://api.thegraph.com/subgraphs/name/kaspump/kaspump-base',
+// These URLs must be set in environment variables — no fallback URLs.
+// The Graph hosted service was decommissioned mid-2024; deploy to Goldsky or Alchemy Subgraphs.
+// See TECHNICAL_DEBT.md #7 for deployment instructions.
+const SUBGRAPH_URLS: Partial<Record<number, string>> = {
+  97: process.env.NEXT_PUBLIC_SUBGRAPH_URL_BSC_TESTNET,
+  56: process.env.NEXT_PUBLIC_SUBGRAPH_URL_BSC,
+  42161: process.env.NEXT_PUBLIC_SUBGRAPH_URL_ARBITRUM,
+  8453: process.env.NEXT_PUBLIC_SUBGRAPH_URL_BASE,
 }
 
 export interface GraphQLResponse<T> {
@@ -41,7 +37,11 @@ export async function querySubgraph<T = any>(
   const url = SUBGRAPH_URLS[chainId]
 
   if (!url) {
-    throw new Error(`No subgraph URL configured for chain ID ${chainId}`)
+    throw new Error(
+      `Subgraph URL not configured for chain ${chainId}. ` +
+      `Set NEXT_PUBLIC_SUBGRAPH_URL_* environment variable. ` +
+      `See TECHNICAL_DEBT.md #7 for deployment instructions.`
+    )
   }
 
   try {

@@ -28,6 +28,12 @@ function getProvider(chainId: number): ethers.Provider {
   return new ethers.JsonRpcProvider(rpcUrl);
 }
 
+// Multicall3 is deployed at the same address on all major EVM chains.
+const MULTICALL3_ADDRESS = '0xcA11bde05977b3631167028862bE2a173976CA11';
+const MULTICALL3_ABI = [
+  'function aggregate3(tuple(address target, bool allowFailure, bytes callData)[] calls) external payable returns (tuple(bool success, bytes returnData)[] returnData)',
+];
+
 export class BlockchainService {
   private provider: ethers.Provider;
   private chainId: number;
@@ -54,6 +60,23 @@ export class BlockchainService {
 
   static getProvider(chainId: number): ethers.Provider {
     return getProvider(chainId);
+  }
+
+  /**
+   * Batch multiple read-only calls via Multicall3 in a single RPC round-trip.
+   * All calls use allowFailure=true — failed calls return { success: false, returnData: '0x' }.
+   */
+  static async multicall3(
+    chainId: number,
+    calls: Array<{ target: string; callData: string }>
+  ): Promise<Array<{ success: boolean; returnData: string }>> {
+    if (calls.length === 0) return [];
+    const provider = getProvider(chainId);
+    const mc = new ethers.Contract(MULTICALL3_ADDRESS, MULTICALL3_ABI, provider);
+    const callsWithFlag = calls.map(c => ({ ...c, allowFailure: true }));
+    // ethers.Contract proxies methods dynamically; non-null assert is safe here
+    // since aggregate3 is in the ABI above.
+    return mc['aggregate3']!(callsWithFlag) as Promise<Array<{ success: boolean; returnData: string }>>;
   }
 
   static resolveChainId(chainId?: number): number {
@@ -131,19 +154,9 @@ export class BlockchainService {
       const graduationThreshold = parseFloat(ethers.formatEther(tradingInfo[3]));
       const isGraduated = tradingInfo[4];
 
-      // Calculate graduation progress %
-      // This logic depends on your bonding curve math. 
-      // Assuming progress is based on accumulated volume or current supply vs threshold
-      // For a simple linear curve, let's say progress is (currentSupply / maxSupply) * 100 or similar.
-      // Or if the contract emits a specific "progress" value, use that.
-      // Here we approximate based on price or volume if needed, 
-      // but let's assume 'graduationThreshold' is a volume target for simplicity, 
-      // or we can just return 0 if not easily calculable without more data.
-      // A better approach is to read the 'graduationProgress' if your contract exposes it, 
-      // or calculate: (fundsRaised / fundingGoal) * 100.
-      
-      // Placeholder progress calculation:
-      const progress = isGraduated ? 100 : Math.min(100, (totalVolume / 50000) * 100); // Example divisor
+      const progress = isGraduated ? 100 : graduationThreshold > 0
+        ? Math.min(100, (totalVolume / graduationThreshold) * 100)
+        : 0;
 
       return {
         address: tokenAddress,

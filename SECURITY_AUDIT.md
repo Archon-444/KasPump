@@ -1,408 +1,201 @@
 # KasPump Smart Contract Security Audit Report
-**Date:** 2025-01-15
-**Auditor:** Claude AI Security Analysis
-**Contracts Audited:**
-- TokenFactory.sol
-- BondingCurveAMM.sol
-- EnhancedTokenFactory.sol
+
+**Original AI Self-Review Date:** 2025-01-15
+**Reconciliation Date:** 2026-06-23
+**Status:** Reconciled against current source code. All findings from the 2025-01-15 review are resolved in the current codebase. See §MAINNET BLOCKERS for what remains before production.
 
 ---
 
-## Executive Summary
+## Executive Summary (current as of 2026-06-23)
 
-✅ **Overall Risk: MEDIUM-HIGH**
+**Current Risk Level: LOW-MEDIUM**
 
-The contracts contain **2 CRITICAL**, **5 HIGH**, and **8 MEDIUM** severity issues that should be addressed before mainnet deployment.
+All CRITICAL and HIGH severity issues identified in the original review have been addressed in the current code. The platform is live on BSC Testnet and has been running without incident. The remaining blockers are operational/process items, not code correctness issues.
 
-### Key Findings:
-- ⛔ **CRITICAL:** Reentrancy vulnerabilities in AMM trading functions
-- ⛔ **CRITICAL:** Constructor mismatch between Factory and AMM
-- 🔴 **HIGH:** Missing access controls and input validation
-- 🟡 **MEDIUM:** Incomplete graduation logic and precision loss issues
+**Mainnet deployment gates:**
+- ⏳ External audit by professional firm — **IN PROGRESS** (firm engaged)
+- ❌ Gnosis Safe ownership transfer — NOT DONE (single EOA still owns contracts)
+- ❌ Fuzz / invariant tests — NOT WRITTEN (critical for a bonding-curve product)
+- ❌ BSCScan contract verification — scripts exist, run status unknown
 
-**Recommendation:** **DO NOT DEPLOY TO MAINNET** until critical and high issues are resolved.
-**Safe for testnet:** Yes, for testing purposes only.
-
----
-
-## CRITICAL SEVERITY ISSUES
-
-### 🚨 CRITICAL #1: Reentrancy Vulnerability in buyTokens()
-
-**Location:** `BondingCurveAMM.sol:76-115`
-
-**Issue:**
-```solidity
-function buyTokens(uint256 minTokensOut) external payable notGraduated {
-    // ... calculations ...
-
-    // State update AFTER external call - WRONG ORDER!
-    currentSupply += tokensOut;  // Line 88
-    totalVolume += kasAmount;     // Line 89
-
-    // External call - attacker can re-enter here
-    if (!IKRC20(token).transfer(msg.sender, tokensOut)) {  // Line 97
-        revert TransferFailed();
-    }
-}
-```
-
-**Attack Vector:**
-1. Attacker creates malicious token contract
-2. When `transfer()` is called, attacker's contract re-enters `buyTokens()`
-3. Since state isn't updated yet, attacker can drain funds
-
-**Severity:** ⛔ **CRITICAL** - Can result in total fund loss
-
-**Fix:** Apply Checks-Effects-Interactions pattern:
-```solidity
-// 1. Checks (requires)
-// 2. Effects (state changes) - MOVE THESE UP
-currentSupply += tokensOut;
-totalVolume += kasAmount;
-// 3. Interactions (external calls) - KEEP AT END
-IKRC20(token).transfer(msg.sender, tokensOut);
-```
+**Safe for testnet:** ✅ Yes — platform is live on BSC Testnet  
+**Safe for mainnet:** ⛔ No — pending audit completion, Safe ownership, fuzz tests
 
 ---
 
-### 🚨 CRITICAL #2: Reentrancy Vulnerability in sellTokens()
+## MAINNET BLOCKERS (open items)
 
-**Location:** `BondingCurveAMM.sol:120-158`
+### ❌ BLOCKER #1: Single-EOA Contract Ownership
 
-**Issue:**
-```solidity
-function sellTokens(uint256 tokenAmount, uint256 minKasOut) external notGraduated {
-    // External call before state update
-    if (!IKRC20(token).transferFrom(msg.sender, address(this), tokenAmount)) {
-        revert TransferFailed();
-    }
+**Current state:**  
+`TokenFactory`, `DexRouterRegistry`, and `DeterministicDeployer` are all owned by the deployer EOA (`0xEFec…D667` on BSC Testnet, confirmed via `eth_getCode` returning `0x`). A single private key controls `pause`, `unpause`, `updateFeeRecipient`, and `updateDexRouterRegistry`. This is unacceptable on mainnet.
 
-    // State update AFTER external call - VULNERABLE!
-    currentSupply -= tokenAmount;  // Line 137
+**Required fix:**  
+- Deploy a Gnosis Safe (2-of-3 or 3-of-5, hardware-backed signers distinct from the deployer hot key)
+- Update `scripts/deploy-deterministic.ts:137` to transfer ownership to `process.env.SAFE_OWNER_ADDRESS` instead of `deployer.address`
+- Set `feeRecipient` to a Safe-controlled address, not an EOA
+- Rehearse `pause`, `unpause`, `updateFeeRecipient` via the Safe on testnet — confirm EOA can no longer call `onlyOwner` afterward
 
-    // Another external call with user funds
-    (bool success, ) = msg.sender.call{value: kasAfterFee}("");  // Line 141
-}
-```
-
-**Attack Vector:**
-Similar to buyTokens - attacker can re-enter during the call and manipulate state.
-
-**Severity:** ⛔ **CRITICAL** - Can result in fund drainage
-
-**Fix:** Use ReentrancyGuard from OpenZeppelin:
-```solidity
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-
-contract BondingCurveAMM is ReentrancyGuard {
-    function buyTokens(...) external payable nonReentrant {
-        // ... safe now
-    }
-
-    function sellTokens(...) external nonReentrant {
-        // ... safe now
-    }
-}
-```
+**Estimated effort:** 2–4 hours (script + rehearsal)
 
 ---
 
-## HIGH SEVERITY ISSUES
+### ❌ BLOCKER #2: External Professional Audit
 
-### 🔴 HIGH #1: Constructor Parameter Mismatch
+**Current state:** Only an AI self-review exists (this document). Firm is now engaged.
 
-**Location:** `EnhancedTokenFactory.sol:365-375` and `BondingCurveAMM.sol:55-71`
+**Required:**  
+- Resolve all Critical/High findings from the professional audit
+- Document accepted Mediums/Lows with rationale
+- Re-audit deltas if the firm requires
+- Add audit badge + report link to the UI once complete
 
-**Issue:**
-EnhancedTokenFactory tries to pass 7 parameters to BondingCurveAMM constructor:
-```solidity
-// EnhancedTokenFactory line 365
-BondingCurveAMM amm = new BondingCurveAMM(
-    _tokenAddress,
-    _basePrice,
-    _slope,
-    uint8(_curveType),
-    _graduationThreshold,
-    feeRecipient,
-    uint8(_tier)  // ❌ BondingCurveAMM doesn't accept this!
-);
-```
-
-But BondingCurveAMM constructor only accepts 6 parameters:
-```solidity
-// BondingCurveAMM line 55
-constructor(
-    address _token,
-    uint256 _basePrice,
-    uint256 _slope,
-    uint8 _curveType,
-    uint256 _graduationThreshold,
-    address _feeRecipient
-    // Missing: tier parameter!
-)
-```
-
-**Impact:** EnhancedTokenFactory **WILL FAIL** on deployment.
-
-**Severity:** 🔴 **HIGH** - Breaks core functionality
-
-**Fix:** Add tier parameter to BondingCurveAMM constructor or remove it from Factory call.
+**Supporting materials to prepare:**
+- `audit-package/BRIEF.md` — threat model, design decisions, known issues (soft-launch refund, graduation clamp, fee decay)
+- `audit-package/COVERAGE_REPORT.md` — from `npx hardhat coverage`
+- `audit-package/GAS_SNAPSHOT.md` — from hardhat-gas-reporter
+- `audit-package/SLITHER_OUTPUT.md` — from `slither contracts/`
+- NatSpec completion on `BondingCurveAMM.sol`, `TokenFactory.sol`, `BondingCurveMath.sol`
 
 ---
 
-### 🔴 HIGH #2: Missing Input Validation
+### ❌ BLOCKER #3: Fuzz / Invariant Tests
 
-**Location:** Multiple locations
+**Current state:** No invariant or fuzz tests exist in `contracts/`. The Hardhat test suite (4 files, 1491 lines) covers functional paths well but does not stress mathematical invariants.
 
-**Issues:**
-1. **No zero address checks:**
-   ```solidity
-   // TokenFactory line 55
-   constructor(address _feeRecipient) {
-       feeRecipient = _feeRecipient; // Could be address(0)!
-   }
-   ```
+**Required (Foundry-based):**
+- `test/invariant/BondingCurveMath.t.sol` — curve monotonicity, no-free-tokens, total-supply bound
+- `test/invariant/BondingCurveAMM.t.sol` — graduation seam price continuity, refund accounting (soft-launch overpayment + graduation overpayment), fee-decay bounds within [0, MAX_FEE]
 
-2. **No validation on curve parameters:**
-   ```solidity
-   // Line 76: basePrice and slope can be extreme values
-   require(_basePrice > 0, "Base price must be positive");
-   // But no upper limit! Could cause overflow
-   ```
-
-3. **Transfer to zero address not checked:**
-   ```solidity
-   // KRC20Token line 211
-   function transfer(address to, uint256 value) external returns (bool) {
-       // No check: if (to == address(0)) revert();
-   }
-   ```
-
-**Severity:** 🔴 **HIGH** - Can brick contracts or burn tokens
-
-**Fix:** Add comprehensive input validation.
+**Estimated effort:** 8–16 hours
 
 ---
 
-### 🔴 HIGH #3: Unsafe External Calls
+## RESOLVED FINDINGS (historical record)
 
-**Location:** `BondingCurveAMM.sol:103, 141, 146`
-
-**Issue:**
-```solidity
-// Line 103-104
-(bool success, ) = feeRecipient.call{value: fee}("");
-if (!success) revert TransferFailed();
-```
-
-If `feeRecipient` is a contract with malicious fallback, it can:
-- Consume all gas
-- Revert unexpectedly
-- Re-enter (reentrancy)
-
-**Severity:** 🔴 **HIGH** - DoS and reentrancy vector
-
-**Fix:** Use OpenZeppelin's Address.sendValue() or implement pull payment pattern.
+All findings below were present in the original 2025-01-15 AI review and are now resolved in the current codebase.
 
 ---
 
-### 🔴 HIGH #4: Integer Division Precision Loss
+### ✅ CRITICAL #1: Reentrancy in buyTokens() — RESOLVED
 
-**Location:** Multiple locations
-
-**Issues:**
-```solidity
-// Line 87, 100
-_totalSupply * 80 / 100  // Loses precision for small supplies
-
-// Line 224-225
-uint256 price = basePrice + (slope * currentS) / PRECISION;
-uint256 tokensInStep = (stepSize * PRECISION) / price;  // Rounding errors accumulate
-```
-
-**Impact:** Users may receive slightly incorrect token amounts, especially with small trades.
-
-**Severity:** 🔴 **HIGH** - Financial loss for users
-
-**Fix:** Use fixed-point math libraries or ensure multiplication before division.
+**Original location:** `BondingCurveAMM.sol:76-115`  
+**Fix:** `nonReentrant` modifier applied. CEI pattern enforced. Uses `SafeERC20` for token transfers.  
+**Current code:** `BondingCurveAMM.sol` — `buyTokens()` has `nonReentrant + whenNotPaused`; state updates before external calls.
 
 ---
 
-### 🔴 HIGH #5: Incomplete Graduation Logic
+### ✅ CRITICAL #2: Reentrancy in sellTokens() — RESOLVED
 
-**Location:** `BondingCurveAMM.sol:264-276`
+**Original location:** `BondingCurveAMM.sol:120-158`  
+**Fix:** `nonReentrant` modifier applied. CEI pattern enforced.  
+**Current code:** `BondingCurveAMM.sol` — `sellTokens()` has `nonReentrant + whenNotPaused`.
 
-**Issue:**
-```solidity
-function _graduateToken() internal {
-    isGraduated = true;
-
-    emit Graduated(currentSupply, address(this).balance, block.timestamp);
-
-    // Future: Create Uniswap V2/V3 pair and add liquidity
-    // ⚠️ THIS IS NOT IMPLEMENTED!
-}
-```
-
-**Impact:**
-- Tokens can graduate but remain stuck in AMM
-- No actual liquidity migration happens
-- Contract balance stuck forever
-
-**Severity:** 🔴 **HIGH** - Funds can be permanently locked
-
-**Fix:** Implement proper DEX integration or remove graduation feature.
+**Full nonReentrant coverage:**
+- `buyTokens()` — nonReentrant + whenNotPaused
+- `sellTokens()` — nonReentrant + whenNotPaused
+- `withdrawGraduationFunds()` — nonReentrant
+- `withdrawCreatorFees()` — nonReentrant
+- `withdrawReferrerFees()` — nonReentrant
+- `withdrawLPTokens()` — nonReentrant
+- `CreatorVesting.claim()` — nonReentrant
+- `TokenFactory.createToken()` — nonReentrant + whenNotPaused
 
 ---
 
-## MEDIUM SEVERITY ISSUES
+### ✅ HIGH #1: Constructor Parameter Mismatch — RESOLVED
 
-### 🟡 MEDIUM #1: CREATE2 Salt Predictability
-
-**Location:** `TokenFactory.sol:120`
-
-```solidity
-bytes32 salt = keccak256(abi.encodePacked(_name, _symbol, block.timestamp));
-```
-
-Using `block.timestamp` allows miners to manipulate token addresses by ~15 seconds.
-
-**Fix:** Add `msg.sender` and a nonce to salt.
+**Original:** EnhancedTokenFactory passed 7 params; BondingCurveAMM only accepted 6.  
+**Fix:** BondingCurveAMM constructor now accepts 7 params: `(token, tokenCreator, feeRecipient, membershipTier, dexRouter, sniperProtectionDuration, referrer)`. Parameter alignment is correct.
 
 ---
 
-### 🟡 MEDIUM #2: No Pause Mechanism
+### ✅ HIGH #2: Missing Input Validation — RESOLVED
 
-**Issue:** If a bug is discovered, there's no way to pause trading.
-
-**Fix:** Implement Pausable from OpenZeppelin.
+**Fix:** Comprehensive zero-address checks in all constructors and critical functions. Parameter validation throughout.
 
 ---
 
-### 🟡 MEDIUM #3: Exponential Curve Not Implemented
+### ✅ HIGH #3: Unsafe External Calls — RESOLVED
 
-**Location:** `BondingCurveAMM.sol:251-259`
-
-```solidity
-function _integrateExponentialCurve(...) internal view returns (uint256) {
-    // Simplified exponential integration
-    // For now, use linear approximation with higher slope
-    return _integrateLinearCurve(amount, supply, isBuying);  // ❌ Just calls linear!
-}
-```
-
-**Impact:** Users selecting "exponential" curve get linear pricing instead.
+**Fix:** Uses `Address.sendValue()` (OpenZeppelin) and `SafeERC20` patterns for all external value transfers. Fee recipient calls use safe patterns.
 
 ---
 
-### 🟡 MEDIUM #4: No Access Control on distributePartnershipRevenue
+### ✅ HIGH #4: Integer Division Precision Loss — RESOLVED
 
-**Location:** `EnhancedTokenFactory.sol:302`
-
-```solidity
-function distributePartnershipRevenue(address tokenAddress, uint256 tradingVolume) external {
-    require(tokenToAMM[tokenAddress] == msg.sender, "Only token AMM can call");
-    // But anyone can create a fake token/AMM pair and call this!
-}
-```
-
-**Fix:** Add proper whitelist or signature verification.
+**Fix:** `BondingCurveMath.sol` uses proper fixed-point arithmetic with a `PRECISION` constant throughout. Multiplication before division enforced.
 
 ---
 
-### 🟡 MEDIUM #5-8: Gas Optimization & Code Quality
+### ✅ HIGH #5: Incomplete Graduation Logic — RESOLVED
 
-- Redundant SLOAD operations
-- Magic numbers instead of constants
-- Missing events for state changes
-- No rate limiting on token creation
+**Fix:** Full DEX integration implemented. `_graduateToken()` now: adds liquidity to PancakeSwap V2, locks LP tokens for 6 months, distributes creator/platform funds. `LiquidityAdded` and `LPTokensLocked` events emitted. No funds can be permanently stuck.
 
 ---
 
-## LOW SEVERITY & INFORMATIONAL
+### ✅ MEDIUM #1: CREATE2 Salt Predictability — RESOLVED
 
-### Gas Optimizations
-1. Cache array lengths in loops
-2. Use `uint256` instead of `uint8` for enum (saves gas)
-3. Pack struct variables to save storage
-
-### Code Quality
-1. Missing NatSpec documentation on some functions
-2. Inconsistent error handling (require vs custom errors)
-3. No upgrade mechanism (consider proxy pattern)
+**Fix:** Salt uses `keccak256(abi.encodePacked(msg.sender, nonce, block.prevrandao, chainid))`.
 
 ---
 
-## RECOMMENDATIONS
+### ✅ MEDIUM #2: No Pause Mechanism — RESOLVED
 
-### Before Testnet Deployment:
-✅ **Safe to proceed** but be aware of limitations:
-- Only use for testing, not real funds
-- Test reentrancy scenarios
-- Verify graduation behavior
-
-### Before Mainnet Deployment:
-⛔ **MUST FIX:**
-1. ✅ Add ReentrancyGuard to all external functions
-2. ✅ Fix constructor parameter mismatch
-3. ✅ Add comprehensive input validation
-4. ✅ Implement pull payment pattern for fees
-5. ✅ Complete or remove graduation logic
-
-🔴 **SHOULD FIX:**
-1. Implement proper exponential curve math
-2. Add pause mechanism
-3. Fix precision loss in calculations
-4. Add zero address checks everywhere
-
-🟡 **NICE TO HAVE:**
-1. Gas optimizations
-2. Better documentation
-3. Comprehensive test suite
-4. External security audit from professional firm
+**Fix:** Both `TokenFactory` and `BondingCurveAMM` inherit OpenZeppelin `Pausable`. `pause()` and `unpause()` are `onlyOwner`. Note: currently owner is a single EOA — see BLOCKER #1.
 
 ---
 
-## TESTING CHECKLIST
+### ✅ MEDIUM #3: Exponential Curve Not Implemented — RESOLVED
 
-Before deploying, test:
-
-- [ ] Reentrancy attack scenarios
-- [ ] Token creation with edge case values
-- [ ] Buy/sell with minimum amounts
-- [ ] Buy/sell with maximum amounts
-- [ ] Graduation threshold behavior
-- [ ] Fee distribution accuracy
-- [ ] Multiple rapid trades (MEV scenarios)
-- [ ] Gas consumption limits
+**Fix:** Standardized sigmoid curve implemented via `BondingCurveMath.sol` using a 31-point anchor table with linear interpolation between anchors. Curve type parameter accepted and used correctly.
 
 ---
 
-## CONCLUSION
+### ✅ MEDIUM #4: No Access Control on distributePartnershipRevenue — RESOLVED
 
-**Current Status:** ⚠️ **NOT PRODUCTION READY**
+**Fix:** `distributePartnershipRevenue` removed in V2. The platform now uses a standardized `tokenToAMM` mapping with validation for all revenue routing.
 
-**Testnet Deployment:** ✅ **APPROVED** - Safe for testing only
+---
 
-**Mainnet Deployment:** ⛔ **BLOCKED** - Critical issues must be fixed first
+### ✅ MEDIUM #5–8: Gas Optimization & Code Quality — RESOLVED
 
-**Estimated Fix Time:** 3-5 days for experienced Solidity developer
+**Fix:** Constants used instead of magic numbers. Events added for all significant state changes. Structured custom errors adopted. Redundant SLOADs eliminated via local variable caching.
 
-**Recommended Next Steps:**
-1. Deploy to testnet for functional testing
-2. Fix all critical and high severity issues
-3. Get professional audit from CertiK/Trail of Bits/OpenZeppelin
-4. Deploy to mainnet only after all issues resolved
+---
+
+## LOW SEVERITY & INFORMATIONAL (still applicable)
+
+### NatSpec Documentation
+Several public/external functions in `BondingCurveAMM.sol`, `TokenFactory.sol`, and `BondingCurveMath.sol` are missing `@param`, `@return`, and `@notice` tags. Complete NatSpec is required as part of the professional audit package.
+
+### No Upgrade Mechanism
+Contracts are not upgradeable (no proxy pattern). This is a deliberate design choice — immutability is the trust story. Document it explicitly in the audit brief.
+
+### Rate Limiting on Token Creation
+No on-chain rate limiting for `createToken()`. Spam tokens are currently cheap. Consider a minimum creation fee or per-address cooldown if spam becomes a problem post-launch.
+
+---
+
+## TESTING STATUS
+
+| Test Category | Status | Notes |
+|---|---|---|
+| Reentrancy scenarios | ✅ Covered | `BondingCurveAMM.test.ts` |
+| Buy/sell with edge values | ✅ Covered | `BondingCurveAMM.test.ts` |
+| Graduation threshold | ✅ Covered | `Graduation.test.ts` |
+| Overpayment refunds | ✅ Covered | `Graduation.test.ts` |
+| Sigmoid curve math | ✅ Covered | `BondingCurveSigmoid.test.ts` |
+| DEX integration | ✅ Covered | `DEXIntegration.test.ts` |
+| Fuzz / invariant tests | ❌ Missing | See BLOCKER #3 |
+| Gas snapshot | ❌ Not recorded | Needed for audit package |
 
 ---
 
 ## DISCLAIMER
 
-This audit is AI-generated and should not be considered a replacement for a professional security audit. Always get contracts audited by reputable firms (CertiK, Trail of Bits, OpenZeppelin, Consensys Diligence) before mainnet deployment with real user funds.
+The original 2025-01-15 review was AI-generated and is not a substitute for a professional audit. A professional audit is now in progress. This document represents a code-reconciliation of that original review against the current source; it is not itself a security audit.
 
 ---
 
-**Generated by Claude AI Security Analysis**
-**For: KasPump Multichain Launchpad**
-**Date: 2025-01-15**
+**Last reconciled:** 2026-06-23 against current `contracts/` source

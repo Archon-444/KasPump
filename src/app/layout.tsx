@@ -3,25 +3,26 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AppProviders } from '../components/providers/AppProviders';
 import { AppLayout } from '../components/layout/AppLayout';
+import { brand } from '../config/brand';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'KasPump - BSC Meme Coin Launchpad',
-  description: 'Launch and trade meme coins instantly on BNB Smart Chain (BSC). No presale, no team allocation - fair launch for everyone.',
+  title: `${brand.name} - ${brand.tagline}`,
+  description: brand.description,
   keywords: ['BSC', 'BNB Chain', 'Binance Smart Chain', 'meme coins', 'DeFi', 'crypto', 'bonding curve', 'token launch'],
-  authors: [{ name: 'KasPump Team' }],
+  authors: [{ name: `${brand.name} Team` }],
   openGraph: {
-    title: 'KasPump - BSC Meme Coin Launchpad',
-    description: 'Launch and trade meme coins instantly on BNB Smart Chain (BSC)',
-    url: 'https://kaspump.io',
-    siteName: 'KasPump',
+    title: `${brand.name} - ${brand.tagline}`,
+    description: brand.shortDescription,
+    url: brand.url,
+    siteName: brand.name,
     images: [
       {
-        url: '/og-image.png',
+        url: brand.ogImage,
         width: 1200,
         height: 630,
-        alt: 'KasPump - BSC Meme Coin Launchpad',
+        alt: `${brand.name} - ${brand.tagline}`,
       },
     ],
     locale: 'en-US',
@@ -29,9 +30,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'KasPump - BSC Meme Coin Launchpad',
-    description: 'Launch and trade meme coins on BNB Smart Chain (BSC)',
-    images: ['/og-image.png'],
+    title: `${brand.name} - ${brand.tagline}`,
+    description: brand.shortDescription,
+    images: [brand.ogImage],
   },
   robots: {
     index: true,

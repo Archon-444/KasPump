@@ -22,6 +22,7 @@ const nextConfig = {
     return config;
   },
   typescript: {
+    // Keep true until pre-existing tsc errors are resolved. See TECHNICAL_DEBT.md.
     ignoreBuildErrors: true,
   },
   eslint: {

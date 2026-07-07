@@ -131,10 +131,49 @@ async function main() {
     console.log("   Deployed address:", factoryAddress);
     console.log("   Expected address:", expectedFactoryAddress);
 
-    // ========== STEP 6: Transfer Ownership ==========
+    // ========== STEP 6: Fix ammAdmin, then Transfer Ownership ==========
 
-    console.log("\n📄 Step 6: Transferring TokenFactory ownership to deployer...");
-    await deterministicDeployer.transferTokenFactoryOwnership(DEPLOYMENT_SALT, deployer.address);
+    const safeOwner = process.env.SAFE_OWNER_ADDRESS;
+
+    if (!safeOwner) {
+        console.warn("\n⚠️  WARNING: SAFE_OWNER_ADDRESS is not set.");
+        console.warn("   Ownership will remain with the deployer EOA — NOT SAFE FOR MAINNET.");
+        console.warn("   Create a Gnosis Safe (app.safe.global) and set SAFE_OWNER_ADDRESS before mainnet.\n");
+    } else {
+        // Safes are chain-specific and Ownable is one-step: transferring to a
+        // codeless address bricks admin control and burns this salt's CREATE2
+        // address forever. Refuse unless code exists here.
+        if ((await ethers.provider.getCode(safeOwner)) === "0x") {
+            throw new Error(
+                `SAFE_OWNER_ADDRESS ${safeOwner} has no code on this network. ` +
+                "Deploy the Safe on THIS chain first."
+            );
+        }
+    }
+
+    // The factory was deployed via CREATE2 from inside DeterministicDeployer,
+    // so the constructor's msg.sender — and therefore ammAdmin — is the
+    // DeterministicDeployer contract, which cannot call anything. Route
+    // ownership through the deployer EOA first to repoint ammAdmin, then hand
+    // off to the Safe. Skipping this leaves every AMM's pause/emergencyWithdraw
+    // permanently uncallable.
+    console.log(`\n📄 Step 6: Claiming ownership to fix ammAdmin...`);
+    await (await deterministicDeployer.transferTokenFactoryOwnership(DEPLOYMENT_SALT, deployer.address)).wait();
+
+    const factoryAsOwner = await ethers.getContractAt("TokenFactory", factoryAddress);
+    const finalOwner = safeOwner ?? deployer.address;
+
+    const strandedAdmin = await factoryAsOwner.ammAdmin();
+    if (strandedAdmin.toLowerCase() !== finalOwner.toLowerCase()) {
+        console.log(`   Repointing ammAdmin (${strandedAdmin} → ${finalOwner})...`);
+        await (await factoryAsOwner.setAmmAdmin(finalOwner)).wait();
+        console.log("✅ ammAdmin fixed");
+    }
+
+    if (safeOwner) {
+        console.log(`   Transferring TokenFactory ownership to Safe ${safeOwner}...`);
+        await (await factoryAsOwner.transferOwnership(safeOwner)).wait();
+    }
     console.log("✅ Ownership transferred");
 
     // ========== STEP 7: Test Factory ==========

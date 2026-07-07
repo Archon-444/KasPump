@@ -299,6 +299,27 @@ export const TokenFilterParamsSchema = z.object({
 
 export type TokenFilterParams = z.infer<typeof TokenFilterParamsSchema>;
 
+// ========== COMMENT SCHEMAS ==========
+
+export const CommentPostSchema = z.object({
+  tokenAddress: EthereumAddressSchema,
+  walletAddress: EthereumAddressSchema,
+  text: z.string().trim().min(1, 'Comment text required').max(500, 'Comment too long (max 500 chars)'),
+  signature: z.string().optional(),
+  isCreator: z.boolean().optional(),
+});
+
+export type CommentPostData = z.infer<typeof CommentPostSchema>;
+
+export const CommentReactionSchema = z.object({
+  tokenAddress: EthereumAddressSchema,
+  walletAddress: EthereumAddressSchema,
+  commentId: z.string().min(1),
+  emoji: z.enum(['🔥', '💯', '🚀']),
+});
+
+export type CommentReactionData = z.infer<typeof CommentReactionSchema>;
+
 // ========== EXPORT ALL SCHEMAS ==========
 
 export const schemas = {
@@ -337,4 +358,8 @@ export const schemas = {
   // Query
   PaginationParamsSchema,
   TokenFilterParamsSchema,
+
+  // Comments
+  CommentPostSchema,
+  CommentReactionSchema,
 };
