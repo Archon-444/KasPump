@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "../../contracts/interfaces/INonfungiblePositionManager.sol";
+import "../interfaces/INonfungiblePositionManager.sol";
 
 contract MockNonfungiblePositionManager is ERC721, INonfungiblePositionManager {
     address public immutable WETH9;
