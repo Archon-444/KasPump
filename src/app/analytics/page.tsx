@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, Download, BarChart3, TrendingUp, DollarSign, Users, ArrowLeft } from 'lucide-react';
+import { RefreshCw, Download, BarChart3, TrendingUp, DollarSign, Coins, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button, Card } from '../../components/ui';
 import { PlatformStatsCard, AnalyticsData } from '../../components/features/PlatformStatsCard';
-import { ChainComparisonChart } from '../../components/features/ChainComparisonChart';
 import { GrowthChart } from '../../components/features/GrowthChart';
+import { TopTradersCard } from '../../components/features/TopTradersCard';
+import { formatCurrency } from '../../utils';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { cn } from '../../utils';
 import { MobileNavigation } from '../../components/mobile';
@@ -17,7 +18,7 @@ export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeframe, setTimeframe] = useState<'24h' | '7d' | '30d' | 'all'>('24h');
+  const [timeframe, setTimeframe] = useState<'24h' | '7d' | 'all'>('24h');
   const isMobile = useIsMobile();
 
   // Fetch analytics data
@@ -52,10 +53,12 @@ export default function AnalyticsPage() {
       ['Metric', 'Value'].join(','),
       ['Total Tokens', analytics.platform.totalTokens].join(','),
       ['Graduated Tokens', analytics.platform.graduatedTokens].join(','),
-      ['Total Volume', analytics.financial.totalVolume].join(','),
-      ['Total Market Cap', analytics.financial.totalMarketCap].join(','),
-      ['Platform Fees', analytics.financial.platformFees].join(','),
-      ['Total Users', analytics.platform.totalUsers].join(','),
+      ['Total Volume (BNB)', analytics.financial.totalVolume].join(','),
+      ['Total Market Cap (BNB)', analytics.financial.totalMarketCap].join(','),
+      ['Volume 24h (BNB)', analytics.financial.volume24h].join(','),
+      ['Trading Fees 24h (BNB)', analytics.financial.tradingFees24h].join(','),
+      ['Active Traders 24h', analytics.platform.activeTraders24h].join(','),
+      ['New Tokens In Window', analytics.newTokensInWindow].join(','),
     ].join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -90,7 +93,7 @@ export default function AnalyticsPage() {
             <div className="flex items-center space-x-3">
               {/* Timeframe Selector */}
               <div className="flex items-center space-x-1 bg-gray-800/50 rounded-lg p-1">
-                {(['24h', '7d', '30d', 'all'] as const).map((tf) => (
+                {(['24h', '7d', 'all'] as const).map((tf) => (
                   <button
                     key={tf}
                     onClick={() => setTimeframe(tf)}
@@ -180,31 +183,44 @@ export default function AnalyticsPage() {
                   <span className={cn('bg-blue-500/20 text-blue-400 px-2 py-1 rounded', isMobile ? 'text-[10px]' : 'text-xs')}>Revenue</span>
                 </div>
                 <div className={cn('font-bold text-white mb-1', isMobile ? 'text-xl' : 'text-2xl')}>
-                  ${analytics.financial.platformFees.toLocaleString()}
+                  {formatCurrency(analytics.financial.tradingFees24h, 'BNB', 4)}
                 </div>
-                <div className={cn('text-gray-400', isMobile ? 'text-xs' : 'text-sm')}>Platform Fees</div>
+                <div className={cn('text-gray-400', isMobile ? 'text-xs' : 'text-sm')}>Trading Fees (24h)</div>
               </Card>
 
-              <Card className={cn('glassmorphism border-2 border-green-500/30', isMobile && 'p-4')}>
-                <div className="flex items-center justify-between mb-2">
-                  <TrendingUp className="text-green-400" size={isMobile ? 18 : 20} />
-                  <span className={cn('bg-green-500/20 text-green-400 px-2 py-1 rounded', isMobile ? 'text-[10px]' : 'text-xs')}>Creator</span>
-                </div>
-                <div className={cn('font-bold text-white mb-1', isMobile ? 'text-xl' : 'text-2xl')}>
-                  ${analytics.financial.creatorEarnings.toLocaleString()}
-                </div>
-                <div className={cn('text-gray-400', isMobile ? 'text-xs' : 'text-sm')}>Creator Earnings</div>
-              </Card>
+              {analytics.financial.creatorEarnings24h !== undefined ? (
+                <Card className={cn('glassmorphism border-2 border-green-500/30', isMobile && 'p-4')}>
+                  <div className="flex items-center justify-between mb-2">
+                    <TrendingUp className="text-green-400" size={isMobile ? 18 : 20} />
+                    <span className={cn('bg-green-500/20 text-green-400 px-2 py-1 rounded', isMobile ? 'text-[10px]' : 'text-xs')}>Creator</span>
+                  </div>
+                  <div className={cn('font-bold text-white mb-1', isMobile ? 'text-xl' : 'text-2xl')}>
+                    {formatCurrency(analytics.financial.creatorEarnings24h, 'BNB', 4)}
+                  </div>
+                  <div className={cn('text-gray-400', isMobile ? 'text-xs' : 'text-sm')}>Creator Earnings (24h)</div>
+                </Card>
+              ) : (
+                <Card className={cn('glassmorphism border-2 border-green-500/30', isMobile && 'p-4')}>
+                  <div className="flex items-center justify-between mb-2">
+                    <TrendingUp className="text-green-400" size={isMobile ? 18 : 20} />
+                    <span className={cn('bg-green-500/20 text-green-400 px-2 py-1 rounded', isMobile ? 'text-[10px]' : 'text-xs')}>Volume</span>
+                  </div>
+                  <div className={cn('font-bold text-white mb-1', isMobile ? 'text-xl' : 'text-2xl')}>
+                    {formatCurrency(analytics.financial.volume24h, 'BNB', 2)}
+                  </div>
+                  <div className={cn('text-gray-400', isMobile ? 'text-xs' : 'text-sm')}>Volume (24h)</div>
+                </Card>
+              )}
 
               <Card className={cn('glassmorphism border-2 border-yellow-500/30', isMobile && 'p-4')}>
                 <div className="flex items-center justify-between mb-2">
-                  <Users className="text-yellow-400" size={isMobile ? 18 : 20} />
+                  <Coins className="text-yellow-400" size={isMobile ? 18 : 20} />
                   <span className={cn('bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded', isMobile ? 'text-[10px]' : 'text-xs')}>Ecosystem</span>
                 </div>
                 <div className={cn('font-bold text-white mb-1', isMobile ? 'text-xl' : 'text-2xl')}>
-                  ${(analytics.partnership?.ecosystemValue || 0).toLocaleString()}
+                  {formatCurrency(analytics.financial.totalMarketCap, 'BNB', 2)}
                 </div>
-                <div className={cn('text-gray-400', isMobile ? 'text-xs' : 'text-sm')}>Total Value</div>
+                <div className={cn('text-gray-400', isMobile ? 'text-xs' : 'text-sm')}>Total Market Cap</div>
               </Card>
             </motion.div>
 
@@ -214,31 +230,8 @@ export default function AnalyticsPage() {
               isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'
             )}>
               <GrowthChart data={analytics} />
-              <ChainComparisonChart 
-                data={{
-                  chains: [] // Would need to fetch per-chain data
-                }}
-              />
+              <TopTradersCard chainId={analytics.chainId} />
             </div>
-
-            {/* Leaderboard - Placeholder */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              {/* Leaderboard placeholder - would need token data from API */}
-              {analytics.partnership && (
-                <Card className="glassmorphism">
-                  <div className="text-center py-8">
-                    <p className="text-gray-400 mb-2">Leaderboard data coming soon</p>
-                    <div className="text-sm text-gray-500">
-                      Top {analytics.partnership.topPerformingTokens} performing tokens identified
-                    </div>
-                  </div>
-                </Card>
-              )}
-            </motion.div>
           </>
         )}
       </main>
