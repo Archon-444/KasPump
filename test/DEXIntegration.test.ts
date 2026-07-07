@@ -1,503 +1,133 @@
 import { expect } from "chai";
 import hre from "hardhat";
-import { time, loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-
 const { ethers } = hre;
 
-describe("DEX Integration", function () {
-  const PRECISION = ethers.parseEther("1");
-  const SIX_MONTHS = 180 * 24 * 60 * 60; // 180 days in seconds
+// Current-API DEX integration coverage. The V1 suite here tested a removed
+// constructor (basePrice/slope/linear curve) and removed functions
+// (calculateNativeIn, lpPositionTokenId) — graduation/split/LP-price coverage
+// now lives in Graduation.test.ts. This file keeps the coverage unique to it:
+// LP-token locking (anti-rug) and the post-graduation trading guard.
 
-  async function deployDEXFixture() {
-    const [deployer, creator, platform, trader1, trader2] = await ethers.getSigners();
+const PRECISION = 1_000_000_000_000_000_000n;
+const TOTAL_SUPPLY = 1_000_000_000n * PRECISION;
+const GRADUATION_THRESHOLD = 800_000_000n * PRECISION;
+const LP_LOCK_DURATION = 180 * 24 * 60 * 60; // 180 days, matches contract
 
-    // Deploy mock WETH
-    const MockWETH = await ethers.getContractFactory("MockWETH");
-    const weth = await MockWETH.deploy();
-    await weth.waitForDeployment();
+// Deploy an AMM and drive it straight to graduation (buying 100 native is
+// clamped to the exact remaining curve and graduates in one tx). Mirrors
+// Graduation.test.ts so the fixtures stay consistent.
+async function graduatedFixture() {
+  const [creator, trader, other, , treasury] = await ethers.getSigners();
 
-    // Deploy mock DEX factory
-    const MockDEXFactory = await ethers.getContractFactory("MockDEXFactory");
-    const dexFactory = await MockDEXFactory.deploy();
-    await dexFactory.waitForDeployment();
+  const MockWETH = await ethers.getContractFactory("MockWETH");
+  const weth = await MockWETH.deploy();
+  await weth.waitForDeployment();
 
-    // Deploy mock DEX router
-    const MockDEXRouter = await ethers.getContractFactory("MockDEXRouter");
-    const dexRouter = await MockDEXRouter.deploy(
-      await weth.getAddress(),
-      await dexFactory.getAddress()
-    );
-    await dexRouter.waitForDeployment();
+  const MockDEXFactory = await ethers.getContractFactory("MockDEXFactory");
+  const dexFactory = await MockDEXFactory.deploy();
+  await dexFactory.waitForDeployment();
 
-    // Deploy KRC20 token
-    const totalSupply = ethers.parseEther("1000000");
-    const KRC20Token = await ethers.getContractFactory("KRC20Token");
-    const token = await KRC20Token.deploy(
-      "Test Token",
-      "TEST",
-      totalSupply,
-      deployer.address
-    );
-    await token.waitForDeployment();
+  const MockDEXRouter = await ethers.getContractFactory("MockDEXRouter");
+  const dexRouter = await MockDEXRouter.deploy(
+    await weth.getAddress(),
+    await dexFactory.getAddress()
+  );
+  await dexRouter.waitForDeployment();
 
-    // Deploy BondingCurveAMM with DEX integration
-    const basePrice = ethers.parseUnits("0.000001", "ether"); // 1e12 wei
-    const slope = ethers.parseUnits("1", "gwei"); // 1 gwei
-    const graduationThreshold = ethers.parseEther("800000"); // 80% of supply
-    const tier = 0; // Bronze tier
+  const KRC20Token = await ethers.getContractFactory("KRC20Token");
+  const token = await KRC20Token.deploy("DEX Test", "DEX", TOTAL_SUPPLY, creator.address);
+  await token.waitForDeployment();
 
-    const BondingCurveAMM = await ethers.getContractFactory("BondingCurveAMM");
-    const amm = await BondingCurveAMM.deploy(
-      await token.getAddress(),
-      creator.address,
-      basePrice,
-      slope,
-      0, // LINEAR curve
-      graduationThreshold,
-      platform.address,
-      tier,
-      await dexRouter.getAddress(), // DEX router
-      60, // sniper protection duration
-      ethers.ZeroAddress // no referrer
-    );
-    await amm.waitForDeployment();
+  const BondingCurveAMM = await ethers.getContractFactory("BondingCurveAMM");
+  const amm = await BondingCurveAMM.deploy(
+    await token.getAddress(),
+    creator.address, // tokenCreator
+    treasury.address, // feeRecipient
+    0,
+    await dexRouter.getAddress(),
+    60,
+    ethers.ZeroAddress
+  );
+  await amm.waitForDeployment();
+  await token.transfer(await amm.getAddress(), TOTAL_SUPPLY);
 
-    // Transfer tokens to AMM
-    await token.transfer(await amm.getAddress(), totalSupply);
+  // Skip the sniper window, then graduate.
+  await ethers.provider.send("evm_increaseTime", [61]);
+  await ethers.provider.send("evm_mine", []);
+  await amm.connect(trader).buyTokens(0, { value: ethers.parseEther("100") });
 
-    // Create DEX pair
-    await dexFactory.createPair(await token.getAddress(), await weth.getAddress());
-    const pairAddress = await dexFactory.getPair(
-      await token.getAddress(),
-      await weth.getAddress()
-    );
+  return { amm, token, dexRouter, creator, trader, other };
+}
 
-    return {
-      amm,
-      token,
-      weth,
-      dexRouter,
-      dexFactory,
-      pairAddress,
-      deployer,
-      creator,
-      platform,
-      trader1,
-      trader2,
-      graduationThreshold,
-    };
-  }
+describe("DEX Integration — LP locking & post-graduation guards", function () {
+  describe("LP token locking (anti-rug)", function () {
+    it("locks LP tokens for 180 days on graduation", async function () {
+      const { amm } = await graduatedFixture();
+      expect(await amm.isGraduated()).to.equal(true);
+      expect(await amm.lpTokensLocked()).to.be.gt(0n);
 
-  async function deployV3Fixture() {
-    const [deployer, creator, platform, trader1] = await ethers.getSigners();
-
-    const MockWETH = await ethers.getContractFactory("MockWETH");
-    const weth = await MockWETH.deploy();
-    await weth.waitForDeployment();
-
-    const MockPositionManager = await ethers.getContractFactory("MockNonfungiblePositionManager");
-    const positionManager = await MockPositionManager.deploy(await weth.getAddress());
-    await positionManager.waitForDeployment();
-
-    const MockDexRouterRegistry = await ethers.getContractFactory("MockDexRouterRegistry");
-    const routerRegistry = await MockDexRouterRegistry.deploy();
-    await routerRegistry.waitForDeployment();
-
-    const { chainId } = await ethers.provider.getNetwork();
-    await routerRegistry.setConfig(
-      Number(chainId),
-      1, // V3
-      ethers.ZeroAddress,
-      await positionManager.getAddress(),
-      await weth.getAddress(),
-      3000,
-      true
-    );
-
-    const totalSupply = ethers.parseEther("1000000");
-    const KRC20Token = await ethers.getContractFactory("KRC20Token");
-    const token = await KRC20Token.deploy(
-      "Test Token",
-      "TEST",
-      totalSupply,
-      deployer.address
-    );
-    await token.waitForDeployment();
-
-    const basePrice = ethers.parseUnits("0.000001", "ether"); // 1e12 wei
-    const slope = ethers.parseUnits("1", "gwei"); // 1 gwei
-    const graduationThreshold = ethers.parseEther("800000"); // 80% of supply
-    const tier = 0;
-
-    const BondingCurveAMM = await ethers.getContractFactory("BondingCurveAMM");
-    const amm = await BondingCurveAMM.deploy(
-      await token.getAddress(),
-      creator.address,
-      basePrice,
-      slope,
-      0,
-      graduationThreshold,
-      platform.address,
-      tier,
-      await routerRegistry.getAddress()
-    );
-    await amm.waitForDeployment();
-
-    await token.transfer(await amm.getAddress(), totalSupply);
-
-    return {
-      amm,
-      token,
-      weth,
-      positionManager,
-      routerRegistry,
-      trader1,
-      graduationThreshold,
-    };
-  }
-
-  describe("Graduation with DEX Liquidity", function () {
-    it("Should add liquidity to DEX on graduation", async function () {
-      const { amm, token, trader1, graduationThreshold } = await loadFixture(deployDEXFixture);
-
-      // Buy tokens to reach graduation threshold
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-
-      // Check if graduated
-      expect(await amm.isGraduated()).to.be.true;
-
-      // Check if DEX liquidity was added (via mock router)
-      const recordsCount = await dexRouter.getLiquidityRecordsCount();
-      expect(recordsCount).to.equal(1);
-
-      // Verify liquidity record
-      const [recordToken, tokenAmount, nativeAmount, to] = await dexRouter.getLiquidityRecord(0);
-      expect(recordToken).to.equal(await token.getAddress());
-      expect(tokenAmount).to.be.gt(0);
-      expect(nativeAmount).to.be.gt(0);
-      expect(to).to.equal(await amm.getAddress()); // LP tokens sent to AMM
+      const latest = await ethers.provider.getBlock("latest");
+      const now = BigInt(latest!.timestamp);
+      const unlock = await amm.lpUnlockTime();
+      // Unlock is ~180 days out (allow a few seconds of block drift).
+      expect(unlock).to.be.closeTo(now + BigInt(LP_LOCK_DURATION), 10n);
+      expect(await amm.lpTokenAddress()).to.not.equal(ethers.ZeroAddress);
     });
 
-    it("Should split funds 70/20/10 on graduation", async function () {
-      const { amm, trader1, creator, platform, graduationThreshold } =
-        await loadFixture(deployDEXFixture);
-
-      const initialCreatorBalance = await ethers.provider.getBalance(creator.address);
-      const initialPlatformBalance = await ethers.provider.getBalance(platform.address);
-
-      // Buy tokens to reach graduation
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-
-      // Platform should receive 10% immediately
-      const platformGain = (await ethers.provider.getBalance(platform.address)) - initialPlatformBalance;
-      const expectedPlatformShare = (nativeNeeded * 10n) / 100n;
-
-      // Allow for small rounding differences
-      expect(platformGain).to.be.closeTo(expectedPlatformShare, ethers.parseEther("0.01"));
-
-      // Creator should have 20% withdrawable
-      const creatorWithdrawable = await amm.withdrawableGraduationFunds(creator.address);
-      const expectedCreatorShare = (nativeNeeded * 20n) / 100n;
-      expect(creatorWithdrawable).to.be.closeTo(expectedCreatorShare, ethers.parseEther("0.01"));
-
-      // Withdraw creator funds
-      await amm.connect(creator).withdrawGraduationFunds();
-
-      const creatorGain = (await ethers.provider.getBalance(creator.address)) - initialCreatorBalance;
-      expect(creatorGain).to.be.closeTo(expectedCreatorShare, ethers.parseEther("0.01"));
+    it("prevents LP withdrawal before the lock expires", async function () {
+      const { amm, creator } = await graduatedFixture();
+      await expect(
+        amm.connect(creator).withdrawLPTokens()
+      ).to.be.revertedWithCustomError(amm, "LPTokensStillLocked");
     });
 
-    it("Should emit LiquidityAdded event on graduation", async function () {
-      const { amm, token, trader1, graduationThreshold, pairAddress } =
-        await loadFixture(deployDEXFixture);
-
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      // Buy tokens to trigger graduation
-      const tx = await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-      const receipt = await tx.wait();
-
-      // Find LiquidityAdded event
-      const liquidityEvent = receipt?.logs.find((log: any) => {
-        try {
-          const parsed = amm.interface.parseLog(log);
-          return parsed?.name === "LiquidityAdded";
-        } catch {
-          return false;
-        }
-      });
-
-      expect(liquidityEvent).to.not.be.undefined;
-
-      const parsedEvent = amm.interface.parseLog(liquidityEvent!);
-      expect(parsedEvent?.args.tokenAmount).to.be.gt(0);
-      expect(parsedEvent?.args.nativeAmount).to.be.gt(0);
-      expect(parsedEvent?.args.liquidity).to.be.gt(0);
-      expect(parsedEvent?.args.dexPair).to.equal(pairAddress);
+    it("only the creator can withdraw LP tokens", async function () {
+      const { amm, other } = await graduatedFixture();
+      await ethers.provider.send("evm_increaseTime", [LP_LOCK_DURATION + 1]);
+      await ethers.provider.send("evm_mine", []);
+      await expect(
+        amm.connect(other).withdrawLPTokens()
+      ).to.be.revertedWithCustomError(amm, "NoWithdrawableFunds");
     });
 
-    it("Should not revert graduation if DEX liquidity fails (DoS prevention)", async function () {
-      const { amm, dexRouter, trader1, graduationThreshold } = await loadFixture(deployDEXFixture);
+    it("lets the creator withdraw the locked LP after the lock expires", async function () {
+      const { amm, creator } = await graduatedFixture();
+      const locked = await amm.lpTokensLocked();
+      const lpToken = await ethers.getContractAt("MockLPToken", await amm.lpTokenAddress());
+      const before = await lpToken.balanceOf(creator.address);
 
-      // Make DEX router revert
-      await dexRouter.setShouldRevert(true);
+      await ethers.provider.send("evm_increaseTime", [LP_LOCK_DURATION + 1]);
+      await ethers.provider.send("evm_mine", []);
 
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      // Should not revert even if DEX fails
-      await expect(amm.connect(trader1).buyTokens(0, { value: nativeNeeded })).to.not.be.reverted;
-
-      // Should still be graduated
-      expect(await amm.isGraduated()).to.be.true;
-    });
-  });
-
-  describe("LP Token Locking", function () {
-    it("Should lock LP tokens for 6 months", async function () {
-      const { amm, trader1, graduationThreshold } = await loadFixture(deployDEXFixture);
-
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      const graduationTime = await time.latest();
-      await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-
-      // Check LP tokens are locked
-      const lpTokensLocked = await amm.lpTokensLocked();
-      expect(lpTokensLocked).to.be.gt(0);
-
-      // Check unlock time is ~6 months from now
-      const unlockTime = await amm.lpUnlockTime();
-      const expectedUnlockTime = graduationTime + SIX_MONTHS;
-      expect(unlockTime).to.be.closeTo(expectedUnlockTime, 5); // Within 5 seconds
-    });
-
-    it("Should emit LPTokensLocked event", async function () {
-      const { amm, trader1, graduationThreshold } = await loadFixture(deployDEXFixture);
-
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      const tx = await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-      const receipt = await tx.wait();
-
-      // Find LPTokensLocked event
-      const lockEvent = receipt?.logs.find((log: any) => {
-        try {
-          const parsed = amm.interface.parseLog(log);
-          return parsed?.name === "LPTokensLocked";
-        } catch {
-          return false;
-        }
-      });
-
-      expect(lockEvent).to.not.be.undefined;
-
-      const parsedEvent = amm.interface.parseLog(lockEvent!);
-      expect(parsedEvent?.args.amount).to.be.gt(0);
-      expect(parsedEvent?.args.unlockTime).to.be.gt(await time.latest());
-    });
-
-    it("Should prevent LP withdrawal before lock period", async function () {
-      const { amm, creator, trader1, graduationThreshold } = await loadFixture(deployDEXFixture);
-
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-
-      // Try to withdraw immediately
-      await expect(amm.connect(creator).withdrawLPTokens()).to.be.revertedWithCustomError(
-        amm,
-        "LPTokensStillLocked"
-      );
-    });
-
-    it("Should allow LP withdrawal after lock period", async function () {
-      const { amm, creator, trader1, graduationThreshold, pairAddress } =
-        await loadFixture(deployDEXFixture);
-
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-
-      const lpTokensBefore = await amm.lpTokensLocked();
-      expect(lpTokensBefore).to.be.gt(0);
-
-      // Fast forward 6 months
-      await time.increase(SIX_MONTHS);
-
-      // Get LP token contract
-      const lpToken = await ethers.getContractAt("MockLPToken", pairAddress);
-      const creatorBalanceBefore = await lpToken.balanceOf(creator.address);
-
-      // Withdraw LP tokens
       await expect(amm.connect(creator).withdrawLPTokens())
         .to.emit(amm, "LPTokensWithdrawn")
-        .withArgs(creator.address, lpTokensBefore, await amm.lpTokenAddress());
+        .withArgs(creator.address, locked, await amm.lpTokenAddress());
 
-      // Check LP tokens transferred to creator
-      const creatorBalanceAfter = await lpToken.balanceOf(creator.address);
-      expect(creatorBalanceAfter - creatorBalanceBefore).to.equal(lpTokensBefore);
-
-      // Check lpTokensLocked is now 0
-      expect(await amm.lpTokensLocked()).to.equal(0);
-    });
-
-    it("Should only allow creator to withdraw LP tokens", async function () {
-      const { amm, trader1, trader2, graduationThreshold } = await loadFixture(deployDEXFixture);
-
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-
-      // Fast forward 6 months
-      await time.increase(SIX_MONTHS);
-
-      // Non-creator should not be able to withdraw
-      await expect(amm.connect(trader2).withdrawLPTokens()).to.be.revertedWithCustomError(
-        amm,
-        "NoWithdrawableFunds"
-      );
+      expect((await lpToken.balanceOf(creator.address)) - before).to.equal(locked);
+      expect(await amm.lpTokensLocked()).to.equal(0n);
     });
   });
 
-  describe("Post-Graduation Trading", function () {
-    it("Should prevent trading after graduation", async function () {
-      const { amm, trader1, trader2, graduationThreshold } = await loadFixture(deployDEXFixture);
+  describe("post-graduation trading guard", function () {
+    it("reverts buys and sells once graduated", async function () {
+      const { amm, token, trader, other } = await graduatedFixture();
 
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-
-      // Should be graduated
-      expect(await amm.isGraduated()).to.be.true;
-
-      // Try to buy more tokens
       await expect(
-        amm.connect(trader2).buyTokens(0, { value: ethers.parseEther("1") })
-      ).to.be.revertedWithCustomError(amm, "TradingClosed");
+        amm.connect(other).buyTokens(0, { value: ethers.parseEther("1") })
+      ).to.be.revertedWithCustomError(amm, "AlreadyGraduated");
 
-      // Try to sell tokens
+      const traderBalance = await token.balanceOf(trader.address);
+      await token.connect(trader).approve(await amm.getAddress(), traderBalance);
       await expect(
-        amm.connect(trader1).sellTokens(ethers.parseEther("100"), 0)
-      ).to.be.revertedWithCustomError(amm, "TradingClosed");
+        amm.connect(trader).sellTokens(traderBalance, 0)
+      ).to.be.revertedWithCustomError(amm, "AlreadyGraduated");
     });
   });
 
-  describe("Edge Cases", function () {
-    it("Should handle exact graduation threshold", async function () {
-      const { amm, trader1, graduationThreshold } = await loadFixture(deployDEXFixture);
-
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-
-      expect(await amm.isGraduated()).to.be.true;
-      expect(await amm.currentSupply()).to.be.gte(graduationThreshold);
-    });
-
-    it("Should handle multiple small trades leading to graduation", async function () {
-      const { amm, trader1, trader2, graduationThreshold } = await loadFixture(deployDEXFixture);
-
-      const tokensPerTrade = graduationThreshold / 10n;
-      const nativePerTrade = await amm.calculateNativeIn(tokensPerTrade, 0n);
-
-      // Make 9 trades (not quite graduated)
-      for (let i = 0; i < 9; i++) {
-        const currentSupply = await amm.currentSupply();
-        const tokensNeeded = tokensPerTrade;
-        const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, currentSupply);
-        await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-      }
-
-      expect(await amm.isGraduated()).to.be.false;
-
-      // Final trade should trigger graduation
-      const currentSupply = await amm.currentSupply();
-      const remainingTokens = graduationThreshold - currentSupply;
-      const finalNative = await amm.calculateNativeIn(remainingTokens, currentSupply);
-
-      await amm.connect(trader2).buyTokens(0, { value: finalNative });
-
-      expect(await amm.isGraduated()).to.be.true;
-    });
-
-    it("Should handle zero LP tokens case gracefully", async function () {
-      const { amm, creator, trader1, graduationThreshold, dexRouter } =
-        await loadFixture(deployDEXFixture);
-
-      // Make DEX fail so no LP tokens are locked
-      await dexRouter.setShouldRevert(true);
-
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-
-      // Should be graduated even though LP failed
-      expect(await amm.isGraduated()).to.be.true;
-
-      // Fast forward 6 months
-      await time.increase(SIX_MONTHS);
-
-      // Should revert when trying to withdraw 0 LP tokens
-      await expect(amm.connect(creator).withdrawLPTokens()).to.be.revertedWithCustomError(
-        amm,
-        "NoLPTokensToWithdraw"
-      );
-    });
-  });
-
-  describe("DEX Router Configuration", function () {
-    it("Should store correct DEX router address", async function () {
-      const { dexRouter, routerRegistry } = await loadFixture(deployDEXFixture);
-      const { chainId } = await ethers.provider.getNetwork();
-      const config = await routerRegistry.getRouterConfig(Number(chainId));
-
-      expect(config.router).to.equal(await dexRouter.getAddress());
-    });
-
-    it("Should approve tokens to DEX router before adding liquidity", async function () {
-      const { amm, token, dexRouter, trader1, graduationThreshold } =
-        await loadFixture(deployDEXFixture);
-
-      const tokensNeeded = graduationThreshold;
-      const nativeNeeded = await amm.calculateNativeIn(tokensNeeded, 0n);
-
-      await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-
-      // Check that tokens were transferred to DEX
-      const dexRouterAddress = await dexRouter.getAddress();
-      const routerBalance = await token.balanceOf(dexRouterAddress);
-      expect(routerBalance).to.be.gt(0);
-    });
-  });
-
-  describe("V3 Liquidity Path", function () {
-    it("Should mint a V3 position on graduation", async function () {
-      const { amm, positionManager, trader1, graduationThreshold } =
-        await loadFixture(deployV3Fixture);
-
-      const nativeNeeded = await amm.calculateNativeIn(graduationThreshold, 0n);
-      await amm.connect(trader1).buyTokens(0, { value: nativeNeeded });
-
-      expect(await amm.isGraduated()).to.be.true;
-      expect(await amm.lpPositionTokenId()).to.be.gt(0);
-      expect(await amm.lpTokensLocked()).to.be.gt(0);
-      expect(await amm.lpTokenAddress()).to.equal(await positionManager.getAddress());
+  describe("router configuration", function () {
+    it("exposes the configured DEX router", async function () {
+      const { amm, dexRouter } = await graduatedFixture();
+      expect(await amm.dexRouter()).to.equal(await dexRouter.getAddress());
     });
   });
 });

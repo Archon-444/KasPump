@@ -333,57 +333,96 @@ describe("PR 3 — graduation correctness", function () {
       expect(await token.balanceOf(await amm.getAddress())).to.equal(0n);
     });
 
-    it("skips LP and routes earmarks to treasury when the pair is pre-seeded with reserves", async function () {
-      const { amm, token, dexRouter, treasury, buyer } = await deployFixture();
+    it("a pre-seeded dust pair no longer blocks LP or burns the earmark to treasury", async function () {
+      const { amm, token, dexRouter, buyer } = await deployFixture();
 
-      // Pre-create the pair with non-zero reserves so the AMM's pre-seeded
-      // pair defense fires at graduation. We pull the factory off the
-      // router, deploy a pair, and pin its reserves to a noisy ratio.
+      // Griefer front-runs graduation by creating the token/WETH pair and
+      // pinning dust reserves. Previously this permanently denied the token a
+      // DEX pool (earmark burned to treasury). Now graduation attempts the add
+      // regardless — the dust is negligible and does not deny.
       const factoryAddr = await dexRouter.factory();
       const factory = await ethers.getContractAt("MockDEXFactory", factoryAddr);
       const wethAddr = await dexRouter.WETH();
       await factory.createPair(await token.getAddress(), wethAddr);
       const pairAddr = await factory.getPair(await token.getAddress(), wethAddr);
       const pair = await ethers.getContractAt("MockLPToken", pairAddr);
-      // Arbitrary non-zero reserves — anything non-zero must trigger the
-      // pre-seed defense.
       await pair.setReserves(1, 1);
 
-      const treasuryTokenBefore = await token.balanceOf(treasury.address);
+      const tx = await amm.connect(buyer).buyTokens(0, { value: ethers.parseEther("100") });
 
-      const tx = await amm
-        .connect(buyer)
-        .buyTokens(0, { value: ethers.parseEther("100") });
+      // No pre-seed abort: LP is added, and the deprecated event does not fire.
+      await expect(tx).to.not.emit(amm, "LiquidityPairPrePolluted");
+      await expect(tx).to.not.emit(amm, "GraduationLiquidityDeferred");
+      expect(await dexRouter.getLiquidityRecordsCount()).to.equal(1n);
+      expect(await amm.pendingLPNative()).to.equal(0n);
+      expect(await amm.pendingLPTokens()).to.equal(0n);
+    });
 
-      // The defense fires the LiquidityPairPrePolluted event with the
-      // pair address.
-      await expect(tx)
-        .to.emit(amm, "LiquidityPairPrePolluted")
-        .withArgs(pairAddr);
+    it("defers the LP earmark (retained, not burned) when the DEX add fails", async function () {
+      const { amm, token, dexRouter, buyer } = await deployFixture();
 
-      // GraduationTriggered carries lpAdded=false, used=0/0.
-      await expect(tx)
-        .to.emit(amm, "GraduationTriggered");
-      // No LP record was created on the router.
+      // Force the router to revert so the graduation LP add fails.
+      await dexRouter.setShouldRevert(true);
+
+      const tx = await amm.connect(buyer).buyTokens(0, { value: ethers.parseEther("100") });
+      await expect(tx).to.emit(amm, "GraduationLiquidityDeferred");
+
+      expect(await amm.isGraduated()).to.equal(true);
       expect(await dexRouter.getLiquidityRecordsCount()).to.equal(0n);
 
-      // Both LP-earmarked tokens (140M) AND the standard treasury (20M)
-      // landed at the treasury → 160M total token transfer.
-      const remaining = TOTAL_SUPPLY - GRADUATION_THRESHOLD;
-      const expectedTreasuryToken =
-        ((remaining * 1000n) / 10000n) + ((remaining * 7000n) / 10000n);
-      const treasuryTokenAfter = await token.balanceOf(treasury.address);
-      expect(treasuryTokenAfter - treasuryTokenBefore).to.equal(expectedTreasuryToken);
+      const pendingNative = await amm.pendingLPNative();
+      const pendingTokens = await amm.pendingLPTokens();
+      expect(pendingNative).to.be.gt(0n);
+      expect(pendingTokens).to.be.gt(0n);
 
-      // Accounting closure: no untracked native or tokens in the AMM. The
-      // LP-earmarked native rolled into the platform pull-payment bucket.
+      // The retained LP tokens sit in the AMM; the retained native is tracked
+      // by pendingLPNative and is part of the accounting closure.
+      expect(await token.balanceOf(await amm.getAddress())).to.equal(pendingTokens);
       const ammBalance = await ethers.provider.getBalance(await amm.getAddress());
       const creatorFees = await amm.creatorAccumulatedFees();
       const referrerFees = await amm.referrerAccumulatedFees();
       const platformFees = await amm.platformAccumulatedFees();
       const totalGrad = await amm.totalGraduationFunds();
-      expect(ammBalance).to.equal(creatorFees + referrerFees + platformFees + totalGrad);
+      expect(ammBalance).to.equal(
+        creatorFees + referrerFees + platformFees + totalGrad + pendingNative
+      );
+    });
+
+    it("retryGraduationLiquidity adds the deferred earmark once the DEX is healthy", async function () {
+      const { amm, token, dexRouter, buyer } = await deployFixture();
+
+      await dexRouter.setShouldRevert(true);
+      await amm.connect(buyer).buyTokens(0, { value: ethers.parseEther("100") });
+
+      const pendingNative = await amm.pendingLPNative();
+      const pendingTokens = await amm.pendingLPTokens();
+
+      // While the DEX is still unhealthy, a retry reverts and preserves the earmark.
+      await expect(amm.connect(buyer).retryGraduationLiquidity()).to.be.reverted;
+      expect(await amm.pendingLPNative()).to.equal(pendingNative);
+      expect(await amm.pendingLPTokens()).to.equal(pendingTokens);
+
+      // Once healthy, anyone can trigger the retry — it seeds real liquidity.
+      await dexRouter.setShouldRevert(false);
+      await expect(amm.connect(buyer).retryGraduationLiquidity()).to.emit(
+        amm,
+        "GraduationLiquidityRetried"
+      );
+
+      expect(await dexRouter.getLiquidityRecordsCount()).to.equal(1n);
+      const record = await dexRouter.getLiquidityRecord(0);
+      expect(record[1]).to.equal(pendingTokens); // tokenAmount consumed
+      expect(await amm.pendingLPNative()).to.equal(0n);
+      expect(await amm.pendingLPTokens()).to.equal(0n);
       expect(await token.balanceOf(await amm.getAddress())).to.equal(0n);
+    });
+
+    it("retryGraduationLiquidity reverts when there is nothing pending", async function () {
+      const { amm, buyer } = await deployFixture();
+      // Normal graduation (LP added), so nothing is pending.
+      await amm.connect(buyer).buyTokens(0, { value: ethers.parseEther("100") });
+      expect(await amm.pendingLPNative()).to.equal(0n);
+      await expect(amm.connect(buyer).retryGraduationLiquidity()).to.be.reverted;
     });
 
     it("clears the router allowance after the LP add", async function () {

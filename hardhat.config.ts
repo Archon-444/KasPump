@@ -1,9 +1,15 @@
-require("@nomicfoundation/hardhat-toolbox");
-require("dotenv").config({ path: '.env.local' });
-require("dotenv").config();
+import "@nomicfoundation/hardhat-toolbox";
+import * as dotenv from "dotenv";
+import type { HardhatUserConfig } from "hardhat/config";
 
-/** @type import('hardhat/config').HardhatUserConfig */
-module.exports = {
+// A .ts config (not .js) is required for Hardhat to run the TypeScript test
+// suite: Hardhat only globs `*.ts` test files when its config file itself is
+// TypeScript (see isRunningWithTypescript). ts-node transpiles this and the
+// tests as CommonJS via the `ts-node` override in tsconfig.json.
+dotenv.config({ path: ".env.local" });
+dotenv.config();
+
+const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.20",
     settings: {
@@ -72,3 +78,5 @@ module.exports = {
     },
   },
 };
+
+export default config;
