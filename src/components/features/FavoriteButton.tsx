@@ -8,7 +8,9 @@ import { cn } from '../../utils';
 
 export interface FavoriteButtonProps {
   tokenAddress: string;
-  chainId?: number;
+  // `| undefined` so callers can pass through token.chainId verbatim under
+  // exactOptionalPropertyTypes.
+  chainId?: number | undefined;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   showLabel?: boolean;

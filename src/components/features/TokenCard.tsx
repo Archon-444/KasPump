@@ -4,7 +4,7 @@ import React, { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Users, Clock, Flame, Shield, Zap, Target, Activity, Share2 } from 'lucide-react';
 import { KasPumpToken, TokenCardProps } from '../../types';
-import { Card, Badge, Progress } from '../ui';
+import { Card } from '../ui';
 import { FavoriteButton } from './FavoriteButton';
 import { formatCurrency, formatPercentage, formatTimeAgo, cn } from '../../utils';
 
@@ -194,7 +194,7 @@ const TokenCardComponent: React.FC<TokenCardProps> = ({
             </button>
             <FavoriteButton
               tokenAddress={token.address}
-              chainId={(token as any).chainId}
+              chainId={token.chainId}
               size="sm"
             />
             <div className={cn(

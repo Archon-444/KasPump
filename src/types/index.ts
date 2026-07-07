@@ -21,6 +21,9 @@ export interface KasPumpToken {
   bondingCurveProgress: number; // 0-100, when it graduates to AMM
   ammAddress: string;
   isGraduated: boolean;
+  // Set by fetchers that know which chain the token lives on; absent on
+  // payloads from chain-scoped endpoints.
+  chainId?: number;
 }
 
 export interface TradeData {
