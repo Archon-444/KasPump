@@ -90,6 +90,13 @@ describe("Security fix #1 — factory transfers AMM ownership to ammAdmin", func
     await factory.waitForDeployment();
     await factory.updateDexRouterRegistry(await registry.getAddress());
 
+    // AMM deployment now lives in an external AMMDeployer (keeps TokenFactory
+    // under the EIP-170 24576-byte limit); wire it up before createToken.
+    const AMMDeployer = await ethers.getContractFactory("AMMDeployer");
+    const ammDeployer = await AMMDeployer.deploy();
+    await ammDeployer.waitForDeployment();
+    await factory.setAmmDeployer(await ammDeployer.getAddress());
+
     return { factory, deployer, admin, creator };
   }
 
