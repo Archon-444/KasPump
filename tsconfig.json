@@ -1,4 +1,11 @@
 {
+  "ts-node": {
+    "transpileOnly": true,
+    "compilerOptions": {
+      "module": "commonjs",
+      "moduleResolution": "node"
+    }
+  },
   "compilerOptions": {
     "ignoreDeprecations": "5.0",
     "target": "es2020",

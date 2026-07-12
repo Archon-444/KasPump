@@ -80,6 +80,17 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     uint256 public lpTokensLocked; // Amount of LP tokens locked
     uint256 public lpUnlockTime; // Timestamp when LP can be unlocked (6 months)
 
+    // Graduation LP earmark retained when the initial DEX liquidity add fails
+    // (DEX revert, or a griefer who pre-seeded the token/WETH pair with a
+    // bad-ratio dust pool so addLiquidityETH reverts on our slippage bounds).
+    // Retaining the earmark here — instead of burning it to treasury — means
+    // anyone can correct the dust pool and call retryGraduationLiquidity() to
+    // seed real liquidity, so a few wei of dust can no longer permanently deny
+    // the token its DEX market. pendingLPNative sits in address(this).balance;
+    // pendingLPTokens sits in the AMM's token balance.
+    uint256 public pendingLPNative;
+    uint256 public pendingLPTokens;
+
     // ========== ANTI-BOT + SOFT-LAUNCH STATE ==========
 
     // Same-block trade tracking (anti-sandwich, anti-flip)
@@ -107,6 +118,7 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     //   + creatorAccumulatedFees + referrerAccumulatedFees
     //   + platformAccumulatedFees
     //   + totalGraduationFunds
+    //   + pendingLPNative
     // (any leftover beyond these buckets is ignored on purpose).
     uint256 public curveNativeBalance;
 
@@ -309,10 +321,29 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
     );
 
     // Emitted when graduation finds a pre-existing token/WETH pair that
-    // already has non-zero reserves. The AMM refuses to add liquidity to a
-    // polluted pool; the LP earmark instead rolls into treasury. Front-end
-    // and ops can show this distinctively.
+    // already has non-zero reserves. Retained for indexer/ABI compatibility;
+    // no longer emitted since graduation now attempts the LP add regardless
+    // and defers on failure (see GraduationLiquidityDeferred) rather than
+    // refusing outright.
     event LiquidityPairPrePolluted(address indexed pair);
+
+    // Emitted when the graduation LP add fails (DEX revert or a griefed
+    // bad-ratio pre-existing pair) and the earmark is retained for retry
+    // instead of being burned to treasury. The pending native + tokens can be
+    // added later via retryGraduationLiquidity() once the pool is sane.
+    event GraduationLiquidityDeferred(
+        address indexed token,
+        uint256 nativePending,
+        uint256 tokensPending
+    );
+
+    // Emitted when a deferred graduation LP earmark is successfully added to
+    // the DEX via retryGraduationLiquidity().
+    event GraduationLiquidityRetried(
+        address indexed token,
+        uint256 nativeUsed,
+        uint256 tokensUsed
+    );
 
     event GraduationOverpaymentRefunded(
         address indexed buyer,
@@ -1188,10 +1219,14 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         ) = _addLiquidityToDEX(nativeForLP, tokensForLP);
 
         if (!lpAdded) {
-            treasuryNative += nativeForLP;
-            if (tokensForLP > 0) {
-                token.safeTransfer(feeRecipient, tokensForLP);
-            }
+            // Retain the LP earmark instead of burning it to treasury. The
+            // native stays in address(this).balance and the tokens stay in the
+            // AMM's token balance; both are tracked so accounting stays exact
+            // and emergencyWithdraw won't sweep them. retryGraduationLiquidity()
+            // can add them to the DEX once any griefed pool is corrected.
+            pendingLPNative = nativeForLP;
+            pendingLPTokens = tokensForLP;
+            emit GraduationLiquidityDeferred(address(token), nativeForLP, tokensForLP);
         } else {
             if (lpNativeRefund > 0) {
                 treasuryNative += lpNativeRefund;
@@ -1212,7 +1247,10 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         emit TreasuryAllocated(
             feeRecipient,
             treasuryNative,
-            tokensForTreasury + (lpAdded ? lpTokenRefund : tokensForLP)
+            // On the deferred path tokensForLP are retained (pendingLPTokens),
+            // not sent to treasury, so only the LP refund (success path) adds
+            // to the treasury token total here.
+            tokensForTreasury + (lpAdded ? lpTokenRefund : 0)
         );
 
         // Legacy events kept for indexer compat.
@@ -1263,21 +1301,18 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             return (false, 0, 0, 0, 0);
         }
 
-        // Pre-seeded pair defense. If the token/WETH pair already exists
-        // with non-zero reserves (someone front-ran with dust), refuse to
-        // pair our LP against an arbitrary external ratio. The earmarked
-        // native + tokens roll to treasury via the caller's failure branch.
-        // V1 policy: empty pair required for clean migration.
+        // No pre-seeded-pair hard abort. Previously we refused to add liquidity
+        // whenever the token/WETH pair already had non-zero reserves and burned
+        // the LP earmark to treasury — but the pair address is public from token
+        // creation, so anyone could seed 1 wei of dust and permanently deny the
+        // token a real DEX pool. Instead we always attempt the add: the tight
+        // amountMin bounds below make addLiquidityETH revert if a pre-existing
+        // pool is at a manipulated ratio, and that revert is caught so the
+        // earmark is *retained* for retryGraduationLiquidity() (see caller),
+        // never lost. A pre-existing pool at a sane ratio just absorbs our
+        // liquidity (dust is negligible).
         address weth = dexRouter.WETH();
         address factoryAddr = dexRouter.factory();
-        address existingPair = IPancakeFactory(factoryAddr).getPair(address(token), weth);
-        if (existingPair != address(0)) {
-            (uint112 r0, uint112 r1, ) = IPancakePair(existingPair).getReserves();
-            if (r0 != 0 || r1 != 0) {
-                emit LiquidityPairPrePolluted(existingPair);
-                return (false, 0, 0, 0, 0);
-            }
-        }
 
         token.safeIncreaseAllowance(address(dexRouter), tokenAmount);
         uint256 minTokenAmount = (tokenAmount * (100 - DEX_SLIPPAGE_TOLERANCE)) / 100;
@@ -1319,6 +1354,55 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
         // approvals. forceApprove handles non-zero->zero safely on tokens
         // that require zero-then-set approve sequencing (USDT, etc.).
         token.forceApprove(address(dexRouter), 0);
+    }
+
+    /**
+     * @dev Re-attempt the DEX liquidity add for a graduation whose initial add
+     * failed (DEX revert or a griefed bad-ratio pre-existing pair), using the
+     * retained pendingLPNative / pendingLPTokens earmark.
+     *
+     * Permissionless by design: the destination LP is locked in this contract
+     * and can only ever be withdrawn by the creator after the lock, so anyone
+     * (typically the community, after arbitraging a griefed dust pool back to a
+     * sane price) may trigger the retry — it can only help the token. Reverts
+     * (leaving the earmark intact for a later attempt) if there is nothing
+     * pending or the add still fails.
+     */
+    function retryGraduationLiquidity() external nonReentrant onlyGraduated {
+        uint256 nativeAmount = pendingLPNative;
+        uint256 tokenAmount = pendingLPTokens;
+        if (nativeAmount == 0 || tokenAmount == 0) revert NoWithdrawableFunds();
+
+        // Clear the earmark before the external add. If the add fails the whole
+        // call reverts, rolling this back so the earmark is preserved intact.
+        pendingLPNative = 0;
+        pendingLPTokens = 0;
+
+        (
+            bool lpAdded,
+            ,
+            ,
+            uint256 nativeRefund,
+            uint256 tokenRefund
+        ) = _addLiquidityToDEX(nativeAmount, tokenAmount);
+
+        if (!lpAdded) revert DEXLiquidityFailed();
+
+        // Any portion the router didn't consume rolls to treasury, matching the
+        // graduation-path refund handling (native → platform pull bucket).
+        if (nativeRefund > 0) {
+            platformAccumulatedFees += nativeRefund;
+            emit PlatformFeeAccumulated(feeRecipient, nativeRefund, platformAccumulatedFees);
+        }
+        if (tokenRefund > 0) {
+            token.safeTransfer(feeRecipient, tokenRefund);
+        }
+
+        emit GraduationLiquidityRetried(
+            address(token),
+            nativeAmount - nativeRefund,
+            tokenAmount - tokenRefund
+        );
     }
 
     /**
@@ -1390,7 +1474,8 @@ contract BondingCurveAMM is ReentrancyGuard, Pausable, Ownable {
             + referrerAccumulatedFees
             + platformAccumulatedFees
             + curveNativeBalance
-            + totalGraduationFunds;
+            + totalGraduationFunds
+            + pendingLPNative;
         uint256 withdrawable = address(this).balance > reserved
             ? address(this).balance - reserved
             : 0;

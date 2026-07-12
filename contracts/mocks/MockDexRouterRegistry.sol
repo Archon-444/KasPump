@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "../../contracts/interfaces/IDexRouterRegistry.sol";
+import "../interfaces/IDexRouterRegistry.sol";
 
 contract MockDexRouterRegistry is IDexRouterRegistry {
     mapping(uint256 => RouterConfig) private configs;

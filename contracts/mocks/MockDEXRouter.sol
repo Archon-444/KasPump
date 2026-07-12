@@ -81,6 +81,16 @@ contract MockDEXRouter {
 
         liquidity = (amountToken * amountETH) / 1e18; // Simple formula for testing
 
+        // Mint LP tokens to the recipient, mirroring a real V2 router (which
+        // mints pair LP tokens to `to`). Create the pair on first add if it
+        // doesn't exist yet, so the AMM's post-add getPair() resolves to a real
+        // LP token it actually holds — required for LP-lock/withdraw tests.
+        address pair = MockDEXFactory(factory).getPair(token, WETH);
+        if (pair == address(0)) {
+            pair = MockDEXFactory(factory).createPair(token, WETH);
+        }
+        MockLPToken(pair).mint(to, liquidity);
+
         // Record the liquidity addition (records the actual amounts used).
         liquidityRecords.push(LiquidityRecord({
             token: token,

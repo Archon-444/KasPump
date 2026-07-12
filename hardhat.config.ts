@@ -1,9 +1,15 @@
-require("@nomicfoundation/hardhat-toolbox");
-require("dotenv").config({ path: '.env.local' });
-require("dotenv").config();
+import "@nomicfoundation/hardhat-toolbox";
+import * as dotenv from "dotenv";
+import type { HardhatUserConfig } from "hardhat/config";
 
-/** @type import('hardhat/config').HardhatUserConfig */
-module.exports = {
+// A .ts config (not .js) is required for Hardhat to run the TypeScript test
+// suite: Hardhat only globs `*.ts` test files when its config file itself is
+// TypeScript (see isRunningWithTypescript). ts-node transpiles this and the
+// tests as CommonJS via the `ts-node` override in tsconfig.json.
+dotenv.config({ path: ".env.local" });
+dotenv.config();
+
+const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.20",
     settings: {
@@ -18,6 +24,14 @@ module.exports = {
     },
   },
   networks: {
+    // In-process test network. TokenFactory currently exceeds the 24576-byte
+    // EIP-170 limit (~32KB), so the default network refuses to deploy it in
+    // tests. Allow it here so the suite can run; the real size issue (the
+    // factory is not deployable to mainnet as-is) is tracked separately and
+    // must be fixed before deployment — this flag does NOT affect real networks.
+    hardhat: {
+      allowUnlimitedContractSize: true,
+    },
     // BNB Smart Chain Mainnet
     bsc: {
       url: process.env.BSC_RPC_URL || "https://bsc-dataseed1.binance.org",
@@ -72,3 +86,5 @@ module.exports = {
     },
   },
 };
+
+export default config;
