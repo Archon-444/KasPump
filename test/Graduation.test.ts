@@ -278,17 +278,15 @@ describe("PR 3 — graduation correctness", function () {
   });
 
   describe("Follow-up patch — DEX refund + pre-seeded pair", function () {
-    // QUARANTINED: pre-existing failure — the test forces 60% DEX consumption, but
-    // the AMM's 5% slippage floor (amountMin) makes addLiquidityETH revert at that
-    // ratio, so no LP record is created. Needs re-parameterizing to a >=95%
-    // consumption to exercise the refund path within tolerance. Tracked.
-    it.skip("routes partial-DEX-consumption refunds (native + token) to treasury", async function () {
+    it("routes partial-DEX-consumption refunds (native + token) to treasury", async function () {
       const { amm, token, dexRouter, treasury, buyer } = await deployFixture();
 
-      // Force the mock router to consume only 60% of what's offered.
-      // The remaining 40% must roll into treasury, not stay in the AMM
-      // and not silently leak. Tests both halves of the new return tuple.
-      await dexRouter.setConsumptionBps(6000);
+      // Force the mock router to consume 96% of what's offered — a 4% refund,
+      // within the AMM's 5% slippage floor (amountMin) so addLiquidityETH does
+      // not revert. The unconsumed 4% (native + token) must roll into treasury,
+      // not stay in the AMM and not silently leak. Tests both halves of the
+      // refund tuple. (Anything under 95% would revert the router on amountMin.)
+      await dexRouter.setConsumptionBps(9600);
 
       const treasuryNativeBefore = await ethers.provider.getBalance(treasury.address);
       const treasuryTokenBefore = await token.balanceOf(treasury.address);
@@ -298,10 +296,10 @@ describe("PR 3 — graduation correctness", function () {
         .buyTokens(0, { value: ethers.parseEther("100") });
       await tx.wait();
 
-      // GraduationTriggered now carries (target, actual). Actual = 60% of target.
+      // GraduationTriggered carries (target, actual). Actual = 96% of target.
       const remaining = TOTAL_SUPPLY - GRADUATION_THRESHOLD;
       const tokensTarget = (remaining * 7000n) / 10000n;          // 140M
-      const tokensActual = (tokensTarget * 6000n) / 10000n;       // 84M
+      const tokensActual = (tokensTarget * 9600n) / 10000n;       // 134.4M
 
       // LP record matches the actual (consumed) values, not the targets.
       const recordsCount = await dexRouter.getLiquidityRecordsCount();
