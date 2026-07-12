@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { BlockchainService } from '@/services/blockchain';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
+
+// Upper bound on the per-request RPC fan-out: each scanned token costs several
+// RPC calls, so we cap how many we score. We scan the most recently created
+// tokens (the tail of getAllTokens) since trending is dominated by fresh
+// activity; `totalTokens` still reports the true count.
+const MAX_TOKENS_SCANNED = 250;
 
 interface ScoredToken {
   address: string;
@@ -26,6 +33,11 @@ const FADING_AGE_SECS = 24 * 60 * 60;            // older than 24h
 const FADING_MAX_PROGRESS_BPS = 30;              // < 30% graduation progress
 
 export async function GET(request: NextRequest) {
+  const rl = await rateLimit(request, 'relaxed');
+  if (!rl.success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: rl.headers });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const chainIdParam = searchParams.get('chainId');
@@ -36,11 +48,15 @@ export async function GET(request: NextRequest) {
 
     const factory = BlockchainService.getTokenFactory(chainId);
     const allTokens = await factory.getAllTokens();
+    // Bound the fan-out: score at most the newest MAX_TOKENS_SCANNED tokens.
+    const tokensToScan = allTokens.length > MAX_TOKENS_SCANNED
+      ? allTokens.slice(-MAX_TOKENS_SCANNED)
+      : allTokens;
 
     const scored: ScoredToken[] = [];
 
     await Promise.all(
-      allTokens.map(async (tokenAddress) => {
+      tokensToScan.map(async (tokenAddress) => {
         try {
           const [config, ammAddress] = await Promise.all([
             factory.getTokenConfig(tokenAddress),
@@ -125,14 +141,12 @@ export async function GET(request: NextRequest) {
         .slice(0, 5),
       fading,
       totalTokens: allTokens.length,
+      tokensScanned: tokensToScan.length,
     }, {
       headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60' },
     });
   } catch (error: any) {
     console.error('Trending API Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch trending tokens', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch trending tokens' }, { status: 500 });
   }
 }
