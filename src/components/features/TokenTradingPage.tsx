@@ -56,7 +56,11 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
 
   const [timeframe, setTimeframe] = useState('1h');
   const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(token.holders || 0);
+  // Local-only like toggle. Seeding this from token.holders (as before)
+  // presented the holder count as a "like" count — a fabricated metric. There
+  // is no likes backend, so this is honest local UI state only (0, or 1 when
+  // the current user likes).
+  const [likeCount, setLikeCount] = useState(0);
   const [userBalance, setUserBalance] = useState(0);
   const [userTokenBalance, setUserTokenBalance] = useState(0);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
