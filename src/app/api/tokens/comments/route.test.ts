@@ -171,6 +171,27 @@ describe('POST /api/tokens/comments', () => {
     expect((writeCall![1] as any[])).toHaveLength(1);
   });
 
+  it('caps the stored thread at 1000, keeping the newest', async () => {
+    // 1000 existing comments (oldest at ts 1) + this new one → trim to 1000,
+    // dropping the single oldest.
+    const existing = Array.from({ length: 1000 }, (_, i) => ({
+      ...makeComment({ timestamp: i + 1 }), id: `c${i}`,
+    }));
+    vi.mocked(kv.get).mockImplementation(async (key: any) =>
+      String(key).startsWith('comments:') ? existing : null
+    );
+
+    const res = await POST(makePostRequest(await signedBody({ text: 'newest' })));
+    expect(res.status).toBe(201);
+
+    const writeCall = vi.mocked(kv.set).mock.calls.find(c => String(c[0]).startsWith('comments:'));
+    const written = writeCall![1] as any[];
+    expect(written).toHaveLength(1000);
+    // Oldest (ts 1) dropped; the new comment is retained.
+    expect(written.some(c => c.timestamp === 1)).toBe(false);
+    expect(written.some(c => c.text === 'newest')).toBe(true);
+  });
+
   it('acquires and releases the lock around the write', async () => {
     await POST(makePostRequest(await signedBody({ text: 'gm' })));
 

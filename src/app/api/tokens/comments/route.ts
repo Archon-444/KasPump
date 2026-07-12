@@ -20,6 +20,12 @@ interface Comment {
 
 const ALLOWED_REACTIONS = ['🔥', '💯', '🚀'] as const;
 
+// A token's comments live in a single KV value, so the thread must be bounded
+// or it grows without limit and eventually blows the value-size ceiling. Keep
+// the most recent MAX_COMMENTS; older ones age out (the UI already paginates
+// newest-first, so this is invisible in practice).
+const MAX_COMMENTS = 1000;
+
 function commentKey(tokenAddress: string): string {
   return `comments:${tokenAddress.toLowerCase()}`;
 }
@@ -134,7 +140,11 @@ export async function POST(request: NextRequest) {
       }
 
       comments.push(comment);
-      await writeComments(tokenAddress, comments);
+      // Bound the thread: keep the newest MAX_COMMENTS by timestamp.
+      const bounded = comments.length > MAX_COMMENTS
+        ? [...comments].sort((a, b) => a.timestamp - b.timestamp).slice(-MAX_COMMENTS)
+        : comments;
+      await writeComments(tokenAddress, bounded);
     } finally {
       await kv.del(lockKey);
     }
