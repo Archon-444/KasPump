@@ -97,7 +97,7 @@ export const PerformanceMonitor: React.FC = () => {
     // Wait for resources to load
     setTimeout(() => {
       const bundleSize = calculateBundleSize();
-      if (bundleSize > 0) {
+      if (bundleSize > 0 && process.env.NODE_ENV === 'development') {
         console.log(`[Performance] Approximate JS bundle size: ${(bundleSize / 1024).toFixed(2)}KB`);
       }
     }, 2000);
