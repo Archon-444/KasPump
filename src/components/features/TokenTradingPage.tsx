@@ -167,6 +167,20 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
 
   const resolvedChainId = resolveChainId();
 
+  // switchNetwork resolves false when the user rejects the wallet prompt (or it
+  // otherwise fails). Surface that instead of swallowing it silently.
+  const handleSwitchNetwork = useCallback(async () => {
+    if (!tokenChainId) return;
+    const switched = await wallet.switchNetwork(tokenChainId);
+    if (!switched) {
+      showError(
+        new Error(
+          `Couldn't switch to ${tokenChainName ?? `chain ${tokenChainId}`}. Approve the network switch in your wallet to trade.`
+        )
+      );
+    }
+  }, [wallet, tokenChainId, tokenChainName, showError]);
+
   const handleLike = () => {
     setLiked(!liked);
     setLikeCount(prev => liked ? prev - 1 : prev + 1);
@@ -377,7 +391,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
                   </p>
                 </div>
                 <button
-                  onClick={() => tokenChainId && wallet.switchNetwork(tokenChainId)}
+                  onClick={handleSwitchNetwork}
                   disabled={wallet.isSwitchingNetwork}
                   className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-orange-500 text-white hover:bg-orange-400 disabled:opacity-50 transition-colors flex-shrink-0"
                 >
