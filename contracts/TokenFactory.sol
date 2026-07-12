@@ -21,7 +21,7 @@ import "./interfaces/IAMMDeployer.sol";
  *  - Safe CREATE2 deployment
  * @notice DEX Integration:
  *  - Uses DexRouterRegistry for chain-specific router configuration
- *  - Supports V2 and V3 liquidity paths
+ *  - Uses the V2 addLiquidityETH path for graduation liquidity
  *  - AMM automatically adds liquidity on graduation
  */
 contract TokenFactory is Ownable, ReentrancyGuard, Pausable {

@@ -15,11 +15,8 @@ contract DexRouterRegistry is Ownable, IDexRouterRegistry {
 
     event RouterConfigUpdated(
         uint256 indexed chainId,
-        RouterType routerType,
         address router,
-        address positionManager,
         address wrappedNative,
-        uint24 fee,
         bool enabled
     );
 
@@ -31,38 +28,24 @@ contract DexRouterRegistry is Ownable, IDexRouterRegistry {
 
     function setRouterConfig(
         uint256 chainId,
-        RouterType routerType,
         address router,
-        address positionManager,
         address wrappedNative,
-        uint24 fee,
         bool enabled
     ) external onlyOwner {
         if (enabled) {
             if (wrappedNative == address(0)) revert InvalidRouterConfig();
-            if (routerType == RouterType.V2) {
-                if (router == address(0)) revert InvalidRouterConfig();
-            } else if (routerType == RouterType.V3) {
-                if (positionManager == address(0) || fee == 0) {
-                    revert InvalidRouterConfig();
-                }
-            } else {
-                revert InvalidRouterConfig();
-            }
+            if (router == address(0)) revert InvalidRouterConfig();
         }
 
         RouterConfig memory config = RouterConfig({
-            routerType: routerType,
             router: router,
-            positionManager: positionManager,
             wrappedNative: wrappedNative,
-            fee: fee,
             enabled: enabled
         });
 
         routerConfigs[chainId] = config;
 
-        emit RouterConfigUpdated(chainId, routerType, router, positionManager, wrappedNative, fee, enabled);
+        emit RouterConfigUpdated(chainId, router, wrappedNative, enabled);
     }
 
     function getRouterConfig(uint256 chainId) external view returns (RouterConfig memory) {
@@ -72,16 +55,7 @@ contract DexRouterRegistry is Ownable, IDexRouterRegistry {
     function isChainSupported(uint256 chainId) external view returns (bool) {
         RouterConfig memory config = routerConfigs[chainId];
         if (!config.enabled) return false;
-
-        if (config.routerType == RouterType.V2) {
-            return config.router != address(0) && config.wrappedNative != address(0);
-        }
-
-        if (config.routerType == RouterType.V3) {
-            return config.positionManager != address(0) && config.wrappedNative != address(0) && config.fee != 0;
-        }
-
-        return false;
+        return config.router != address(0) && config.wrappedNative != address(0);
     }
 
     function _setDefaults() internal {
@@ -99,16 +73,13 @@ contract DexRouterRegistry is Ownable, IDexRouterRegistry {
             if (
                 config.enabled &&
                 config.wrappedNative != address(0) &&
-                (config.router != address(0) || config.positionManager != address(0))
+                config.router != address(0)
             ) {
                 routerConfigs[chainIds[i]] = config;
                 emit RouterConfigUpdated(
                     chainIds[i],
-                    config.routerType,
                     config.router,
-                    config.positionManager,
                     config.wrappedNative,
-                    config.fee,
                     config.enabled
                 );
             }
