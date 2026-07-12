@@ -170,6 +170,19 @@ async function main() {
         console.log("✅ ammAdmin fixed");
     }
 
+    // Deploy the AMMDeployer (holds the BondingCurveAMM creation bytecode so the
+    // factory stays under the EIP-170 limit) and wire it while the deployer EOA
+    // still owns the factory — setAmmDeployer is onlyOwner. Without this,
+    // createToken reverts with AmmDeployerNotSet. The AMMDeployer is
+    // chain-specific (AMM addresses are not cross-chain deterministic anyway).
+    console.log("   Deploying + configuring AMMDeployer...");
+    const AMMDeployer = await ethers.getContractFactory("AMMDeployer");
+    const ammDeployer = await AMMDeployer.deploy();
+    await ammDeployer.waitForDeployment();
+    const ammDeployerAddress = await ammDeployer.getAddress();
+    await (await factoryAsOwner.setAmmDeployer(ammDeployerAddress)).wait();
+    console.log("✅ AMMDeployer deployed + configured:", ammDeployerAddress);
+
     if (safeOwner) {
         console.log(`   Transferring TokenFactory ownership to Safe ${safeOwner}...`);
         await (await factoryAsOwner.transferOwnership(safeOwner)).wait();

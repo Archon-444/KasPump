@@ -57,10 +57,23 @@ async function main() {
   const factoryAddress = await tokenFactory.getAddress();
   console.log("✅ TokenFactory deployed to:", factoryAddress);
 
-  // Configure registry
+  // Deploy AMMDeployer (holds the BondingCurveAMM creation bytecode so the
+  // factory stays under the EIP-170 24576-byte limit)
+  console.log("\n📄 Deploying AMMDeployer...");
+  const AMMDeployer = await ethers.getContractFactory("AMMDeployer");
+  const ammDeployer = await AMMDeployer.deploy();
+  await ammDeployer.waitForDeployment();
+  const ammDeployerAddress = await ammDeployer.getAddress();
+  console.log("✅ AMMDeployer deployed to:", ammDeployerAddress);
+
+  // Configure registry + AMM deployer
   console.log("\n🔧 Configuring DexRouterRegistry on TokenFactory...");
   await tokenFactory.updateDexRouterRegistry(registryAddress);
   console.log("✅ DexRouterRegistry configured");
+
+  console.log("\n🔧 Configuring AMMDeployer on TokenFactory...");
+  await tokenFactory.setAmmDeployer(ammDeployerAddress);
+  console.log("✅ AMMDeployer configured");
 
   // Verify deployment
   console.log("\n🔍 Verifying deployment...");
@@ -91,6 +104,7 @@ async function main() {
     name: displayName,
     contracts: {
       TokenFactory: factoryAddress,
+      AMMDeployer: ammDeployerAddress,
       DexRouterRegistry: registryAddress,
       FeeRecipient: feeRecipient,
     },
@@ -112,6 +126,9 @@ async function main() {
         address: factoryAddress,
         owner: owner,
         feeRecipient: feeRecipient
+      },
+      AMMDeployer: {
+        address: ammDeployerAddress
       },
       DexRouterRegistry: {
         address: registryAddress

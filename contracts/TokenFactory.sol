@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./BondingCurveAMM.sol";
 import "./libraries/BondingCurveMath.sol";
 import "./interfaces/IDexRouterRegistry.sol";
+import "./interfaces/IAMMDeployer.sol";
 
 /**
  * @title TokenFactory - PRODUCTION GRADE WITH DEX INTEGRATION
@@ -73,6 +74,12 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     address payable public feeRecipient;
     IDexRouterRegistry public dexRouterRegistry;
 
+    // External contract that performs `new BondingCurveAMM(...)`. Kept out of
+    // this factory so the AMM's large creation bytecode is not embedded here —
+    // that is what keeps TokenFactory under the EIP-170 24576-byte limit. Set
+    // via setAmmDeployer after deployment (like dexRouterRegistry).
+    IAMMDeployer public ammDeployer;
+
     // Admin that owns every deployed BondingCurveAMM. Each AMM is created by
     // this factory (so the factory is its initial Ownable owner) and ownership
     // is transferred to `ammAdmin` inside `deployAMM`. Without this, every AMM
@@ -133,6 +140,11 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         address indexed newRegistry
     );
 
+    event AmmDeployerUpdated(
+        address indexed oldDeployer,
+        address indexed newDeployer
+    );
+
     event CreationFeeCollected(
         address indexed creator,
         uint256 amount,
@@ -154,6 +166,7 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
     error DeploymentFailed();
     error InsufficientCreationFee();
     error DexRouterRegistryNotSet();
+    error AmmDeployerNotSet();
     error InvalidToken();
 
     // ========== CONSTRUCTOR ==========
@@ -206,6 +219,9 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         }
         if (address(dexRouterRegistry) == address(0)) {
             revert DexRouterRegistryNotSet();
+        }
+        if (address(ammDeployer) == address(0)) {
+            revert AmmDeployerNotSet();
         }
 
         // V2: every token mints the standardized BondingCurveMath.TOTAL_SUPPLY.
@@ -355,23 +371,20 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         require(routerConfig.enabled, "DEX router not enabled for this chain");
         require(routerConfig.router != address(0), "DEX router address not set");
 
-        BondingCurveAMM amm = new BondingCurveAMM(
+        // Delegate the `new BondingCurveAMM(...)` to the external deployer so the
+        // AMM's creation bytecode is not embedded in this factory (EIP-170). The
+        // deployer constructs the AMM and hands ownership to `ammAdmin` so the
+        // AMM's emergency controls are callable in production.
+        return ammDeployer.deployAMM(
             _tokenAddress,
             _creator,
             feeRecipient,
             _tier,
             routerConfig.router,
             60, // 60 seconds anti-sniper protection
-            _referrer
+            _referrer,
+            ammAdmin
         );
-
-        // The AMM is Ownable(msg.sender) == this factory at construction. Hand
-        // ownership to the platform admin so the AMM's emergency controls
-        // (pause / unpause / setSoftLaunchCap / emergencyWithdraw) are actually
-        // callable in production rather than stranded on the factory.
-        amm.transferOwnership(ammAdmin);
-
-        return address(amm);
     }
 
     // ========== VIEW FUNCTIONS ==========
@@ -475,6 +488,20 @@ contract TokenFactory is Ownable, ReentrancyGuard, Pausable {
         dexRouterRegistry = IDexRouterRegistry(_newRegistry);
 
         emit DexRouterRegistryUpdated(oldRegistry, _newRegistry);
+    }
+
+    /**
+     * @dev Set the external AMM deployer used by createToken. Must be set once
+     * after deployment (the factory does not embed AMM creation bytecode).
+     * Upgradeable like the DEX router registry.
+     */
+    function setAmmDeployer(address _newDeployer) external onlyOwner {
+        if (_newDeployer == address(0)) revert ZeroAddress();
+
+        address oldDeployer = address(ammDeployer);
+        ammDeployer = IAMMDeployer(_newDeployer);
+
+        emit AmmDeployerUpdated(oldDeployer, _newDeployer);
     }
 
     /**
