@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { BlockchainService } from '@/services/blockchain';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  // These endpoints fan out to the RPC (event scans), so an unthrottled loop
+  // would exhaust the shared RPC budget for every user. Rate-limit per IP.
+  const rl = await rateLimit(request, 'relaxed');
+  if (!rl.success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: rl.headers });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const tokenAddress = searchParams.get('address');
@@ -48,12 +56,12 @@ export async function GET(request: NextRequest) {
       blockNumber: e.blockNumber,
     }));
 
-    return NextResponse.json({ trades });
+    return NextResponse.json(
+      { trades },
+      { headers: { 'Cache-Control': 's-maxage=10, stale-while-revalidate=30' } }
+    );
   } catch (error: any) {
     console.error('Trades API Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch trades', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch trades' }, { status: 500 });
   }
 }
