@@ -305,8 +305,13 @@ export const CommentPostSchema = z.object({
   tokenAddress: EthereumAddressSchema,
   walletAddress: EthereumAddressSchema,
   text: z.string().trim().min(1, 'Comment text required').max(500, 'Comment too long (max 500 chars)'),
-  signature: z.string().optional(),
-  isCreator: z.boolean().optional(),
+  // Signature + timestamp are mandatory: the server derives the author identity
+  // from the recovered signer, never from the client-claimed walletAddress, and
+  // the timestamp gives replay protection. `isCreator` is intentionally absent —
+  // the creator badge is derived at render time from the verified address vs the
+  // token's on-chain creator, so it cannot be spoofed.
+  signature: z.string().min(1, 'Signature required'),
+  timestamp: z.number().int().positive(),
 });
 
 export type CommentPostData = z.infer<typeof CommentPostSchema>;

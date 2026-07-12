@@ -6,6 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
+import { ethers } from 'ethers';
 
 vi.mock('@vercel/kv', () => ({
   kv: {
@@ -24,7 +25,23 @@ import { GET, POST, PATCH } from './route';
 import { kv } from '@vercel/kv';
 
 const TOKEN = '0x' + '1'.repeat(40);
-const WALLET = '0x' + '2'.repeat(40);
+// Deterministic signer so posts carry a real, verifiable EIP-191 signature.
+const signer = new ethers.Wallet('0x' + '1'.repeat(64));
+const WALLET = signer.address;
+
+// Build a POST body with a valid signature over the server's expected message.
+async function signedBody(
+  overrides: Partial<{ tokenAddress: string; walletAddress: string; text: string; timestamp: number; signature: string }> = {},
+  signWith: ethers.Wallet = signer,
+) {
+  const tokenAddress = overrides.tokenAddress ?? TOKEN;
+  const walletAddress = overrides.walletAddress ?? signWith.address;
+  const text = overrides.text ?? 'to the moon';
+  const timestamp = overrides.timestamp ?? Date.now();
+  const message = `Post comment on ${tokenAddress.toLowerCase()} at ${timestamp}: ${text.trim().slice(0, 100)}`;
+  const signature = overrides.signature ?? (await signWith.signMessage(message));
+  return { tokenAddress, walletAddress, text, signature, timestamp };
+}
 
 function makeGetRequest(params: Record<string, string>): NextRequest {
   const url = new URL('http://localhost/api/tokens/comments');
@@ -118,21 +135,65 @@ describe('POST /api/tokens/comments', () => {
     expect(res.status).toBe(400);
   });
 
-  it('creates a comment and persists it via KV', async () => {
-    const res = await POST(makePostRequest({ tokenAddress: TOKEN, walletAddress: WALLET, text: 'to the moon' }));
+  it('rejects a post with no signature', async () => {
+    const res = await POST(makePostRequest({ tokenAddress: TOKEN, walletAddress: WALLET, text: 'hi', timestamp: Date.now() }));
+    expect(res.status).toBe(400); // schema requires signature
+  });
+
+  it('rejects a stale timestamp (replay guard)', async () => {
+    const res = await POST(makePostRequest(await signedBody({ timestamp: Date.now() - 10 * 60 * 1000 })));
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a garbage signature', async () => {
+    const res = await POST(makePostRequest(await signedBody({ signature: '0x' + '0'.repeat(130) })));
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects when the signature does not match the claimed wallet (spoofed identity)', async () => {
+    // Sign with `signer` but claim a different walletAddress in the body.
+    const body = await signedBody({ walletAddress: '0x' + '9'.repeat(40) });
+    const res = await POST(makePostRequest(body));
+    expect(res.status).toBe(401);
+  });
+
+  it('creates a comment, deriving the author from the signature', async () => {
+    const res = await POST(makePostRequest(await signedBody({ text: 'to the moon' })));
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.comment.text).toBe('to the moon');
     expect(body.comment.walletAddress).toBe(WALLET.toLowerCase());
+    // isCreator is never stored — the badge is derived at render time.
+    expect(body.comment.isCreator).toBeUndefined();
 
-    // Persisted the appended array under the comments key
     const writeCall = vi.mocked(kv.set).mock.calls.find(c => String(c[0]).startsWith('comments:'));
     expect(writeCall).toBeDefined();
     expect((writeCall![1] as any[])).toHaveLength(1);
   });
 
+  it('caps the stored thread at 1000, keeping the newest', async () => {
+    // 1000 existing comments (oldest at ts 1) + this new one → trim to 1000,
+    // dropping the single oldest.
+    const existing = Array.from({ length: 1000 }, (_, i) => ({
+      ...makeComment({ timestamp: i + 1 }), id: `c${i}`,
+    }));
+    vi.mocked(kv.get).mockImplementation(async (key: any) =>
+      String(key).startsWith('comments:') ? existing : null
+    );
+
+    const res = await POST(makePostRequest(await signedBody({ text: 'newest' })));
+    expect(res.status).toBe(201);
+
+    const writeCall = vi.mocked(kv.set).mock.calls.find(c => String(c[0]).startsWith('comments:'));
+    const written = writeCall![1] as any[];
+    expect(written).toHaveLength(1000);
+    // Oldest (ts 1) dropped; the new comment is retained.
+    expect(written.some(c => c.timestamp === 1)).toBe(false);
+    expect(written.some(c => c.text === 'newest')).toBe(true);
+  });
+
   it('acquires and releases the lock around the write', async () => {
-    await POST(makePostRequest({ tokenAddress: TOKEN, walletAddress: WALLET, text: 'gm' }));
+    await POST(makePostRequest(await signedBody({ text: 'gm' })));
 
     const lockCall = vi.mocked(kv.set).mock.calls.find(c => String(c[0]).startsWith('lock:'));
     expect(lockCall).toBeDefined();
@@ -146,7 +207,7 @@ describe('POST /api/tokens/comments', () => {
       return 'OK';
     });
 
-    const res = await POST(makePostRequest({ tokenAddress: TOKEN, walletAddress: WALLET, text: 'gm' }));
+    const res = await POST(makePostRequest(await signedBody({ text: 'gm' })));
     expect(res.status).toBe(409);
   });
 
@@ -161,14 +222,15 @@ describe('POST /api/tokens/comments', () => {
       return null;
     });
 
-    const res = await POST(makePostRequest({ tokenAddress: TOKEN, walletAddress: WALLET, text: 'spam' }));
+    const res = await POST(makePostRequest(await signedBody({ text: 'spam' })));
     expect(res.status).toBe(429);
     // Lock is still released after the rate-limit rejection
     expect(vi.mocked(kv.del)).toHaveBeenCalledWith(expect.stringContaining('lock:'));
   });
 
   it('does not rate limit a different wallet', async () => {
-    const otherWallet = '0x' + '9'.repeat(40);
+    const otherSigner = new ethers.Wallet('0x' + '2'.repeat(64));
+    // The recent flood belongs to WALLET; a post signed by a different wallet is allowed.
     const recent = [
       makeComment({ timestamp: Date.now() - 1000 }),
       makeComment({ timestamp: Date.now() - 2000 }),
@@ -179,7 +241,7 @@ describe('POST /api/tokens/comments', () => {
       return null;
     });
 
-    const res = await POST(makePostRequest({ tokenAddress: TOKEN, walletAddress: otherWallet, text: 'gm' }));
+    const res = await POST(makePostRequest(await signedBody({ text: 'gm' }, otherSigner)));
     expect(res.status).toBe(201);
   });
 });
