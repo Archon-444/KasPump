@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, TrendingUp, TrendingDown, AlertTriangle, Info, Coins, Zap } from 'lucide-react';
 import { Button, Card, Alert } from '../ui';
@@ -40,6 +40,21 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
   chainId,
   loading = false,
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape (unless a trade is in flight) and move focus into the
+  // dialog when it opens, so keyboard/AT users aren't stranded on the page
+  // behind the modal.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !loading) onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    dialogRef.current?.focus();
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, loading, onClose]);
+
   if (!isOpen) return null;
 
   const isHighImpact = Math.abs(priceImpact) > 3;
@@ -63,10 +78,15 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
 
         {/* Modal */}
         <motion.div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tx-preview-title"
+          tabIndex={-1}
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative bg-gray-900 border border-gray-700 rounded-xl shadow-2xl max-w-lg w-full z-10 max-h-[90vh] overflow-y-auto"
+          className="relative bg-gray-900 border border-gray-700 rounded-xl shadow-2xl max-w-lg w-full z-10 max-h-[90vh] overflow-y-auto focus:outline-none"
         >
           <Card className="glassmorphism border-0">
             {/* Header */}
@@ -83,7 +103,7 @@ export const TransactionPreviewModal: React.FC<TransactionPreviewProps> = ({
                   )}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">
+                  <h3 id="tx-preview-title" className="text-lg font-semibold text-white">
                     {type === 'buy' ? 'Buy' : 'Sell'} {token.symbol}
                   </h3>
                   <p className="text-sm text-gray-400">Review transaction details</p>

@@ -138,11 +138,20 @@ const ToastContainer: React.FC<{
   onDismiss: (id: string) => void;
 }> = ({ toasts, onDismiss }) => {
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-3 max-w-md w-full">
+    // Live region so screen readers announce toasts as they appear. Errors are
+    // assertive (interrupt), success/info are polite. Without this, trade
+    // outcomes and errors — surfaced only via toasts — were silent to AT users.
+    <div
+      className="fixed bottom-4 right-4 z-50 flex flex-col gap-3 max-w-md w-full"
+      role="region"
+      aria-label="Notifications"
+    >
       <AnimatePresence mode="popLayout">
         {toasts.map((toast, index) => (
           <motion.div
             key={toast.id}
+            role={toast.type === 'error' ? 'alert' : 'status'}
+            aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
             initial={{ opacity: 0, x: 100, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 100, scale: 0.95 }}
