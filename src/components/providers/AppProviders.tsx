@@ -6,6 +6,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { MotionConfig } from 'framer-motion';
 import { ServiceWorkerRegistration } from '../features/ServiceWorkerRegistration';
 import { PerformanceMonitor } from '../features/PerformanceMonitor';
 import { ErrorBoundary } from '../features/ErrorBoundary';
@@ -30,7 +31,10 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   return (
-    <>
+    // reducedMotion="user" makes every framer-motion animation honor the OS
+    // `prefers-reduced-motion` setting app-wide — transform/layout animations
+    // collapse to instant for users who ask for less motion.
+    <MotionConfig reducedMotion="user">
       <ServiceWorkerRegistration />
       <ErrorBoundary
         fallback={
@@ -50,7 +54,7 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
           </AriaLiveProvider>
         </ToastProvider>
       </ErrorBoundary>
-    </>
+    </MotionConfig>
   );
 };
 
