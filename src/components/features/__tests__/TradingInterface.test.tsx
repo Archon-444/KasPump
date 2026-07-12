@@ -345,6 +345,31 @@ describe('TradingInterface', () => {
       }, { timeout: 1000 });
     });
 
+    it('derives minimum received from expected output and slippage, not the quote floor', async () => {
+      // Quote's expected output is 20 but its `minimumOutput` field is a stale
+      // 0.5% floor (9.9). With the default 1% slippage the displayed minimum
+      // must be 20 * 0.99 = 19.8 — proving we no longer surface the quote floor.
+      mockGetSwapQuote.mockResolvedValue({
+        inputAmount: 1,
+        outputAmount: 20,
+        priceImpact: 2.5,
+        slippage: 1.0,
+        gasFee: 0.001,
+        route: 'bonding-curve',
+        minimumOutput: 9.9,
+      } as SwapQuote);
+
+      const user = userEvent.setup();
+      render(<TradingInterface token={mockToken} userBalance={10} />);
+
+      await user.type(screen.getByPlaceholderText('0.00'), '1');
+
+      await waitFor(() => {
+        expect(screen.getByText(/19\.800000 TEST/i)).toBeInTheDocument();
+      }, { timeout: 1000 });
+      expect(screen.queryByText(/9\.900000 TEST/i)).not.toBeInTheDocument();
+    });
+
     it('should display total fee from the contract getPlatformFee() rate (100 bps = 1% of input)', async () => {
       const user = userEvent.setup();
       render(<TradingInterface token={mockToken} userBalance={10} />);

@@ -87,11 +87,11 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
 
         setExpectedOutput(quote.outputAmount);
         setPriceImpact(quote.priceImpact);
-        const minimum = Math.min(
-          quote.minimumOutput,
-          quote.outputAmount * (1 - slippage / 100)
-        );
-        setMinimumReceived(minimum);
+        // Match the on-chain minimum exactly (executeTrade enforces
+        // expectedOutput * (1 - slippageTolerance/100)). The previous
+        // Math.min against the quote's fixed 0.5% floor understated the
+        // guarantee whenever the user chose a tighter tolerance.
+        setMinimumReceived(quote.outputAmount * (1 - slippage / 100));
         setFees(inputAmount * 0.01);
         setGasFee(quote.gasFee);
       } catch (error) {

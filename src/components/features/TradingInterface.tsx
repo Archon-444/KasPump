@@ -78,7 +78,11 @@ export const TradingInterface: React.FC<TradingInterfaceProps> = ({
 
       setExpectedOutput(quote.outputAmount);
       setPriceImpact(quote.priceImpact);
-      setMinimumReceived(quote.minimumOutput);
+      // Show the SAME minimum the trade actually enforces on-chain
+      // (executeTrade sends expectedOutput * (1 - slippageTolerance/100)).
+      // The quote's `minimumOutput` is a fixed 0.5% floor that ignores the
+      // user's slippage setting, so displaying it misrepresented the guarantee.
+      setMinimumReceived(quote.outputAmount * (1 - slippage / 100));
 
       // PR 5: live fee from the AMM. The hardcoded MCAP-tier fallback that
       // used to live here mirrored the pre-V2 fee model; the V2 contract
