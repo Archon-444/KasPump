@@ -50,9 +50,9 @@ export const TokenSocialShare: React.FC<TokenSocialShareProps> = ({
           text: shareText,
           url: tokenUrl,
         });
-      } catch (error) {
-        // User cancelled or error occurred
-        console.log('Share cancelled');
+      } catch {
+        // User cancelled the native share sheet, or it failed — either way
+        // there's nothing to do.
       }
     } else {
       // Fallback to copy
