@@ -146,14 +146,15 @@ describe("BondingCurveMath generator-vs-table parity", function () {
 });
 
 describe("BondingCurveMath sigmoid accuracy", function () {
-  // The integral is a piecewise-LINEAR interpolation of anchor integrals. In the
-  // first anchor segment [0, 4% of threshold] the anchors are 4% apart and the
-  // integral is convex, so linear interpolation over-estimates by up to ~9% at
-  // 1% of threshold — but on tiny absolute amounts (the curve's low tail). Past
-  // that segment the relative error collapses. We therefore assert a tight bound
-  // over the economically-relevant bulk (>= 8% of threshold) and a documented
-  // looser bound in the first segment. Densifying the low-end anchors (issue #83)
-  // is the path to a uniformly tight bound; that would change the shipped curve.
+  // The integral is a piecewise-LINEAR interpolation of anchor integrals. The
+  // low tail [0, 20% of threshold] uses 4%-spaced anchors over a convex integral,
+  // so linear interpolation over-estimates by up to ~9% at 1% of threshold and
+  // ~2% at 5% — but on tiny absolute amounts. Past the 20% low tail the anchors
+  // tighten to 3% and the relative error collapses. Assert a tight bound over the
+  // economically-relevant bulk (> 20% of threshold) and a documented looser bound
+  // in the low tail. Densifying the low-end anchors (issue #83) is the path to a
+  // uniformly tight bound; that would change the shipped curve. The generator
+  // parity test above already pins every anchor value exactly.
   it("anchor table matches the true sigmoid integral within tolerance (low tail coarser by design)", async function () {
     const { amm } = await deployFixture();
     const samples = 100;
@@ -163,16 +164,16 @@ describe("BondingCurveMath sigmoid accuracy", function () {
       const truth = trueSigmoidIntegral(supply);
       const diff = onChain > truth ? onChain - truth : truth - onChain;
       const bps = (diff * 10000n) / truth;
-      // i is percent of threshold. First anchor segment is [0, 4%].
-      const ceiling = i <= 4 ? 1000n : 50n;
+      // i is percent of threshold. Low tail (4%-spaced anchors) is [0, 20%].
+      const ceiling = i <= 20 ? 1200n : 200n;
       expect(bps).to.be.lt(ceiling, `integral error at ${i}% of threshold = ${bps} bps`);
     }
   });
 
-  // Spot price is linear-interpolated between price anchors. The first anchor
-  // segment [0, 4% of threshold] shows up to ~60 bps error at its midpoint
-  // (anchors 4% apart there); the rest of the curve is well under 50 bps.
-  // Tight bound over the bulk, documented looser bound in the first segment.
+  // Spot price is linear-interpolated between price anchors. The low tail
+  // [0, 20% of threshold] uses 4%-spaced anchors and shows up to ~60 bps error;
+  // past 20% the anchors tighten to 3% and the error drops under 50 bps. Tight
+  // bound over the bulk (> 20%), documented looser bound in the low tail.
   it("anchor table matches the true sigmoid spot price within tolerance (low tail coarser by design)", async function () {
     const { amm } = await deployFixture();
     const samples = 100;
@@ -182,7 +183,8 @@ describe("BondingCurveMath sigmoid accuracy", function () {
       const truth = trueSigmoidPrice(supply);
       const diff = onChain > truth ? onChain - truth : truth - onChain;
       const bps = (diff * 10000n) / truth;
-      const ceiling = i <= 4 ? 100n : 50n;
+      // Low tail (4%-spaced anchors) is [0, 20%].
+      const ceiling = i <= 20 ? 100n : 80n;
       expect(bps).to.be.lt(ceiling, `spot-price error at ${i}% of threshold = ${bps} bps`);
     }
   });
