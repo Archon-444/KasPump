@@ -68,6 +68,24 @@ describe('GET /api/analytics', () => {
     expect(rateLimit).toHaveBeenCalledWith(expect.anything(), 'analytics');
   });
 
+  it('defaults to the 24h timeframe', async () => {
+    await GET(makeRequest());
+    expect(AnalyticsService.getPlatformMetrics).toHaveBeenCalledWith(84532, '24h');
+  });
+
+  it('forwards a valid timeframe to the service', async () => {
+    await GET(makeRequest({ timeframe: '7d' }));
+    expect(AnalyticsService.getPlatformMetrics).toHaveBeenCalledWith(84532, '7d');
+  });
+
+  it('rejects an invalid timeframe with 400', async () => {
+    const res = await GET(makeRequest({ timeframe: '1y' }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('Invalid timeframe');
+    expect(AnalyticsService.getPlatformMetrics).not.toHaveBeenCalled();
+  });
+
   it('returns 429 when rate limited', async () => {
     vi.mocked(rateLimit).mockResolvedValue({
       ...okRateLimit,

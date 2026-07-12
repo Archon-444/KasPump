@@ -2,41 +2,15 @@
 
 import React, { memo } from 'react';
 import { motion } from 'framer-motion';
-import { Coins, TrendingUp, Users, Award, Zap } from 'lucide-react';
+import { Coins, TrendingUp, Users, Award } from 'lucide-react';
 import { Card } from '../ui';
 import { cn, formatCurrency, formatPercentage } from '../../utils';
 
-export interface AnalyticsData {
-  timestamp?: string;
-  timeframe?: string;
-  platform: {
-    totalTokens: number;
-    graduatedTokens: number;
-    activeTokens: number;
-    successRate: number;
-    totalUsers: number;
-  };
-  financial: {
-    totalVolume: number;
-    totalMarketCap: number;
-    averageVolume: number;
-    averageMarketCap: number;
-    platformFees: number;
-    creatorEarnings: number;
-  };
-  growth: {
-    newTokens: number;
-    volumeGrowth: number;
-    userGrowth: number;
-    marketCapGrowth: number;
-  };
-  partnership?: {
-    readyForGraduation: number;
-    highVolumeTokens: number;
-    topPerformingTokens: number;
-    ecosystemValue: number;
-  };
-}
+import type { AnalyticsData } from '../../types/analytics';
+
+// Canonical type moved to src/types/analytics.ts; re-exported so existing
+// importers (analytics page, GrowthChart) keep working.
+export type { AnalyticsData };
 
 export interface PlatformStatsCardProps {
   data: AnalyticsData;
@@ -67,15 +41,15 @@ const PlatformStatsCardComponent: React.FC<PlatformStatsCardProps> = ({
     },
     {
       label: 'Total Volume',
-      value: formatCurrency(data.financial.totalVolume, 'USD', 0),
+      value: formatCurrency(data.financial.totalVolume, 'BNB', 2),
       icon: TrendingUp,
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/10',
       borderColor: 'border-blue-500/30',
     },
     {
-      label: 'Total Users',
-      value: data.platform.totalUsers.toLocaleString(),
+      label: 'Active Traders (24h)',
+      value: data.platform.activeTraders24h.toLocaleString(),
       icon: Users,
       color: 'text-pink-400',
       bgColor: 'bg-pink-500/10',
@@ -146,7 +120,7 @@ export const PlatformStatsCard = memo(PlatformStatsCardComponent, (prevProps, ne
   return (
     prevProps.data.platform.totalTokens === nextProps.data.platform.totalTokens &&
     prevProps.data.platform.graduatedTokens === nextProps.data.platform.graduatedTokens &&
-    prevProps.data.platform.totalUsers === nextProps.data.platform.totalUsers &&
+    prevProps.data.platform.activeTraders24h === nextProps.data.platform.activeTraders24h &&
     prevProps.data.financial.totalVolume === nextProps.data.financial.totalVolume
   );
 });

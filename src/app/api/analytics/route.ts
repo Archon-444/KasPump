@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AnalyticsService } from '@/services/analytics.service';
 import { BlockchainService } from '@/services/blockchain';
 import { rateLimit } from '@/lib/rate-limit';
+import { ANALYTICS_TIMEFRAMES, type AnalyticsTimeframe } from '@/types/analytics';
 
 export const dynamic = 'force-dynamic'; // API routes are always dynamic
 
@@ -18,15 +19,23 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const chainIdParam = searchParams.get('chainId');
+    const timeframeParam = searchParams.get('timeframe');
 
     // 1. Resolve chain ID using our centralized service
     const chainId = BlockchainService.resolveChainId(
       chainIdParam ? parseInt(chainIdParam, 10) : undefined
     );
 
+    if (timeframeParam !== null && !(ANALYTICS_TIMEFRAMES as readonly string[]).includes(timeframeParam)) {
+      return NextResponse.json(
+        { error: `Invalid timeframe. Expected one of: ${ANALYTICS_TIMEFRAMES.join(', ')}` },
+        { status: 400, headers: rateLimitResult.headers }
+      );
+    }
+    const timeframe = (timeframeParam ?? '24h') as AnalyticsTimeframe;
+
     // 2. Delegate business logic to domain service
-    // Returns strictly typed PlatformMetrics object
-    const metrics = await AnalyticsService.getPlatformMetrics(chainId);
+    const metrics = await AnalyticsService.getPlatformMetrics(chainId, timeframe);
 
     return NextResponse.json(metrics, {
       headers: {

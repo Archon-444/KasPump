@@ -2,17 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { BlockchainService } from '@/services/blockchain';
 import { rateLimit } from '@/lib/rate-limit';
+import type { LeaderboardEntry } from '@/types/analytics';
 
 export const dynamic = 'force-dynamic';
 
-export interface LeaderboardEntry {
-  address: string;
-  totalVolume: number;
-  trades: number;
-  buys: number;
-  sells: number;
-  tokensTraded: number;
-}
+export type { LeaderboardEntry };
 
 interface LeaderboardResponse {
   traders: LeaderboardEntry[];
