@@ -4,6 +4,7 @@ import { ethers } from 'ethers';
 import {
   KasPumpToken,
   TradeData,
+  TradePhase,
   SwapQuote,
   TokenCreationForm,
   ContractError,
@@ -233,14 +234,17 @@ export function useContracts() {
   }, [wallet.connected, isInitialized, getTokenFactoryContract, currentChainId]);
 
   // Execute a trade (buy or sell)
-  const executeTrade = useCallback(async (trade: TradeData): Promise<string> => {
+  const executeTrade = useCallback(async (
+    trade: TradeData,
+    onProgress?: (phase: TradePhase) => void
+  ): Promise<string> => {
     if (!wallet.connected) throw new Error('Wallet not connected');
     if (!isInitialized) throw new Error('Contracts not initialized');
-    
+
     try {
       const ammAddress = await getTokenAMMAddress(trade.tokenAddress);
       const ammContract = getBondingCurveContract(ammAddress);
-      
+
       if (trade.action === 'buy') {
         const nativeAmount = ethers.parseEther(trade.baseAmount.toString());
         const minTokensOut = ethers.parseEther((trade.expectedOutput * (1 - trade.slippageTolerance / 100)).toString());
@@ -249,10 +253,12 @@ export function useContracts() {
         const gasEstimate = await ammContract.buyTokens.estimateGas(minTokensOut, { value: nativeAmount });
         const gasLimit = (gasEstimate * BigInt(120)) / BigInt(100);
 
+        onProgress?.({ step: 'confirm', label: 'Confirm the purchase in your wallet' });
         const tx = await ammContract.buyTokens(minTokensOut, {
           value: nativeAmount,
           gasLimit
         });
+        onProgress?.({ step: 'mining', label: 'Waiting for confirmation…' });
         const receipt = await tx.wait();
         return receipt ? receipt.hash : '';
 
@@ -260,19 +266,28 @@ export function useContracts() {
         const tokenContract = getTokenContract(trade.tokenAddress);
         const tokenAmount = ethers.parseEther(trade.baseAmount.toString());
         const minNativeOut = ethers.parseEther((trade.expectedOutput * (1 - trade.slippageTolerance / 100)).toString());
-        
-        // ERC20 Approve
+
+        // ERC20 Approve — a sell is two wallet prompts. Signal each step so the
+        // UI can show "Approving (1/2)" then "Confirming (2/2)" instead of one
+        // opaque spinner across both prompts.
         const allowance = await tokenContract.allowance(wallet.address, ammAddress);
-        if (allowance < tokenAmount) {
+        const needsApproval = allowance < tokenAmount;
+        if (needsApproval) {
+          onProgress?.({ step: 'approve', label: 'Approve the token spend (1 of 2)' });
           const approveTx = await tokenContract.approve(ammAddress, tokenAmount);
           await approveTx.wait();
         }
-        
+
         // TypeSafe sellTokens
         const gasEstimate = await ammContract.sellTokens.estimateGas(tokenAmount, minNativeOut);
         const gasLimit = (gasEstimate * BigInt(120)) / BigInt(100);
 
+        onProgress?.({
+          step: 'confirm',
+          label: needsApproval ? 'Confirm the sale (2 of 2)' : 'Confirm the sale in your wallet',
+        });
         const tx = await ammContract.sellTokens(tokenAmount, minNativeOut, { gasLimit });
+        onProgress?.({ step: 'mining', label: 'Waiting for confirmation…' });
         const receipt = await tx.wait();
         return receipt ? receipt.hash : '';
       }
