@@ -77,11 +77,8 @@ describe("Security fix #1 — factory transfers AMM ownership to ammAdmin", func
     const { chainId } = await ethers.provider.getNetwork();
     await registry.setConfig(
       Number(chainId),
-      0, // V2
       await dexRouter.getAddress(),
-      ethers.ZeroAddress,
       await weth.getAddress(),
-      0,
       true
     );
 

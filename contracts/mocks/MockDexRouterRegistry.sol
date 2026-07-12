@@ -8,19 +8,13 @@ contract MockDexRouterRegistry is IDexRouterRegistry {
 
     function setConfig(
         uint256 chainId,
-        RouterType routerType,
         address router,
-        address positionManager,
         address wrappedNative,
-        uint24 fee,
         bool enabled
     ) external {
         configs[chainId] = RouterConfig({
-            routerType: routerType,
             router: router,
-            positionManager: positionManager,
             wrappedNative: wrappedNative,
-            fee: fee,
             enabled: enabled
         });
     }
@@ -32,15 +26,6 @@ contract MockDexRouterRegistry is IDexRouterRegistry {
     function isChainSupported(uint256 chainId) external view returns (bool) {
         RouterConfig memory config = configs[chainId];
         if (!config.enabled) return false;
-
-        if (config.routerType == RouterType.V2) {
-            return config.router != address(0) && config.wrappedNative != address(0);
-        }
-
-        if (config.routerType == RouterType.V3) {
-            return config.positionManager != address(0) && config.wrappedNative != address(0) && config.fee != 0;
-        }
-
-        return false;
+        return config.router != address(0) && config.wrappedNative != address(0);
     }
 }

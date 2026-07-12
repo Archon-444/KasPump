@@ -115,11 +115,8 @@ library DexConfig {
         // BSC Mainnet - PancakeSwap V2
         if (chainId == 56) {
             return IDexRouterRegistry.RouterConfig({
-                routerType: IDexRouterRegistry.RouterType.V2,
                 router: 0x10ED43C718714eb63d5aA57B78B54704E256024E,
-                positionManager: address(0),
                 wrappedNative: 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c,
-                fee: 0,
                 enabled: true
             });
         }
@@ -127,11 +124,8 @@ library DexConfig {
         // BSC Testnet - PancakeSwap V2
         if (chainId == 97) {
             return IDexRouterRegistry.RouterConfig({
-                routerType: IDexRouterRegistry.RouterType.V2,
                 router: 0xD99D1c33F9fC3444f8101754aBC46c52416550D1,
-                positionManager: address(0),
                 wrappedNative: 0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd,
-                fee: 0,
                 enabled: true
             });
         }
@@ -139,11 +133,8 @@ library DexConfig {
         // Arbitrum One - Uniswap V2 (Camelot-compatible)
         if (chainId == 42161) {
             return IDexRouterRegistry.RouterConfig({
-                routerType: IDexRouterRegistry.RouterType.V2,
                 router: 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24,
-                positionManager: address(0),
                 wrappedNative: 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1,
-                fee: 0,
                 enabled: true
             });
         }
@@ -151,11 +142,8 @@ library DexConfig {
         // Arbitrum Sepolia - no established V2 router, disabled by default
         if (chainId == 421614) {
             return IDexRouterRegistry.RouterConfig({
-                routerType: IDexRouterRegistry.RouterType.V2,
                 router: address(0),
-                positionManager: address(0),
                 wrappedNative: 0x980B62Da83eFf3D4576C647993b0c1D7faf17c73,
-                fee: 0,
                 enabled: false
             });
         }
@@ -163,11 +151,8 @@ library DexConfig {
         // Base Mainnet - BaseSwap V2
         if (chainId == 8453) {
             return IDexRouterRegistry.RouterConfig({
-                routerType: IDexRouterRegistry.RouterType.V2,
                 router: 0x327Df1E6de05895d2ab08513aaDD9313Fe505d86,
-                positionManager: address(0),
                 wrappedNative: 0x4200000000000000000000000000000000000006,
-                fee: 0,
                 enabled: true
             });
         }
@@ -175,22 +160,16 @@ library DexConfig {
         // Base Sepolia - no established V2 router, disabled by default
         if (chainId == 84532) {
             return IDexRouterRegistry.RouterConfig({
-                routerType: IDexRouterRegistry.RouterType.V2,
                 router: address(0),
-                positionManager: address(0),
                 wrappedNative: 0x4200000000000000000000000000000000000006,
-                fee: 0,
                 enabled: false
             });
         }
 
         // Unsupported chain - return disabled config
         return IDexRouterRegistry.RouterConfig({
-            routerType: IDexRouterRegistry.RouterType.V2,
             router: address(0),
-            positionManager: address(0),
             wrappedNative: address(0),
-            fee: 0,
             enabled: false
         });
     }
