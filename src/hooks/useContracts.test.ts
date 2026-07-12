@@ -575,6 +575,30 @@ describe('useContracts', () => {
       // minNativeOut = 0.95 * (1 - 0.005) = 0.94525
       expect(Number(minNativeOut)).toBeCloseTo(0.94525 * 1e18, -15);
     });
+
+    it('emits approve → confirm → mining phases so the UI can label both prompts', async () => {
+      const { result } = renderHook(() => useContracts());
+      const phases: string[] = [];
+
+      await act(async () => {
+        await result.current.executeTrade(mockSellTrade, (p) => phases.push(p.step));
+      });
+
+      // Approval needed → two prompts then the wait.
+      expect(phases).toEqual(['approve', 'confirm', 'mining']);
+    });
+
+    it('skips the approve phase when allowance is already sufficient', async () => {
+      mockTokenContract.allowance.mockResolvedValue(BigInt(2000 * 1e18));
+      const { result } = renderHook(() => useContracts());
+      const phases: string[] = [];
+
+      await act(async () => {
+        await result.current.executeTrade(mockSellTrade, (p) => phases.push(p.step));
+      });
+
+      expect(phases).toEqual(['confirm', 'mining']);
+    });
   });
 
   describe('Swap Quotes', () => {

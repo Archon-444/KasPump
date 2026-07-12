@@ -53,7 +53,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
   const wallet = useMultichainWallet();
   const contracts = useContracts();
   const isMobile = useIsMobile();
-  const { showError, showSuccess } = useToast();
+  const { showError, showSuccess, showInfo, dismissToast } = useToast();
 
   const [timeframe, setTimeframe] = useState('1h');
   const [liked, setLiked] = useState(false);
@@ -110,8 +110,21 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
         throw error;
       }
 
+      // Pending toast held open (duration 0) across the wallet prompt(s) and
+      // tx.wait(). Each executeTrade phase replaces it with a fresh label
+      // ("Approve (1 of 2)" → "Confirm the sale (2 of 2)" → "Waiting for
+      // confirmation…"), and it's dismissed once the receipt lands or an error
+      // is surfaced.
+      const title = trade.action === 'buy' ? 'Buying' : 'Selling';
+      let pendingId = showInfo(title, 'Confirm in your wallet…', { duration: 0 });
+
       try {
-        const txHash = await contracts.executeTrade(trade);
+        const txHash = await contracts.executeTrade(trade, (phase) => {
+          dismissToast(pendingId);
+          pendingId = showInfo(title, phase.label, { duration: 0 });
+        });
+
+        dismissToast(pendingId);
 
         const chainId = resolveChainId();
         const explorerUrl = chainId ? getExplorerUrl(chainId, 'tx', txHash) : undefined;
@@ -122,13 +135,15 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
           setConfettiTrigger(true);
         }
 
+        // The receipt has landed by the time executeTrade resolves, so the tx
+        // is confirmed on-chain — say so rather than "submitted/sent".
         showSuccess(
           isFirstTrade
             ? 'First trade complete!'
-            : trade.action === 'buy' ? 'Purchase submitted' : 'Sell order submitted',
+            : trade.action === 'buy' ? 'Purchase confirmed' : 'Sale confirmed',
           isFirstTrade
             ? 'Welcome to KasPump — you\'re officially a trader.'
-            : 'Your transaction has been sent to the network.',
+            : 'Your transaction is confirmed on-chain.',
           {
             txHash,
             explorerUrl,
@@ -137,6 +152,7 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
 
         await fetchBalances();
       } catch (error: unknown) {
+        dismissToast(pendingId);
         console.error('Trade execution failed:', error);
         showError(error instanceof Error ? error : new Error('Failed to execute trade'));
         throw error;

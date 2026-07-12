@@ -37,6 +37,15 @@ export interface TradeData {
   timestamp?: number;
 }
 
+/**
+ * Progress signal emitted by executeTrade so the UI can label each wallet
+ * prompt distinctly. A sell is two prompts (approve → confirm); a buy is one.
+ */
+export interface TradePhase {
+  step: 'approve' | 'confirm' | 'mining';
+  label: string;
+}
+
 export interface Achievement {
   id: string;
   title: string;

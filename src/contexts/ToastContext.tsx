@@ -30,11 +30,13 @@ export interface Toast {
 }
 
 interface ToastContextType {
-  showToast: (toast: Omit<Toast, 'id'>) => void;
-  showSuccess: (title: string, message?: string, options?: Partial<Toast>) => void;
-  showError: (error: Error | string, options?: Partial<Toast>) => void;
-  showInfo: (title: string, message?: string, options?: Partial<Toast>) => void;
-  showWarning: (title: string, message?: string, options?: Partial<Toast>) => void;
+  // Each shower returns the toast id so callers can dismiss/replace a specific
+  // toast — e.g. a pending "Confirming…" toast that is dismissed on receipt.
+  showToast: (toast: Omit<Toast, 'id'>) => string;
+  showSuccess: (title: string, message?: string, options?: Partial<Toast>) => string;
+  showError: (error: Error | string, options?: Partial<Toast>) => string;
+  showInfo: (title: string, message?: string, options?: Partial<Toast>) => string;
+  showWarning: (title: string, message?: string, options?: Partial<Toast>) => string;
   dismissToast: (id: string) => void;
   toasts: Toast[];
 }
@@ -52,22 +54,24 @@ export const useToast = () => {
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const showToast = useCallback((toast: Omit<Toast, 'id'>) => {
+  const showToast = useCallback((toast: Omit<Toast, 'id'>): string => {
     const id = `toast-${Date.now()}-${Math.random()}`;
     const newToast: Toast = {
       ...toast,
       id,
       duration: toast.duration ?? 5000,
     };
-    
+
     setToasts((prev) => [...prev, newToast]);
-    
-    // Auto-dismiss
+
+    // Auto-dismiss (duration <= 0 keeps it up until dismissed explicitly —
+    // used for the pending "confirming" toast during tx.wait()).
     if (newToast.duration && newToast.duration > 0) {
       setTimeout(() => {
         dismissToast(id);
       }, newToast.duration);
     }
+    return id;
   }, []);
 
   const dismissToast = useCallback((id: string) => {
@@ -75,7 +79,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const showSuccess = useCallback((title: string, message?: string, options?: Partial<Toast>) => {
-    showToast({
+    return showToast({
       type: 'success',
       title,
       message,
@@ -85,7 +89,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const showError = useCallback((error: Error | string, options?: Partial<Toast>) => {
     const message = typeof error === 'string' ? error : error.message;
-    showToast({
+    return showToast({
       type: 'error',
       title: 'Error',
       message,
@@ -94,7 +98,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [showToast]);
 
   const showInfo = useCallback((title: string, message?: string, options?: Partial<Toast>) => {
-    showToast({
+    return showToast({
       type: 'info',
       title,
       message,
@@ -103,7 +107,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [showToast]);
 
   const showWarning = useCallback((title: string, message?: string, options?: Partial<Toast>) => {
-    showToast({
+    return showToast({
       type: 'warning',
       title,
       message,
