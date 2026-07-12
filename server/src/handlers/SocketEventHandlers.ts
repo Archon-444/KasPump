@@ -2,6 +2,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import { logger } from '../utils/logger';
 import { RedisService } from '../services/RedisService';
 import { RateLimiterService } from '../services/RateLimiterService';
+import { validateTokenPayload, validateNetworkPayload } from '../utils/validation';
 
 export class SocketEventHandlers {
   private io: SocketIOServer;
@@ -72,10 +73,18 @@ export class SocketEventHandlers {
     data: { tokenAddress: string; network?: string }
   ): Promise<void> {
     try {
+      const valid = validateTokenPayload(data);
+      if (!valid.ok) {
+        socket.emit('subscription:error', { error: valid.error });
+        return;
+      }
+      const { tokenAddress, network } = valid;
+
       // Check rate limit
       await this.rateLimiter.checkSubscriptionLimit(socket.id);
 
-      const { tokenAddress, network } = data;
+      // Room casing matches BlockchainListener's emit side (raw event-arg
+      // address), so keep the validated address as-is rather than normalizing.
       const room = `token:${tokenAddress}`;
 
       // Join room
@@ -117,8 +126,12 @@ export class SocketEventHandlers {
     socket: Socket,
     data: { tokenAddress: string }
   ): Promise<void> {
-    const { tokenAddress } = data;
-    const room = `token:${tokenAddress}`;
+    const valid = validateTokenPayload(data);
+    if (!valid.ok) {
+      socket.emit('subscription:error', { error: valid.error });
+      return;
+    }
+    const room = `token:${valid.tokenAddress}`;
 
     await socket.leave(room);
 
@@ -141,9 +154,15 @@ export class SocketEventHandlers {
     data: { network: string }
   ): Promise<void> {
     try {
+      const valid = validateNetworkPayload(data);
+      if (!valid.ok) {
+        socket.emit('subscription:error', { error: valid.error });
+        return;
+      }
+      const { network } = valid;
+
       await this.rateLimiter.checkSubscriptionLimit(socket.id);
 
-      const { network } = data;
       const room = `network:${network}`;
 
       await socket.join(room);
@@ -172,8 +191,12 @@ export class SocketEventHandlers {
     socket: Socket,
     data: { network: string }
   ): Promise<void> {
-    const { network } = data;
-    const room = `network:${network}`;
+    const valid = validateNetworkPayload(data);
+    if (!valid.ok) {
+      socket.emit('subscription:error', { error: valid.error });
+      return;
+    }
+    const room = `network:${valid.network}`;
 
     await socket.leave(room);
     this.subscriptions.get(socket.id)?.delete(room);
@@ -194,9 +217,16 @@ export class SocketEventHandlers {
     callback?: Function
   ): Promise<void> {
     try {
+      const valid = validateTokenPayload(data, { requireNetwork: true });
+      if (!valid.ok) {
+        if (callback) callback({ success: false, error: valid.error });
+        else socket.emit('price:error', { error: valid.error });
+        return;
+      }
+      const { tokenAddress, network } = valid;
+
       await this.rateLimiter.checkMessageLimit(socket.id);
 
-      const { tokenAddress, network } = data;
       const cacheKey = `price:${network}:${tokenAddress}`;
 
       const priceData = await this.redis.getJSON(cacheKey);
@@ -226,9 +256,16 @@ export class SocketEventHandlers {
     callback?: Function
   ): Promise<void> {
     try {
+      const valid = validateTokenPayload(data, { requireNetwork: true });
+      if (!valid.ok) {
+        if (callback) callback({ success: false, error: valid.error });
+        else socket.emit('trades:error', { error: valid.error });
+        return;
+      }
+      const { tokenAddress, network } = valid;
+
       await this.rateLimiter.checkMessageLimit(socket.id);
 
-      const { tokenAddress, network } = data;
       const cacheKey = `trade:${network}:${tokenAddress}:latest`;
 
       // Get latest trade from cache
@@ -266,9 +303,16 @@ export class SocketEventHandlers {
     callback?: Function
   ): Promise<void> {
     try {
+      const valid = validateTokenPayload(data, { requireNetwork: true });
+      if (!valid.ok) {
+        if (callback) callback({ success: false, error: valid.error });
+        else socket.emit('token:error', { error: valid.error });
+        return;
+      }
+      const { tokenAddress, network } = valid;
+
       await this.rateLimiter.checkMessageLimit(socket.id);
 
-      const { tokenAddress, network } = data;
       const cacheKey = `token:${network}:${tokenAddress}`;
 
       const tokenData = await this.redis.getJSON(cacheKey);

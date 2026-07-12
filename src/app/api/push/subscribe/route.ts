@@ -8,6 +8,14 @@ import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
+function isHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
   const rl = await rateLimit(request, 'strict');
   if (!rl.success) {
@@ -16,13 +24,26 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { subscription, userId, preferences } = body;
+    const { subscription, userId, preferences } = body ?? {};
 
-    if (!subscription || !subscription.endpoint) {
-      return NextResponse.json(
-        { error: 'Invalid subscription data' },
-        { status: 400 }
-      );
+    // A Web Push subscription is { endpoint: https URL, keys: { p256dh, auth } }.
+    // Validate the shape so we don't persist junk (or an attacker-supplied
+    // non-push endpoint we'd later POST to).
+    if (
+      !subscription ||
+      typeof subscription.endpoint !== 'string' ||
+      !isHttpsUrl(subscription.endpoint) ||
+      !subscription.keys ||
+      typeof subscription.keys.p256dh !== 'string' ||
+      typeof subscription.keys.auth !== 'string'
+    ) {
+      return NextResponse.json({ error: 'Invalid subscription data' }, { status: 400 });
+    }
+    if (userId !== undefined && typeof userId !== 'string') {
+      return NextResponse.json({ error: 'Invalid userId' }, { status: 400 });
+    }
+    if (preferences !== undefined && (typeof preferences !== 'object' || preferences === null)) {
+      return NextResponse.json({ error: 'Invalid preferences' }, { status: 400 });
     }
 
     // TODO: Store subscription in database
@@ -47,23 +68,22 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('[Push] Subscription error:', error);
-    return NextResponse.json(
-      { error: 'Failed to save subscription', message: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to save subscription' }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
+  const rl = await rateLimit(request, 'strict');
+  if (!rl.success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: rl.headers });
+  }
+
   try {
     const body = await request.json();
-    const { endpoint } = body;
+    const { endpoint } = body ?? {};
 
-    if (!endpoint) {
-      return NextResponse.json(
-        { error: 'Endpoint required' },
-        { status: 400 }
-      );
+    if (typeof endpoint !== 'string' || !isHttpsUrl(endpoint)) {
+      return NextResponse.json({ error: 'Valid endpoint required' }, { status: 400 });
     }
 
     // TODO: Remove subscription from database
@@ -80,10 +100,7 @@ export async function DELETE(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('[Push] Unsubscription error:', error);
-    return NextResponse.json(
-      { error: 'Failed to unsubscribe', message: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to unsubscribe' }, { status: 500 });
   }
 }
 
