@@ -36,8 +36,8 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatPercentage, formatTimeAgo, cn, copyToClipboard } from '../../utils';
 import { safeUrl } from '../../utils/safeUrl';
-import { getExplorerUrl } from '../../config/chains';
-import { Bell, Copy, Check, Shield } from 'lucide-react';
+import { getExplorerUrl, getChainById } from '../../config/chains';
+import { Bell, Copy, Check, Shield, AlertTriangle } from 'lucide-react';
 
 export interface TokenTradingPageProps {
   token: KasPumpToken;
@@ -57,7 +57,11 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
 
   const [timeframe, setTimeframe] = useState('1h');
   const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(token.holders || 0);
+  // Local-only like toggle. Seeding this from token.holders (as before)
+  // presented the holder count as a "like" count — a fabricated metric. There
+  // is no likes backend, so this is honest local UI state only (0, or 1 when
+  // the current user likes).
+  const [likeCount, setLikeCount] = useState(0);
   const [userBalance, setUserBalance] = useState(0);
   const [userTokenBalance, setUserTokenBalance] = useState(0);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
@@ -98,9 +102,18 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
 
   const resolveChainId = useCallback(() => {
     if (wallet.chainId) return wallet.chainId;
-    if ((token as any).chainId) return (token as any).chainId as number;
+    if (token.chainId) return token.chainId;
     return undefined;
   }, [wallet.chainId, token]);
+
+  // Wrong-network detection: the connected wallet must be on the same chain the
+  // token lives on, otherwise reads/trades hit the wrong contract addresses.
+  // Only meaningful when the token payload carries its chainId.
+  const tokenChainId = token.chainId;
+  const isWrongNetwork = Boolean(
+    wallet.connected && wallet.chainId && tokenChainId && wallet.chainId !== tokenChainId
+  );
+  const tokenChainName = tokenChainId ? getChainById(tokenChainId)?.name : undefined;
 
   const handleTrade = useCallback(
     async (trade: TradeData) => {
@@ -108,6 +121,18 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
         const error = new Error('Connect your wallet to trade.');
         showError(error);
         throw error;
+      }
+
+      if (isWrongNetwork && tokenChainId) {
+        // Try to switch automatically; only hard-fail if the user declines.
+        const switched = await wallet.switchNetwork(tokenChainId);
+        if (!switched) {
+          const error = new Error(
+            `Wrong network. Switch to ${tokenChainName ?? `chain ${tokenChainId}`} to trade this token.`
+          );
+          showError(error);
+          throw error;
+        }
       }
 
       // Pending toast held open (duration 0) across the wallet prompt(s) and
@@ -158,10 +183,24 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
         throw error;
       }
     },
-    [wallet.connected, wallet.address, contracts, resolveChainId, fetchBalances, showError, showSuccess]
+    [wallet, contracts, resolveChainId, fetchBalances, showError, showSuccess, showInfo, dismissToast, isWrongNetwork, tokenChainId, tokenChainName]
   );
 
   const resolvedChainId = resolveChainId();
+
+  // switchNetwork resolves false when the user rejects the wallet prompt (or it
+  // otherwise fails). Surface that instead of swallowing it silently.
+  const handleSwitchNetwork = useCallback(async () => {
+    if (!tokenChainId) return;
+    const switched = await wallet.switchNetwork(tokenChainId);
+    if (!switched) {
+      showError(
+        new Error(
+          `Couldn't switch to ${tokenChainName ?? `chain ${tokenChainId}`}. Approve the network switch in your wallet to trade.`
+        )
+      );
+    }
+  }, [wallet, tokenChainId, tokenChainName, showError]);
 
   const handleLike = () => {
     setLiked(!liked);
@@ -273,9 +312,6 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
               {formatCurrency(token.marketCap, 'BNB')}
             </div>
             <div className="text-sm text-gray-400">Market Cap</div>
-            <div className="text-sm text-yellow-400 mt-2">
-              Rank #{Math.floor(Math.random() * 1000) + 1}
-            </div>
           </Card>
 
           <Card className="p-4 text-center">
@@ -295,9 +331,6 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
               {token.holders}
             </div>
             <div className="text-sm text-gray-400">Holders</div>
-            <div className="text-sm text-green-400 mt-2">
-              +{Math.floor(Math.random() * 50)} today
-            </div>
           </Card>
         </motion.div>
 
@@ -369,6 +402,24 @@ export const TokenTradingPage: React.FC<TokenTradingPageProps> = ({
             transition={{ delay: 0.3 }}
             className={cn(isMobile ? 'order-2' : '')}
           >
+            {isWrongNetwork && (
+              <div className="flex items-center gap-2 px-3 py-2.5 mb-3 bg-orange-500/[0.08] border border-orange-500/[0.2] rounded-xl">
+                <AlertTriangle size={16} className="text-orange-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-orange-400">Wrong network</p>
+                  <p className="text-[10px] text-orange-400/70">
+                    This token trades on {tokenChainName ?? `chain ${tokenChainId}`}. Switch to continue.
+                  </p>
+                </div>
+                <button
+                  onClick={handleSwitchNetwork}
+                  disabled={wallet.isSwitchingNetwork}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-orange-500 text-white hover:bg-orange-400 disabled:opacity-50 transition-colors flex-shrink-0"
+                >
+                  {wallet.isSwitchingNetwork ? 'Switching…' : 'Switch'}
+                </button>
+              </div>
+            )}
             {isMobile ? (
               <MobileTradingInterface
                 token={token}
