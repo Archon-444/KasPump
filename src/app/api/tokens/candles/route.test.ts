@@ -102,10 +102,14 @@ describe('GET /api/tokens/candles', () => {
   });
 
   it('builds candles from Trade events using newPrice and timestamp', async () => {
+    // Anchor both trades inside one fully-past hour bucket. Using `now - 120`/
+    // `now - 60` was flaky: within ~2 min of an hour boundary those timestamps
+    // straddle two buckets, so the last candle held only the second trade.
     const now = Math.floor(Date.now() / 1000);
+    const bucket = Math.floor((now - 3600) / 3600) * 3600; // previous complete hour
     mockAmm.queryFilter.mockResolvedValue([
-      makeTradeEvent({ timestamp: now - 120, newPrice: ethers.parseEther('0.001'), nativeAmount: ethers.parseEther('1') }),
-      makeTradeEvent({ timestamp: now - 60, newPrice: ethers.parseEther('0.002'), nativeAmount: ethers.parseEther('2') }),
+      makeTradeEvent({ timestamp: bucket + 100, newPrice: ethers.parseEther('0.001'), nativeAmount: ethers.parseEther('1') }),
+      makeTradeEvent({ timestamp: bucket + 200, newPrice: ethers.parseEther('0.002'), nativeAmount: ethers.parseEther('2') }),
     ]);
 
     const res = await GET(makeRequest({ address: TOKEN, timeframe: '1h' }));
