@@ -63,22 +63,21 @@ export const TokenCommentThread: React.FC<TokenCommentThreadProps> = ({
 
   const handlePost = async () => {
     if (!newComment.trim() || !wallet.address || posting) return;
+    if (!wallet.signer) {
+      setError('Connect a wallet that can sign messages to comment.');
+      return;
+    }
 
     setPosting(true);
     setError(null);
 
     try {
-      let signature: string | undefined;
-      try {
-        const message = `Post comment on ${tokenAddress}: ${newComment.trim().slice(0, 100)}`;
-        if (wallet.signer) {
-          signature = await wallet.signer.signMessage(message);
-        }
-      } catch {
-        // Signature optional — proceed without
-      }
-
-      const isCreator = creatorAddress?.toLowerCase() === wallet.address.toLowerCase();
+      // A signature is mandatory: the server derives the author identity from it,
+      // so an unsigned or address-spoofed comment is rejected. The timestamp is
+      // bound into the signed message for replay protection.
+      const timestamp = Date.now();
+      const message = `Post comment on ${tokenAddress.toLowerCase()} at ${timestamp}: ${newComment.trim().slice(0, 100)}`;
+      const signature = await wallet.signer.signMessage(message);
 
       const res = await fetch('/api/tokens/comments', {
         method: 'POST',
@@ -88,7 +87,7 @@ export const TokenCommentThread: React.FC<TokenCommentThreadProps> = ({
           walletAddress: wallet.address,
           text: newComment.trim(),
           signature,
-          isCreator,
+          timestamp,
         }),
       });
 
@@ -227,8 +226,13 @@ export const TokenCommentThread: React.FC<TokenCommentThreadProps> = ({
         <div className="space-y-3 max-h-[400px] overflow-y-auto">
           <AnimatePresence>
             {comments.map((comment, i) => {
-              const isCreator = comment.isCreator ||
-                (creatorAddress && comment.walletAddress.toLowerCase() === creatorAddress.toLowerCase());
+              // Derive the creator badge from the (signature-verified) author
+              // address vs the token's on-chain creator. Never trust a stored
+              // isCreator flag — the server no longer accepts one.
+              const isCreator = Boolean(
+                creatorAddress &&
+                comment.walletAddress.toLowerCase() === creatorAddress.toLowerCase()
+              );
 
               return (
                 <motion.div

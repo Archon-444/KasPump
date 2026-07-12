@@ -74,9 +74,28 @@ if (typeof setInterval !== 'undefined') {
 }
 
 function getClientIdentifier(request: NextRequest): string {
+  // `request.ip` is set by Vercel/Next from the real TCP connection and cannot
+  // be spoofed by the client — prefer it.
+  if (request.ip) {
+    return request.ip;
+  }
+
+  // Vercel's managed header (also not client-settable behind Vercel).
+  const vercelForwarded = request.headers.get('x-vercel-forwarded-for');
+  if (vercelForwarded) {
+    return vercelForwarded.split(',')[0]?.trim() ?? 'unknown';
+  }
+
+  // Fallback for non-Vercel hosts: use the LAST x-forwarded-for entry, which is
+  // the address appended by the trusted edge proxy. Earlier entries are supplied
+  // by the client and are spoofable, so the previous `[0]` let an attacker land
+  // in a fresh rate-limit bucket on every request.
   const forwardedFor = request.headers.get('x-forwarded-for');
   if (forwardedFor) {
-    return forwardedFor.split(',')[0]?.trim() ?? 'unknown';
+    const parts = forwardedFor.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 0) {
+      return parts[parts.length - 1] as string;
+    }
   }
 
   const realIp = request.headers.get('x-real-ip');
@@ -84,7 +103,7 @@ function getClientIdentifier(request: NextRequest): string {
     return realIp;
   }
 
-  return request.ip ?? 'unknown';
+  return 'unknown';
 }
 
 export const RateLimitPresets = {
