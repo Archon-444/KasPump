@@ -20,6 +20,12 @@ interface Comment {
 
 const ALLOWED_REACTIONS = ['🔥', '💯', '🚀'] as const;
 
+// A token's comments live in a single KV value, so the thread must be bounded
+// or it grows without limit and eventually blows the value-size ceiling. Keep
+// the most recent MAX_COMMENTS; older ones age out (the UI already paginates
+// newest-first, so this is invisible in practice).
+const MAX_COMMENTS = 1000;
+
 function commentKey(tokenAddress: string): string {
   return `comments:${tokenAddress.toLowerCase()}`;
 }
@@ -81,28 +87,39 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { tokenAddress, walletAddress, text, signature, isCreator } = parsed.data;
+    const { tokenAddress, walletAddress, text, signature, timestamp } = parsed.data;
 
-    if (signature) {
-      try {
-        const message = `Post comment on ${tokenAddress}: ${text.trim().slice(0, 100)}`;
-        const recovered = ethers.verifyMessage(message, signature);
-        if (recovered.toLowerCase() !== walletAddress.toLowerCase()) {
-          return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-        }
-      } catch {
-        return NextResponse.json({ error: 'Signature verification failed' }, { status: 401 });
+    // Replay protection: the signed timestamp must be recent (5-minute window).
+    const now = Date.now();
+    if (Math.abs(now - timestamp) > 5 * 60 * 1000) {
+      return NextResponse.json({ error: 'Signature expired — please retry' }, { status: 401 });
+    }
+
+    // Identity is derived from the signature, never trusted from the body. The
+    // signed message binds the token, the timestamp (replay guard), and the text,
+    // so a poster can only ever act as the wallet that actually signed.
+    let verifiedAddress: string;
+    try {
+      const message = `Post comment on ${tokenAddress.toLowerCase()} at ${timestamp}: ${text.trim().slice(0, 100)}`;
+      const recovered = ethers.verifyMessage(message, signature);
+      if (recovered.toLowerCase() !== walletAddress.toLowerCase()) {
+        return NextResponse.json({ error: 'Signature does not match wallet' }, { status: 401 });
       }
+      verifiedAddress = recovered.toLowerCase();
+    } catch {
+      return NextResponse.json({ error: 'Signature verification failed' }, { status: 401 });
     }
 
     const comment: Comment = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       tokenAddress: tokenAddress.toLowerCase(),
-      walletAddress: walletAddress.toLowerCase(),
+      walletAddress: verifiedAddress,
       text: text.trim(),
-      timestamp: Date.now(),
+      timestamp: now,
       likes: 0,
-      isCreator: !!isCreator,
+      // isCreator is intentionally not stored. The creator badge is derived at
+      // render time from this verified address vs the token's on-chain creator,
+      // so it cannot be spoofed by a client-supplied flag.
     };
 
     // Short-lived lock prevents concurrent read-modify-write races
@@ -116,14 +133,18 @@ export async function POST(request: NextRequest) {
       const comments = await readComments(tokenAddress);
 
       const recentByWallet = comments.filter(
-        c => c.walletAddress === walletAddress.toLowerCase() && Date.now() - c.timestamp < 10000
+        c => c.walletAddress === verifiedAddress && Date.now() - c.timestamp < 10000
       );
       if (recentByWallet.length >= 3) {
         return NextResponse.json({ error: 'Rate limited. Wait a moment.' }, { status: 429 });
       }
 
       comments.push(comment);
-      await writeComments(tokenAddress, comments);
+      // Bound the thread: keep the newest MAX_COMMENTS by timestamp.
+      const bounded = comments.length > MAX_COMMENTS
+        ? [...comments].sort((a, b) => a.timestamp - b.timestamp).slice(-MAX_COMMENTS)
+        : comments;
+      await writeComments(tokenAddress, bounded);
     } finally {
       await kv.del(lockKey);
     }

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { BlockchainService } from '@/services/blockchain';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
+
+const CACHE_HEADERS = { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60' };
 
 const TIMEFRAME_SECONDS: Record<string, number> = {
   '1m': 60,
@@ -23,6 +26,11 @@ interface Candle {
 }
 
 export async function GET(request: NextRequest) {
+  const rl = await rateLimit(request, 'relaxed');
+  if (!rl.success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: rl.headers });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const tokenAddress = searchParams.get('address');
@@ -96,9 +104,9 @@ export async function GET(request: NextRequest) {
             close: currentPrice,
             volume: 0,
           }],
-        });
+        }, { headers: CACHE_HEADERS });
       }
-      return NextResponse.json({ candles: [] });
+      return NextResponse.json({ candles: [] }, { headers: CACHE_HEADERS });
     }
 
     tradePoints.sort((a, b) => a.timestamp - b.timestamp);
@@ -128,12 +136,9 @@ export async function GET(request: NextRequest) {
 
     const candles = Array.from(candleMap.values()).sort((a, b) => a.time - b.time);
 
-    return NextResponse.json({ candles });
+    return NextResponse.json({ candles }, { headers: CACHE_HEADERS });
   } catch (error: any) {
     console.error('Candles API Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch candles', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch candles' }, { status: 500 });
   }
 }

@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { BlockchainService } from '@/services/blockchain';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
 const ERC20_TRANSFER_TOPIC = ethers.id('Transfer(address,address,uint256)');
 
 export async function GET(request: NextRequest) {
+  const rl = await rateLimit(request, 'relaxed');
+  if (!rl.success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: rl.headers });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const tokenAddress = searchParams.get('address');
@@ -92,12 +98,12 @@ export async function GET(request: NextRequest) {
         };
       });
 
-    return NextResponse.json({ holders, totalHolders: addresses.size });
+    return NextResponse.json(
+      { holders, totalHolders: addresses.size },
+      { headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=120' } }
+    );
   } catch (error: any) {
     console.error('Holders API Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch holders', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch holders' }, { status: 500 });
   }
 }
