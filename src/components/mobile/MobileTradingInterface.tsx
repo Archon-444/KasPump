@@ -17,6 +17,7 @@ import { cn } from '../../utils';
 import { KasPumpToken, TradeData } from '../../types';
 import { useContracts } from '../../hooks/useContracts';
 import { Button } from '../ui';
+import { TransactionPreviewModal } from '../features/TransactionPreviewModal';
 
 export interface MobileTradingInterfaceProps {
   token: KasPumpToken;
@@ -44,6 +45,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
   const [gasFee, setGasFee] = useState(0);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const contracts = useContracts();
   const getSwapQuote = contracts.getSwapQuote;
 
@@ -127,9 +129,19 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
     }
   };
 
-  const handleTrade = async () => {
-    if (!amount || parseFloat(amount) <= 0 || quoteLoading) return;
+  // Tapping the trade button opens the confirmation sheet rather than firing
+  // the trade directly. This mirrors the desktop flow (TransactionPreviewModal)
+  // so a single tap — including one after an accidental drag-to-switch that
+  // flipped buy/sell — can no longer submit a live trade unreviewed.
+  const handleTradeClick = () => {
+    if (!amount || parseFloat(amount) <= 0 || isInsufficientBalance() || quoteLoading || loading) return;
+    setShowPreview(true);
+  };
 
+  const handleConfirmTrade = async () => {
+    if (!amount || parseFloat(amount) <= 0) return;
+
+    setShowPreview(false);
     setLoading(true);
 
     // Haptic feedback for trade
@@ -399,7 +411,7 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
         whileTap={{ scale: 0.98 }}
       >
         <Button
-          onClick={handleTrade}
+          onClick={handleTradeClick}
           disabled={!amount || parseFloat(amount) <= 0 || isInsufficientBalance() || loading || quoteLoading}
           className={cn(
             'w-full h-16 text-xl font-bold transition-all duration-200',
@@ -433,6 +445,23 @@ export const MobileTradingInterface: React.FC<MobileTradingInterfaceProps> = ({
           )}
         </Button>
       </motion.div>
+
+      {/* Confirmation sheet — same review + very-high-impact disable as desktop */}
+      <TransactionPreviewModal
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        onConfirm={handleConfirmTrade}
+        token={token}
+        type={tradeType}
+        amount={amount}
+        expectedOutput={expectedOutput}
+        priceImpact={priceImpact}
+        slippage={slippage}
+        minimumReceived={minimumReceived}
+        fees={fees}
+        gasFee={gasFee}
+        loading={loading}
+      />
     </div>
   );
 };
