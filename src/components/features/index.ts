@@ -54,3 +54,4 @@ export {
   FadeTransition,
   SlideTransition,
 } from './PageTransition';
+export { TraderOnboardingModal } from './TraderOnboardingModal';
