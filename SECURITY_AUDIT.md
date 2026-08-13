@@ -1,179 +1,108 @@
 # KasPump Smart Contract Security Audit Report
 
-**Original AI Self-Review Date:** 2025-01-15
-**Reconciliation Date:** 2026-06-23
-**Status:** Reconciled against current source code. All findings from the 2025-01-15 review are resolved in the current codebase. See §MAINNET BLOCKERS for what remains before production.
+**Original AI Self-Review Date:** 2025-01-15  
+**Last reconciled:** 2026-08-13 against `contracts/` on `master` (`daad3c2`)  
+**Status:** Historical findings from the 2025-01-15 review are resolved. July 2026 PRs (#75, #82, #84) closed the remaining *code* mainnet blockers from GitHub issue #74. Process gates (external audit, Safe ownership, fuzz tests, fresh testnet deploy) remain. See `STATUS.md`.
+
+This document is **not** a professional audit.
 
 ---
 
-## Executive Summary (current as of 2026-06-23)
+## Executive Summary (2026-08-13)
 
-**Current Risk Level: LOW-MEDIUM**
+**Current code risk (self-review):** LOW-MEDIUM — known CRITICAL/HIGH implementation bugs from the 2025 review and the July 2026 tracker are fixed in source.
 
-All CRITICAL and HIGH severity issues identified in the original review have been addressed in the current code. The platform is live on BSC Testnet and has been running without incident. The remaining blockers are operational/process items, not code correctness issues.
+**On-chain risk:** HIGH until current bytecode is deployed. The live BSC Testnet factory (`0x7Af627…`, 2025-10-31) does not include V2, `AMMDeployer`, or the July security fixes.
 
 **Mainnet deployment gates:**
-- ⏳ External audit by professional firm — **IN PROGRESS** (firm engaged)
-- ❌ Gnosis Safe ownership transfer — NOT DONE (single EOA still owns contracts)
-- ❌ Fuzz / invariant tests — NOT WRITTEN (critical for a bonding-curve product)
-- ❌ BSCScan contract verification — scripts exist, run status unknown
+- ⏳ External audit — **IN PROGRESS** (firm engaged; no `audit-package/` in repo)
+- ❌ Gnosis Safe ownership transfer — NOT DONE (scripts exist, unused)
+- ❌ Fuzz / invariant tests — NOT WRITTEN
+- ❌ Current bytecode on testnet — NOT DEPLOYED
+- ❌ BSCScan verification of current bytecode — N/A until redeploy
 
-**Safe for testnet:** ✅ Yes — platform is live on BSC Testnet  
-**Safe for mainnet:** ⛔ No — pending audit completion, Safe ownership, fuzz tests
+**Safe for testnet (current source, once redeployed):** ✅ Yes  
+**Safe for mainnet:** ⛔ No — pending audit, Safe, fuzz tests, and a matching testnet smoke
 
 ---
 
-## MAINNET BLOCKERS (open items)
+## MAINNET BLOCKERS (still open — process, not unfixed code)
 
 ### ❌ BLOCKER #1: Single-EOA Contract Ownership
 
-**Current state:**  
-`TokenFactory`, `DexRouterRegistry`, and `DeterministicDeployer` are all owned by the deployer EOA (`0xEFec…D667` on BSC Testnet, confirmed via `eth_getCode` returning `0x`). A single private key controls `pause`, `unpause`, `updateFeeRecipient`, and `updateDexRouterRegistry`. This is unacceptable on mainnet.
-
-**Required fix:**  
-- Deploy a Gnosis Safe (2-of-3 or 3-of-5, hardware-backed signers distinct from the deployer hot key)
-- Update `scripts/deploy-deterministic.ts:137` to transfer ownership to `process.env.SAFE_OWNER_ADDRESS` instead of `deployer.address`
-- Set `feeRecipient` to a Safe-controlled address, not an EOA
-- Rehearse `pause`, `unpause`, `updateFeeRecipient` via the Safe on testnet — confirm EOA can no longer call `onlyOwner` afterward
-
-**Estimated effort:** 2–4 hours (script + rehearsal)
-
----
+Testnet contracts are owned by the deployer EOA. `scripts/transfer-ownership.ts` and `SAFE_OWNER_ADDRESS` in `scripts/deploy-deterministic.ts` are the intended path. Rehearse on a **fresh** testnet deploy before mainnet.
 
 ### ❌ BLOCKER #2: External Professional Audit
 
-**Current state:** Only an AI self-review exists (this document). Firm is now engaged.
-
-**Required:**  
-- Resolve all Critical/High findings from the professional audit
-- Document accepted Mediums/Lows with rationale
-- Re-audit deltas if the firm requires
-- Add audit badge + report link to the UI once complete
-
-**Supporting materials to prepare:**
-- `audit-package/BRIEF.md` — threat model, design decisions, known issues (soft-launch refund, graduation clamp, fee decay)
-- `audit-package/COVERAGE_REPORT.md` — from `npx hardhat coverage`
-- `audit-package/GAS_SNAPSHOT.md` — from hardhat-gas-reporter
-- `audit-package/SLITHER_OUTPUT.md` — from `slither contracts/`
-- NatSpec completion on `BondingCurveAMM.sol`, `TokenFactory.sol`, `BondingCurveMath.sol`
-
----
+Only this AI reconciliation exists in-repo. Prepare `audit-package/` (BRIEF, coverage, gas snapshot, Slither) against the bytecode you will freeze.
 
 ### ❌ BLOCKER #3: Fuzz / Invariant Tests
 
-**Current state:** No invariant or fuzz tests exist in `contracts/`. The Hardhat test suite (4 files, 1491 lines) covers functional paths well but does not stress mathematical invariants.
+No Foundry suite. Hardhat covers functional paths (`BondingCurveAMM`, `BondingCurveSigmoid`, `Graduation`, `DEXIntegration`) but does not stress mathematical invariants.
 
-**Required (Foundry-based):**
-- `test/invariant/BondingCurveMath.t.sol` — curve monotonicity, no-free-tokens, total-supply bound
-- `test/invariant/BondingCurveAMM.t.sol` — graduation seam price continuity, refund accounting (soft-launch overpayment + graduation overpayment), fee-decay bounds within [0, MAX_FEE]
+### ❌ BLOCKER #4: Stale testnet deployment
 
-**Estimated effort:** 8–16 hours
+Master is not what is on chain 97. Redeploy before any audit freeze or mainnet dry-run.
+
+---
+
+## CODE BLOCKERS FROM ISSUE #74 — RESOLVED (July 2026)
+
+These were open in `SECURITY_AUDIT.md` on 2026-06-23 and in GitHub #74. They are **fixed in source**:
+
+| Finding | Fix |
+|---------|-----|
+| AMM `onlyOwner` stranded on factory | `AMMDeployer.deployAMM` calls `transferOwnership(ammAdmin)` |
+| `emergencyWithdraw` under-reserved trader funds | Reserves `curveNativeBalance + totalGraduationFunds +` accrued fees |
+| `feeRecipient.sendValue` on every trade could brick markets | Platform fees accumulate; `withdrawPlatformFees` is the pull path |
+| Graduation hard-abort on pre-seeded pair | Slippage-bounded `addLiquidityETH`; `retryGraduationLiquidity()` |
+| TokenFactory > 24 KB (EIP-170) | AMM creation bytecode moved to `AMMDeployer` (factory ~12.2 KB) |
 
 ---
 
 ## RESOLVED FINDINGS (historical record)
 
-All findings below were present in the original 2025-01-15 AI review and are now resolved in the current codebase.
+All findings below were present in the original 2025-01-15 AI review and remain resolved.
 
----
+### ✅ CRITICAL #1–2: Reentrancy in buy/sell — RESOLVED
 
-### ✅ CRITICAL #1: Reentrancy in buyTokens() — RESOLVED
-
-**Original location:** `BondingCurveAMM.sol:76-115`  
-**Fix:** `nonReentrant` modifier applied. CEI pattern enforced. Uses `SafeERC20` for token transfers.  
-**Current code:** `BondingCurveAMM.sol` — `buyTokens()` has `nonReentrant + whenNotPaused`; state updates before external calls.
-
----
-
-### ✅ CRITICAL #2: Reentrancy in sellTokens() — RESOLVED
-
-**Original location:** `BondingCurveAMM.sol:120-158`  
-**Fix:** `nonReentrant` modifier applied. CEI pattern enforced.  
-**Current code:** `BondingCurveAMM.sol` — `sellTokens()` has `nonReentrant + whenNotPaused`.
-
-**Full nonReentrant coverage:**
-- `buyTokens()` — nonReentrant + whenNotPaused
-- `sellTokens()` — nonReentrant + whenNotPaused
-- `withdrawGraduationFunds()` — nonReentrant
-- `withdrawCreatorFees()` — nonReentrant
-- `withdrawReferrerFees()` — nonReentrant
-- `withdrawLPTokens()` — nonReentrant
-- `CreatorVesting.claim()` — nonReentrant
-- `TokenFactory.createToken()` — nonReentrant + whenNotPaused
-
----
+`nonReentrant` + CEI on `buyTokens`, `sellTokens`, withdrawal entrypoints, `CreatorVesting.claim`, `TokenFactory.createToken`.
 
 ### ✅ HIGH #1: Constructor Parameter Mismatch — RESOLVED
 
-**Original:** EnhancedTokenFactory passed 7 params; BondingCurveAMM only accepted 6.  
-**Fix:** BondingCurveAMM constructor now accepts 7 params: `(token, tokenCreator, feeRecipient, membershipTier, dexRouter, sniperProtectionDuration, referrer)`. Parameter alignment is correct.
+`BondingCurveAMM` constructor: `(token, tokenCreator, feeRecipient, membershipTier, dexRouter, sniperProtectionDuration, referrer)`.
 
----
+### ✅ HIGH #2–4: Validation, SafeERC20, precision — RESOLVED
 
-### ✅ HIGH #2: Missing Input Validation — RESOLVED
-
-**Fix:** Comprehensive zero-address checks in all constructors and critical functions. Parameter validation throughout.
-
----
-
-### ✅ HIGH #3: Unsafe External Calls — RESOLVED
-
-**Fix:** Uses `Address.sendValue()` (OpenZeppelin) and `SafeERC20` patterns for all external value transfers. Fee recipient calls use safe patterns.
-
----
-
-### ✅ HIGH #4: Integer Division Precision Loss — RESOLVED
-
-**Fix:** `BondingCurveMath.sol` uses proper fixed-point arithmetic with a `PRECISION` constant throughout. Multiplication before division enforced.
-
----
+Zero-address checks; `Address.sendValue` / `SafeERC20`; fixed-point math in `BondingCurveMath.sol`.
 
 ### ✅ HIGH #5: Incomplete Graduation Logic — RESOLVED
 
-**Fix:** Full DEX integration implemented. `_graduateToken()` now: adds liquidity to PancakeSwap V2, locks LP tokens for 6 months, distributes creator/platform funds. `LiquidityAdded` and `LPTokensLocked` events emitted. No funds can be permanently stuck.
+`_graduateToken` adds V2 DEX liquidity, locks LP, splits 70/20/10, pull-payments. Dust-griefing retry added 2026-07.
+
+### ✅ MEDIUM #1–8 — RESOLVED
+
+CREATE2 salt includes `block.prevrandao` + chainid; Pausable on factory and AMM; sigmoid-only V2 curve; partnership-revenue function removed; constants/events/custom errors.
 
 ---
 
-### ✅ MEDIUM #1: CREATE2 Salt Predictability — RESOLVED
+## LOW SEVERITY & INFORMATIONAL
 
-**Fix:** Salt uses `keccak256(abi.encodePacked(msg.sender, nonce, block.prevrandao, chainid))`.
+### NatSpec
 
----
-
-### ✅ MEDIUM #2: No Pause Mechanism — RESOLVED
-
-**Fix:** Both `TokenFactory` and `BondingCurveAMM` inherit OpenZeppelin `Pausable`. `pause()` and `unpause()` are `onlyOwner`. Note: currently owner is a single EOA — see BLOCKER #1.
-
----
-
-### ✅ MEDIUM #3: Exponential Curve Not Implemented — RESOLVED
-
-**Fix:** Standardized sigmoid curve implemented via `BondingCurveMath.sol` using a 31-point anchor table with linear interpolation between anchors. Curve type parameter accepted and used correctly.
-
----
-
-### ✅ MEDIUM #4: No Access Control on distributePartnershipRevenue — RESOLVED
-
-**Fix:** `distributePartnershipRevenue` removed in V2. The platform now uses a standardized `tokenToAMM` mapping with validation for all revenue routing.
-
----
-
-### ✅ MEDIUM #5–8: Gas Optimization & Code Quality — RESOLVED
-
-**Fix:** Constants used instead of magic numbers. Events added for all significant state changes. Structured custom errors adopted. Redundant SLOADs eliminated via local variable caching.
-
----
-
-## LOW SEVERITY & INFORMATIONAL (still applicable)
-
-### NatSpec Documentation
-Several public/external functions in `BondingCurveAMM.sol`, `TokenFactory.sol`, and `BondingCurveMath.sol` are missing `@param`, `@return`, and `@notice` tags. Complete NatSpec is required as part of the professional audit package.
+Public/external functions on `BondingCurveAMM` and `TokenFactory` have `@notice` / `@param` / `@return` coverage sufficient for an audit package; keep it complete on any new surface.
 
 ### No Upgrade Mechanism
-Contracts are not upgradeable (no proxy pattern). This is a deliberate design choice — immutability is the trust story. Document it explicitly in the audit brief.
 
-### Rate Limiting on Token Creation
-No on-chain rate limiting for `createToken()`. Spam tokens are currently cheap. Consider a minimum creation fee or per-address cooldown if spam becomes a problem post-launch.
+Contracts are not upgradeable. Deliberate — document in the audit brief.
+
+### Token-creation spam
+
+`CREATION_FEE = 0.005 ether`. No per-address cooldown. Acceptable anti-spam for launch; revisit if spam appears.
+
+### Sniper window
+
+Buys and sells in the sniper window pay a decaying surcharge (up to ~99%). Frontend must always pass `minOut` from a quote that includes the live surcharge (issue #74 medium — document, don't "fix" the fee).
 
 ---
 
@@ -181,21 +110,20 @@ No on-chain rate limiting for `createToken()`. Spam tokens are currently cheap. 
 
 | Test Category | Status | Notes |
 |---|---|---|
-| Reentrancy scenarios | ✅ Covered | `BondingCurveAMM.test.ts` |
-| Buy/sell with edge values | ✅ Covered | `BondingCurveAMM.test.ts` |
-| Graduation threshold | ✅ Covered | `Graduation.test.ts` |
-| Overpayment refunds | ✅ Covered | `Graduation.test.ts` |
-| Sigmoid curve math | ✅ Covered | `BondingCurveSigmoid.test.ts` |
-| DEX integration | ✅ Covered | `DEXIntegration.test.ts` |
-| Fuzz / invariant tests | ❌ Missing | See BLOCKER #3 |
+| Reentrancy scenarios | ✅ Covered | `test/BondingCurveAMM.test.ts` |
+| Buy/sell with edge values | ✅ Covered | same |
+| Graduation threshold + refunds | ✅ Covered | `test/Graduation.test.ts` |
+| Sigmoid curve math | ✅ Covered | `test/BondingCurveSigmoid.test.ts` |
+| DEX integration | ✅ Covered | `test/DEXIntegration.test.ts` (revived vs current constructors) |
+| Quarantined tests | ✅ Cleared | PR #85; no `it.skip` remaining |
+| Fuzz / invariant tests | ❌ Missing | Blocker #3 |
 | Gas snapshot | ❌ Not recorded | Needed for audit package |
+| Slither | ❌ Not in repo | Needed for audit package |
 
 ---
 
 ## DISCLAIMER
 
-The original 2025-01-15 review was AI-generated and is not a substitute for a professional audit. A professional audit is now in progress. This document represents a code-reconciliation of that original review against the current source; it is not itself a security audit.
+The original 2025-01-15 review was AI-generated and is not a substitute for a professional audit. This document is a code-reconciliation against current source.
 
----
-
-**Last reconciled:** 2026-06-23 against current `contracts/` source
+**Last reconciled:** 2026-08-13

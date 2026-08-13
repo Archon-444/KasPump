@@ -1,7 +1,15 @@
 # 🧪 KasPump Testing Guide
-## How to Test Your Deployed Contracts
 
-**Congratulations on deploying!** 🎉
+**Last updated:** 2026-08-13
+
+Test **current** bytecode, not the October 2025 factory in `deployments.json`. After `npm run deploy:bsc-testnet` you should have at least:
+
+- DeterministicDeployer
+- DexRouterRegistry
+- TokenFactory
+- **AMMDeployer** (required)
+
+CI already runs Vitest, Hardhat, and Playwright E2E on pull requests. This guide is for **on-chain** smoke after a fresh testnet deploy. See [STATUS.md](./STATUS.md).
 
 ---
 

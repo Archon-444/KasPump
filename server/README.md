@@ -1,8 +1,14 @@
 # KasPump WebSocket Server
 
-Real-time WebSocket server for KasPump platform using Socket.IO. Provides live updates for token prices, trades, graduations, and platform events.
+Real-time Socket.IO server for token prices, trades, graduations, and platform events.
 
-## Features
+**Status (2026-08-13):** Code in this package is production-oriented (Redis TLS for `rediss://`, rate limits, multi-chain listeners). **Nothing is hosted.** The Next.js CSP allowlist has no production `wss://` origin. Until you deploy this service and set `NEXT_PUBLIC_WS_URL`, the frontend degrades to polling.
+
+Bind HTTP to `0.0.0.0:$PORT` on Render (or similar). Filesystem is ephemeral — use Redis/Key Value, not local disk.
+
+See [STATUS.md](../STATUS.md).
+
+---
 
 - **Real-time Blockchain Events**: Listen to smart contract events and push to connected clients
 - **Token Subscriptions**: Subscribe to specific tokens for price and trade updates
@@ -290,11 +296,10 @@ server/
 │   │   └── SocketEventHandlers.ts # Socket.IO event handlers
 │   ├── api/
 │   │   └── tradingAPI.ts          # Trading REST API
-│   ├── abis/                      # Contract ABIs
+│   ├── abis/                      # Hand-maintained ABI copies (keep in sync after compile)
 │   │   ├── TokenFactory.json
 │   │   ├── BondingCurveAMM.json
-│   │   ├── LimitOrderBook.json
-│   │   └── StopLossOrderBook.json
+│   │   └── CreatorVesting.json
 │   └── utils/
 │       └── logger.ts              # Winston logger
 ├── package.json

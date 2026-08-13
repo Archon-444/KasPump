@@ -1,18 +1,20 @@
 # 🚰 Testnet Faucet Guide
 
+**Last updated:** 2026-08-13
+
+Faucet links below are still useful. The TokenFactory address is the **2025-10-31** factory and does **not** match current V2 source. Personal “you have 0.3 BNB” notes in older revisions are not maintained here.
+
+After you redeploy current contracts, use **those** addresses. See [TESTNET_DEPLOYMENT_GUIDE.md](./TESTNET_DEPLOYMENT_GUIDE.md).
+
 ## Current Deployment Status
 
-✅ **BSC Testnet** - Deployed successfully!
-- TokenFactory: `0x7Af627Bf902549543701C58366d424eE59A4ee08`
-- Balance needed: 0.3 BNB ✅ (you have this)
+⚠️ **BSC Testnet** — stale factory recorded in `deployments.json`
+- TokenFactory: `0x7Af627Bf902549543701C58366d424eE59A4ee08` (not V2)
+- You need testnet BNB on the **deployer** wallet for a fresh deploy
 
-⏳ **Arbitrum Sepolia** - Needs deployment
-- Required: Testnet ETH (~0.1 ETH)
-- Balance: 0 ETH ❌
+❌ **Arbitrum Sepolia / Base Sepolia** — not deployed (current bytecode)
 
-⏳ **Base Sepolia** - Needs deployment  
-- Required: Testnet ETH (~0.1 ETH)
-- Balance: 0 ETH ❌
+---
 
 ---
 

@@ -1,8 +1,10 @@
 # DEX Integration Guide - Automated Liquidity Provision
 
-**Version:** 1.0
-**Status:** Implementation Guide
-**Last Updated:** 2025-11-13
+**Status (2026-08-13):** Automated V2 graduation **is shipped** in `BondingCurveAMM._graduateToken` / `_addLiquidityToDEX`. LP lock, 70/20/10 split, pull-payments, and `retryGraduationLiquidity()` (dust-griefing) are in source.
+
+The sections below that describe a **manual** “creator receives funds and should LP themselves” flow are **historical**. Do not implement them. Current behavior: [docs/FEATURE_A_DEX_INTEGRATION.md](./docs/FEATURE_A_DEX_INTEGRATION.md) plus `contracts/BondingCurveAMM.sol`.
+
+**Last updated (banner):** 2026-08-13. Body below is a 2025-11-13 implementation sketch kept for archaeology.
 
 ---
 

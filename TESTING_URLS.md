@@ -1,26 +1,21 @@
 # 🧪 KasPump Testing URLs & Setup
 
-## ✅ Server Status
+**Last updated:** 2026-08-13
 
-**Frontend & Backend:** ✅ Running
+Local URLs below are valid when you run `npm run dev`. The BSC Testnet factory listed here is the **2025-10-31** deploy and **does not match master**. Do not treat those explorer links as a V2 smoke target. Redeploy first: [TESTNET_DEPLOYMENT_GUIDE.md](./TESTNET_DEPLOYMENT_GUIDE.md).
 
-## 🌐 Access URLs
+## Access URLs
 
 ### Local Development
 - **Frontend:** http://localhost:3000
 - **API Route - Tokens:** http://localhost:3000/api/tokens
 - **API Route - Analytics:** http://localhost:3000/api/analytics
+- **WebSocket server (optional, separate package):** http://localhost:4000 — not hosted in production
 
-### Deployed Contracts (BSC Testnet)
+### Recorded contracts (stale vs master)
 
-**TokenFactory Address:** `0x7Af627Bf902549543701C58366d424eE59A4ee08`
-
-**View on Block Explorer:**
-- https://testnet.bscscan.com/address/0x7Af627Bf902549543701C58366d424eE59A4ee08
-
-**Test Token (created during testing):**
-- Token: https://testnet.bscscan.com/address/0xb64b2b99018eC5Ee1A5444bdA84456A5322B5559
-- AMM: https://testnet.bscscan.com/address/0x2456e11991728DECb7fA907b97991d9560B14c0b
+**TokenFactory (2025-10-31):** `0x7Af627Bf902549543701C58366d424eE59A4ee08`  
+https://testnet.bscscan.com/address/0x7Af627Bf902549543701C58366d424eE59A4ee08
 
 ---
 

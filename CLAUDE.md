@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KasPump is a Pump.fun-style token launchpad for EVM chains (BSC primary, plus Arbitrum and Base). Users deploy ERC-20 tokens that trade on a bonding curve until they hit a graduation threshold, at which point liquidity automatically moves to a DEX (PancakeSwap etc.).
+KasPump is a Pump.fun-style token launchpad **prototype** for EVM chains. Consumer launch is **mothballed** (`STRATEGY.md`, wedge E). Users *would* deploy ERC-20s that trade on a bonding curve until graduation to a DEX — that is what the code does, not a go-to-market.
 
 The repo contains four deployable pieces:
 
@@ -57,11 +57,13 @@ Node 20+ is required (Next 16 needs >=20.9; Hardhat is unsupported on 18). CI us
 
 ### Contract layer (`contracts/`, Solidity 0.8.20)
 
-`TokenFactory.sol` is the entry point: `createToken` deploys a `KRC20Token` (defined in the same file) plus a paired `BondingCurveAMM` via CREATE2. Each token gets its own AMM instance — there is no shared pool contract.
+`TokenFactory.sol` is the entry point: `createToken` deploys a `KRC20Token` (defined in the same file) plus a paired `BondingCurveAMM` through `AMMDeployer.sol` (the deployer `transferOwnership`s each AMM to the platform admin so emergency controls are callable). Each token gets its own AMM instance — there is no shared pool contract. `DeterministicDeployer` uses CREATE2 for the factory address, not for each AMM.
 
 `BondingCurveAMM.sol` holds the trading logic: pricing comes from `contracts/libraries/BondingCurveMath.sol` (V2: sigmoid curve only — see the `project-conventions` skill for what's legacy), fees decay from MAX to MIN bps as supply approaches graduation. When a buy crosses `GRADUATION_THRESHOLD`, `_graduateToken` fires in the same transaction: ~70% of raised funds become DEX liquidity (router resolved per-chain via `DexRouterRegistry.sol`), a `CreatorVesting.sol` contract is deployed for the creator's allocation, and payouts use a pull-payment pattern. Graduation accounting is tracked explicitly rather than reading `address(this).balance` — preserve that invariant when touching AMM code.
 
-Compiler settings in `hardhat.config.js` matter: `viaIR: true` is required (`buyTokens` hits "stack too deep" under legacy codegen) with optimizer runs=100. Network RPC URLs and deployer key come from `.env.local` / `.env`.
+Compiler settings in `hardhat.config.ts` matter: `viaIR: true` is required (`buyTokens` hits "stack too deep" under legacy codegen) with optimizer runs=100. Network RPC URLs and deployer key come from `.env.local` / `.env`.
+
+Go-live status (what is actually shipped vs still blocking mainnet) lives in `STATUS.md`. The BSC Testnet addresses in `deployments.json` are a 2025-10-31 factory and do **not** match current source.
 
 After any change to `contracts/**`, run the `solidity-security-reviewer` subagent (`.claude/agents/`) before merging.
 
@@ -105,4 +107,4 @@ Deployment is handled entirely by the **Vercel GitHub integration**: every push 
 
 ## Reference docs
 
-The repo has extensive markdown docs at the root. Most useful: `AGENTS.md` (agent-oriented overview — its curve description predates V2), `BONDING_CURVE_MATH.md` (curve math spec), `TESTING_GUIDE.md`, `CONTRACT_CONFIGURATION.md`, `TROUBLESHOOTING.md`, `EMERGENCY_RUNBOOK.md`. `TECHNICAL_DEBT.md` tracks known placeholders (e.g. holder counts return 0). Everything under `docs/archive/` is historical — don't treat it as current state.
+The repo has extensive markdown docs at the root. **Direction:** `STRATEGY.md` (consumer launch mothballed; reopen tests in that file). **Code/ops inventory:** `STATUS.md`. Also useful: `AGENTS.md`, `CLAUDE.md` (this file), `TECHNICAL_DEBT.md`, `SECURITY_AUDIT.md`, `ROADMAP.md` (backlog, not a launch plan). `BONDING_CURVE_MATH.md` is **pre-V2** (linear/quadratic) — a banner at the top says so; current math is `contracts/libraries/BondingCurveMath.sol`. Everything under `docs/archive/` is historical — don't treat it as current state.

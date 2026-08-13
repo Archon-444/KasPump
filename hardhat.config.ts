@@ -24,11 +24,10 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
-    // In-process test network. TokenFactory currently exceeds the 24576-byte
-    // EIP-170 limit (~32KB), so the default network refuses to deploy it in
-    // tests. Allow it here so the suite can run; the real size issue (the
-    // factory is not deployable to mainnet as-is) is tracked separately and
-    // must be fixed before deployment — this flag does NOT affect real networks.
+    // In-process test network. Production bytecode is under the 24,576-byte
+    // EIP-170 limit (TokenFactory ~12 KB, AMMDeployer ~21 KB as of 2026-08-13).
+    // This flag is leftover from before AMMDeployer existed; it does not affect
+    // real networks. Keep it so oversized experimental test contracts can deploy.
     hardhat: {
       allowUnlimitedContractSize: true,
     },

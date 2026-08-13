@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-KasPump is a Pump.fun-style token launchpad on EVM chains (starting with BNB Smart Chain). It provides instant ERC-20 token deployment, bonding curve pricing (linear, exponential, adaptive), and DEX graduation. The app targets BSC, Arbitrum, and Base networks.
+KasPump is a Pump.fun-style token launchpad prototype on EVM chains. Direction: `STRATEGY.md` (consumer launch mothballed). Code inventory: `STATUS.md`. V2 is a fixed sigmoid curve and a 3-field launch form — not a curve picker. The recorded BSC Testnet factory is stale vs master.
 
 ## Repository Structure
 
@@ -23,7 +23,7 @@ KasPump is a Pump.fun-style token launchpad on EVM chains (starting with BNB Sma
 │   └── test/              # Test setup (setup.ts)
 ├── tools/                 # Standalone Vite/React dev tools
 │   ├── bonding-curve-simulator/
-│   ├── token-launch-wizard/
+│   ├── token-launch-wizard/   # LEGACY — unused by the app
 │   └── portfolio-analytics/
 ├── typechain-types/       # Generated TypeScript bindings for contracts
 ├── public/                # Static assets
@@ -48,7 +48,7 @@ KasPump is a Pump.fun-style token launchpad on EVM chains (starting with BNB Sma
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+ (Next 16 needs >=20.9; Hardhat is unsupported on 18)
 - npm
 
 ### Install and Run
@@ -116,8 +116,9 @@ Runs on port 4000. Requires `server/.env` (see `server/.env.example`).
 
 ### Smart Contracts
 
-- Solidity 0.8.20 with optimizer (200 runs)
+- Solidity 0.8.20 with optimizer (`runs: 100`, `viaIR: true` in `hardhat.config.ts`)
 - OpenZeppelin for access control, reentrancy guards
+- `TokenFactory` deploys AMMs through `AMMDeployer` (EIP-170)
 - TypeChain generates TypeScript types to `typechain-types/`
 
 ### Styling
@@ -172,10 +173,10 @@ npm run type-check          # tsc --noEmit
 ## Linting
 
 ```bash
-npm run lint                # ESLint via next lint (root app)
+npm run lint                # BROKEN — next lint was removed in Next 16
 ```
 
-- Root app uses `eslint-config-next`
+- Root app cannot load eslint-config-next 16 with eslint 8; migrate to eslint 9 + flat config before relying on this
 - Tools use ESLint 9 with flat config
 - No Prettier configured; no Husky/lint-staged hooks
 
@@ -193,9 +194,9 @@ npm run compile             # Hardhat compile only
 
 ### Frontend (Vercel)
 
-- CI/CD via `.github/workflows/deploy.yml`
-- Pushes to `main` deploy to production; all other branches get preview URLs
-- PR deployments auto-comment the preview URL
+- Vercel GitHub integration (the old CLI `deploy.yml` workflow was removed July 2026 — do not recreate it)
+- Pushes to `master` deploy to production; other branches get preview URLs
+- PR CI: `.github/workflows/ci.yml` (unit, Hardhat, E2E, build)
 
 ### Smart Contracts (Hardhat)
 
@@ -208,17 +209,13 @@ npm run deployment:status               # Check deployment status
 
 ### Subgraph (The Graph)
 
-```bash
-cd subgraph
-npm run codegen && npm run build
-npm run deploy:testnet
-```
+Code is in `subgraph/`. Hosted-service deploy scripts are dead. Deploy to Goldsky or Alchemy after a V2 factory exists; see `STATUS.md` and `subgraph/README.md`.
 
 ## Key Files Reference
 
 | File | Purpose |
 |------|---------|
-| `hardhat.config.js` | Solidity compiler, networks, Etherscan keys |
+| `hardhat.config.ts` | Solidity compiler, networks, Etherscan keys |
 | `next.config.js` | Next.js build config, image domains, webpack externals |
 | `tailwind.config.js` | Theme, colors, animations, content paths |
 | `vitest.config.ts` | Test environment, setup file, coverage |

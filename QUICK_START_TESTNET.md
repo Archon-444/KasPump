@@ -1,17 +1,17 @@
 # 🚀 Quick Start: Testnet Deployment
 
-**You already have a deployment!** Let's verify it and get it working.
+**Last updated:** 2026-08-13
 
----
+`deployments.json` still lists a BSC Testnet factory from **October 31, 2025**. Current master is V2 (`AMMDeployer`, sigmoid, July 2026 security fixes). **That factory is not a valid target for this codebase.**
 
-## ✅ Current Deployment Status
+To deploy current contracts, follow [TESTNET_DEPLOYMENT_GUIDE.md](./TESTNET_DEPLOYMENT_GUIDE.md). Go-live gates: [STATUS.md](./STATUS.md).
 
-According to `deployments.json`, you have:
+## Recorded (stale) addresses — do not treat as V2
 
 - **Network**: BSC Testnet (Chain ID: 97)
 - **TokenFactory**: `0x7Af627Bf902549543701C58366d424eE59A4ee08`
 - **Deployed**: October 31, 2025
-- **Type**: Deterministic (can deploy to other chains with same address!)
+- **Type**: Deterministic CREATE2 (of the **old** bytecode)
 
 ---
 

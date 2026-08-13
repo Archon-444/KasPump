@@ -1,8 +1,14 @@
 # Vercel Deployment Guide for KasPump
 
-This guide covers deploying the KasPump Next.js application to Vercel.
+**Last updated:** 2026-08-13
 
-## 📋 Prerequisites
+Production frontend deploys via the **Vercel GitHub integration** (push to `master` → production; other branches → previews). The old CLI workflow `.github/workflows/deploy.yml` was **removed in July 2026** — do not recreate it.
+
+`installCommand` in `vercel.json` is `npm install --legacy-peer-deps`. TypeScript build errors are ignored (`ignoreBuildErrors: true`); that is debt, not a green bill of health.
+
+Pointing Vercel at the October 2025 testnet factory will not exercise current contracts. See [STATUS.md](./STATUS.md).
+
+---
 
 1. **Vercel Account**: Sign up at [vercel.com](https://vercel.com)
 2. **GitHub Repository**: Your code should be in a GitHub repository

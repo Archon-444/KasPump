@@ -1,6 +1,10 @@
 # 🚀 KasPump Testnet Deployment - Step by Step
 
-**Quick Start Guide for Deploying to Testnet**
+**Last updated:** 2026-08-13
+
+This is a command cheat-sheet. The October 2025 factory in `deployments.json` does **not** match master. Use [TESTNET_DEPLOYMENT_GUIDE.md](./TESTNET_DEPLOYMENT_GUIDE.md) as the current procedure (includes `AMMDeployer`). Never commit or paste `PRIVATE_KEY` into markdown.
+
+**Prerequisites:** Node.js 20+, `npm install --legacy-peer-deps`, testnet-only key in `.env.local`.
 
 ---
 
@@ -8,7 +12,7 @@
 
 Before starting, make sure you have:
 
-- [ ] Node.js 18+ installed
+- [ ] Node.js 20+ installed
 - [ ] npm or yarn installed
 - [ ] A wallet with testnet funds
 - [ ] Network access (to download Solidity compiler)

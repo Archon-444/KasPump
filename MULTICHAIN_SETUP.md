@@ -1,8 +1,10 @@
 # KasPump Multichain Setup Guide
 
-KasPump now supports multiple blockchain networks: **BNB Smart Chain**, **Arbitrum**, and **Base**.
+KasPump's **frontend and DexRouterRegistry** are built for BNB Smart Chain, Arbitrum, and Base.
 
-## 🌐 Supported Networks
+**On-chain (2026-08-13):** only a stale BSC Testnet factory is recorded in `deployments.json`. No current V2 deploy on any chain. Mainnets are empty. See [STATUS.md](./STATUS.md).
+
+## Supported Networks
 
 ### Mainnets
 - **BNB Smart Chain (BSC)** - Chain ID: 56
@@ -30,7 +32,7 @@ KasPump now supports multiple blockchain networks: **BNB Smart Chain**, **Arbitr
 ### 1. Install Dependencies
 
 ```bash
-npm install
+npm install --legacy-peer-deps
 ```
 
 This will install:

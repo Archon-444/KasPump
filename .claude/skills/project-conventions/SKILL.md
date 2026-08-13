@@ -34,9 +34,9 @@ New features must not accept, validate, or display a curve choice.
 
 ## Stale documentation
 
-- `AGENTS.md` predates V2 where it describes curves ("linear, exponential, adaptive") and references `tools/token-launch-wizard/` — CLAUDE.md and this skill win on conflicts.
-- `TECHNICAL_DEBT.md` is pre-V2 (still useful for holder-count/metrics placeholders).
+- `BONDING_CURVE_MATH.md` describes the pre-V2 linear/quadratic curve (banner at top). Current math is `BondingCurveMath.sol`.
 - `docs/archive/` and root `archive/` are historical records, not current guidance.
+- `STATUS.md` is the code/ops inventory. `STRATEGY.md` is direction (consumer launch mothballed; reopen tests in that file). GitHub issues #74 and #83 are stale.
 
 ## Type errors
 

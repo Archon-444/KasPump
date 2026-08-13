@@ -1,33 +1,46 @@
 # KasPump Technical Debt & Open Work
 
 **Original Date:** 2025-11-15  
-**Reconciled:** 2026-06-23  
-**Status:** Reconciled against current source code. Many items listed as TODO in the original doc are shipped.
+**Reconciled:** 2026-08-13 against `master` (`daad3c2`)  
+**Status:** Current. Items marked shipped were verified in source, not just prior docs. Canonical go-live list: `STATUS.md`.
 
 ---
 
-## What's Shipped (was listed as TODO)
+## What's Shipped
 
 | Item | Status | How it's done |
-|------|--------|--------------|
-| Token holder count | ✅ Shipped | `src/services/moralis.service.ts` — Moralis API integration |
-| Mobile navigation | ✅ Shipped | `src/components/mobile/MobileNavigation.tsx` — wired into `AppLayout.tsx` |
-| Mobile token cards | ✅ Shipped | `src/components/mobile/MobileTokenCard.tsx` — used in `src/app/page.tsx` |
-| Mobile trading UI | ✅ Shipped | `src/components/mobile/MobileTradingInterface.tsx` — used in `TokenTradingPage.tsx` |
-| Performance optimizations | ✅ Shipped | All 7 categories in `MOBILE_PERFORMANCE_OPTIMIZATIONS.md` |
+|------|--------|---------------|
+| Token holder count | ✅ Shipped | `src/services/moralis.service.ts` + Vercel KV cache |
+| Mobile navigation / cards / trading | ✅ Shipped | `src/components/mobile/*` wired into layout and trading page |
 | Transaction history | ✅ Shipped | `src/hooks/useUserTrades.ts` |
-| Token search | ✅ Shipped | `src/components/features/TokenSearchFilters.tsx` |
-| Copy-to-clipboard | ✅ Shipped | Present across token/wallet address displays |
-| Favorite tokens | ✅ Shipped | `src/hooks/useFavorites.ts` |
-| Sentry monitoring | ✅ Shipped | All 3 layers (`sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`) |
-| Analytics dashboard | ⚠️ Partial | `src/app/analytics/` renders, but `GrowthChart` plots `Math.random()` mock data, the leaderboard card is a "coming soon" placeholder, the timeframe selector is ignored by the API, and totalUsers/activeTokens are hardcoded 0 (`src/services/analytics.service.ts:55-57`) |
-| Leaderboard | ✅ Shipped | `src/app/leaderboard/` with `KingOfTheHill.tsx`, `LeaderboardTable.tsx` |
-| Price alerts | ✅ Shipped | `src/hooks/usePriceAlerts.ts`, `src/app/alerts/` |
-| Portfolio tracking | ✅ Shipped | `src/app/portfolio/` with hooks and components |
-| Push notifications | ⚠️ Partial | Client hook exists, but `api/push/subscribe` never persists subscriptions (`TODO: Store subscription in database` — it just logs and returns success), so nothing is ever delivered; alerts only fire in an open tab |
-| Wallet balance display | ✅ Shipped | `src/hooks/useMultichainWallet.ts` |
-| Share token button | ✅ Shipped | Present in token detail components |
-| IPFS upload | ✅ Shipped | `src/app/api/ipfs/upload/route.ts`, `src/hooks/useIPFSUpload.ts` |
+| Token search, favorites, share, copy | ✅ Shipped | respective hooks/components |
+| Sentry scaffolding | ✅ Shipped | client/server/edge configs (DSN live-ness not confirmed) |
+| Analytics dashboard | ✅ Mostly real | PR #81 de-faked `/analytics`; leftover placeholders called out in UI |
+| Leaderboard / King of the Hill | ✅ Shipped | `src/app/leaderboard/` |
+| Price alerts (in-tab) | ✅ Shipped | `src/hooks/usePriceAlerts.ts` |
+| Portfolio tracking | ✅ Shipped | `src/app/portfolio/` |
+| IPFS upload | ✅ Shipped | size/type validated server-side |
+| Comments | ✅ KV + signatures | `@vercel/kv`; EIP-191 required; thread bounded |
+| CSP allowlist | ✅ Shipped | `vercel.json` `connect-src` |
+| Rate limiting | ✅ KV | `src/lib/rate-limit.ts` uses `kv.incr` |
+| AMM admin surface | ✅ Shipped | `AMMDeployer` transfers ownership to platform admin |
+| Graduation dust-griefing | ✅ Shipped | no pair hard-abort; `retryGraduationLiquidity()` |
+| TokenFactory EIP-170 | ✅ Shipped | factory 12.2 KB deployed; AMM bytecode in `AMMDeployer` |
+| Hardhat tests in CI | ✅ Shipped | quarantines removed (PR #85) |
+| Playwright E2E in CI | ✅ Shipped | |
+| Brand centralization | ✅ Shipped | `src/config/brand.ts` |
+| `prefers-reduced-motion` | ✅ Shipped | `AppProviders.tsx` |
+| PWA install banner + onboarding | ✅ Shipped | PR #95 |
+| Uniswap V3 scaffolding | ✅ Removed | PR #91 — V2 `addLiquidityETH` only |
+
+### Partial
+
+| Item | Status | Remaining |
+|------|--------|-----------|
+| Push notifications | ⚠️ Partial | `api/push/subscribe` still does not persist subscriptions to a durable store; alerts fire in an open tab only |
+| 24h metrics | ⚠️ RPC fallback | `TokenService.get24hMetrics` is real, but expensive and incomplete vs a subgraph |
+| Social links | ⚠️ On-chain only | `TokenFactory` stores twitter/telegram/website; `QuickLaunchForm` does not collect them |
+| Limit / stop-loss | ⚠️ UI stubs | No `LimitOrderBook.sol` / `StopLossOrderBook.sol` in `contracts/` |
 
 ---
 
@@ -35,221 +48,113 @@
 
 ### 1. Gnosis Safe Ownership Transfer
 
-**Current state:** All contracts (`TokenFactory`, `DexRouterRegistry`, `DeterministicDeployer`) owned by deployer EOA. Single private key controls pause, fee config, and router registry.
+**Current state:** Testnet factory still owned by deployer EOA. Scripts exist (`scripts/transfer-ownership.ts`, `SAFE_OWNER_ADDRESS` in `scripts/deploy-deterministic.ts`) but have not been executed.
 
 **Required:**
-- Deploy Gnosis Safe (2-of-3 or 3-of-5, hardware-backed keys distinct from deployer)
-- Update `scripts/deploy-deterministic.ts:137` — change `deployer.address` to `process.env.SAFE_OWNER_ADDRESS`
-- Create `scripts/transfer-ownership.ts` for post-deploy ownership transfer
+- Deploy a Gnosis Safe (2-of-3 or 3-of-5, hardware-backed keys distinct from deployer)
+- Rehearse pause / unpause / `updateFeeRecipient` on **fresh** testnet contracts
 - Set fee recipient to a Safe-controlled address
-- Rehearse pause/unpause/updateFeeRecipient through Safe on testnet before mainnet
-
-**Files:** `scripts/deploy-deterministic.ts`, `scripts/transfer-ownership.ts` (new), `.env.local.example`
-
----
+- Repeat on mainnet after deploy
 
 ### 2. External Professional Audit
 
-**Current state:** Firm engaged. Supporting materials need to be prepared.
+**Current state:** Firm engaged per prior status. No `audit-package/` in the repo.
 
 **Required:**
-- `audit-package/BRIEF.md` — threat model, design decisions
-- `audit-package/COVERAGE_REPORT.md` — from `npx hardhat coverage`
-- `audit-package/GAS_SNAPSHOT.md` — from hardhat-gas-reporter
-- `audit-package/SLITHER_OUTPUT.md` — from `slither contracts/`
-- NatSpec completion on `BondingCurveAMM.sol`, `TokenFactory.sol`, `BondingCurveMath.sol`
-- Resolve all Critical/High findings; document accepted Medium/Lows
-
----
+- `audit-package/BRIEF.md`, coverage, gas snapshot, Slither output
+- Resolve Critical/High; document accepted Medium/Low
+- Freeze bytecode after the next testnet deploy
 
 ### 3. Fuzz / Invariant Tests
 
-**Current state:** No invariant or fuzz tests exist. The Hardhat suite covers functional paths well but doesn't stress mathematical invariants.
+**Current state:** No Foundry project (`foundry.toml` absent). Hardhat covers functional paths.
 
-**Required (Foundry):**
-- `test/invariant/BondingCurveMath.t.sol` — curve monotonicity, no-free-tokens
+**Required:**
+- `test/invariant/BondingCurveMath.t.sol` — monotonicity, no-free-tokens
 - `test/invariant/BondingCurveAMM.t.sol` — graduation seam, refund accounting, fee-decay bounds
 
-**Estimated effort:** 8–16 hours
+### 4. Redeploy Current Bytecode to Testnet
 
----
+**Current state:** `deployments.json` chain 97 is the 2025-10-31 factory. Master has V2 sigmoid, `AMMDeployer`, and the July 2026 security fixes.
 
-### 4. E2E Tests (Playwright) — Shipped, keep green
+**Required:** Deploy with `scripts/deploy.ts` or `deploy-deterministic.ts`, verify, update env + `deployments.json`, then a full create/trade/graduate smoke.
 
-**Current state:** `playwright.config.ts` + `e2e/{wallet-connect,launch-token,trade,graduation}.spec.ts` exist and run as a blocking CI step against a production build (`.github/workflows/ci.yml`).
+### 5. E2E Tests — keep green
 
-**Remaining:** extend coverage as flows change; specs run against mocked wallet state, so on-chain graduation still needs a testnet smoke pass before mainnet.
+Playwright specs exist and gate CI. They use mocked wallet state; they do not replace the on-chain smoke in #4.
 
 ---
 
 ## 🟡 High Priority — Production Hardening
 
-### 5. Moralis Holder Count Cache → Vercel KV
+### 6. Subgraph Deployment
 
-**Current state:** `src/services/moralis.service.ts` uses an in-memory `Map<string, {count, expiresAt}>`. Dies on cold starts; not shared across Vercel serverless instances.
+**Current state:** `subgraph/` is complete. Deploy scripts still target `--product hosted-service` (decommissioned). `NEXT_PUBLIC_SUBGRAPH_URL_*` are unset; `src/lib/graphql/client.ts` fails loudly if missing.
 
-**Fix:** Replace with `@vercel/kv` calls. `KV_REST_API_URL` already in `.env.local.example`.
+**Fix:** Deploy to Goldsky or Alchemy Subgraphs; proxy queries through an API route; point env at the new endpoint.
 
-**Also fix:** Silent zero on API failure → explicit Sentry alert. Distinguish "0 holders" from "lookup failed".
+### 7. WebSocket Server Hosting
 
----
+**Current state:** `server/` is production-quality; no deployed instance. CSP has no production WS origin.
 
-### 6. 24-Hour Metrics — Still Returns 0
+**Fix:** Host on Render (or equivalent), set `NEXT_PUBLIC_WS_URL`, pin origin in `vercel.json` `connect-src`.
 
-**Current state:** `transactions24h`, `priceChange24h`, `volumeChange24h` are hardcoded to 0 in `src/app/api/tokens/route.ts`.
+### 8. Monitoring Activation
 
-**Fix:** Deploy subgraph (see #7) and wire `TokenHourlyMetric`/`TokenDailyMetric` entities.
+Sentry configs exist. `MONITORING_IMPLEMENTATION_GUIDE.md` is still planning-phase. Confirm DSNs in Vercel and that events arrive. Add uptime checks for frontend + WS.
 
----
+### 9. RPC Failover in the WS Listener
 
-### 7. Subgraph Deployment — Hosted Service Decommissioned
-
-**Current state:** Subgraph code in `subgraph/` is complete. However:
-- The Graph hosted service was shut down mid-2024
-- `subgraph/package.json` deploy scripts still target `--product hosted-service`
-- `src/lib/graphql/client.ts` has dead `api.thegraph.com/subgraphs/name/...` URLs as fallbacks
-- `NEXT_PUBLIC_SUBGRAPH_URL_*` env vars are not defined anywhere
-
-**Fix:**
-- Re-target deploy scripts to Goldsky or Alchemy Subgraphs
-- Fix `client.ts` — remove dead fallback URLs (fail loudly on missing endpoint)
-- Add `NEXT_PUBLIC_SUBGRAPH_URL` to env examples
-- Proxy GraphQL queries through an API route (don't expose API key as `NEXT_PUBLIC_`)
-- Deploy testnet subgraph first to validate end-to-end
-
----
-
-### 8. CSP — Too Broad
-
-**Current state:** `vercel.json` `connect-src` contains `wss:` and `https:` catch-alls.
-
-**Fix:** Replace with an explicit allowlist (BSC/Arbitrum/Base RPCs, Moralis, IPFS, WalletConnect relay, BSCScan, WS server origin).
-
----
-
-### 9. API Rate Limiting — In-Memory Store
-
-**Current state:** `src/lib/rate-limit.ts` has a working implementation with presets BUT uses an in-memory store that resets on cold starts and doesn't share across Vercel instances. The Upstash Redis implementation is already written but commented out.
-
-**Fix:**
-1. Enable the commented-out Upstash implementation (lines 252–299 in `rate-limit.ts`)
-2. Add `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` to `.env.local.example`
-3. Wire `withRateLimit()` into: `tokens/comments/route.ts` (strict), `ipfs/upload/route.ts` (upload), `analytics/events/route.ts` (analytics), `push/subscribe/route.ts` (strict)
-
----
-
-### 10. WebSocket Server — No Deploy Platform
-
-**Current state:** `server/` is production-quality code with Redis support, but has no deployed instance and uses self-hosted Redis (localhost:6379).
-
-**Fix:**
-- Choose deploy platform (Render recommended)
-- `server/src/services/RedisService.ts` — add Upstash TLS support (`rediss://` URLs)
-- `src/lib/websocket.ts` — add reconnection with exponential backoff + heartbeat + polling degradation
-- Pin WS server origin in CSP
+`src/config/wagmi.ts` uses fallback transports. `server/src/services/BlockchainListener.ts` still uses a single RPC URL per chain.
 
 ---
 
 ## 🟢 Medium Priority
 
-### 11. RPC Failover Pool
+### 10. Social links in QuickLaunchForm
 
-**Current state:** Single RPC per network with a public-node default. `BlockchainListener.ts` uses a fixed 5s reconnect delay.
+On-chain fields exist; the V2 launch UI is name/ticker/image only. Add optional Twitter/Telegram/Website inputs if product wants Four.meme parity.
 
-**Fix:** `src/config/wagmi.ts` — use `fallback([http(primary), http(secondary)])` wagmi transport. `BlockchainListener.ts` — exponential backoff reconnect, rotate through RPC list.
+### 11. Persist push subscriptions
 
----
+`api/push/subscribe` needs a durable store before push can work with the tab closed.
 
-### 12. Multicall / Batch Reads on Token List
+### 12. Edge caching
 
-**Current state:** Token list page makes sequential per-token RPC calls (N+1 pattern).
-
-**Fix:** Use Multicall3 batch reads in `src/app/api/tokens/route.ts`.
-
----
-
-### 13. Edge Caching on Read-Heavy API Routes
-
-**Fix:** Add `Cache-Control: s-maxage=30, stale-while-revalidate=60` to GET handlers in `tokens/route.ts`, `tokens/trending/route.ts`, `leaderboard/route.ts`.
-
----
-
-### 14. Monitoring — Sentry Configured But "Planning Phase"
-
-**Current state:** All 3 Sentry layers are configured in code. `MONITORING_IMPLEMENTATION_GUIDE.md` is still in "Planning Phase" — no live alerting verified.
-
-**Fix:** Confirm `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` are set in Vercel environment. Verify events reach Sentry dashboard. Add uptime monitoring (BetterStack/UptimeRobot). Update guide from "Planning Phase" → "Active".
-
----
-
-### 15. IPFS Upload Route — File Validation
-
-**Current state:** `src/app/api/ipfs/upload/route.ts` exists but needs explicit file type (image/jpeg, png, gif, webp) and size (≤5MB) validation.
+Some GET handlers already set `s-maxage=30, stale-while-revalidate=60`. Extend to remaining read-heavy routes if needed.
 
 ---
 
 ## 🔵 Future / Post-Launch
 
-### 16. Pre-Existing TypeScript Errors (~dozens, blocking CI gate)
+### 16. Pre-Existing TypeScript Errors
 
-**Current state:** TypeScript 5.9.3 (installed by `npm ci`) reports real errors with the current strict tsconfig. These were suppressed by `continue-on-error: true` in CI and `ignoreBuildErrors: true` in `next.config.js`. Root causes:
-
-| Error Type | Example Location | Cause |
-|---|---|---|
-| TS2375 `exactOptionalPropertyTypes` | `usePriceAlerts.ts`, `analytics.ts`, `contractErrors.ts` | Optional props typed as `T` not `T \| undefined` |
-| TS2532/TS18048 possibly undefined | `usePortfolio.ts`, `token.service.ts` | `noUncheckedIndexedAccess` strict flag |
-| TS6133 declared but never read | Many hooks/services | `noUnusedLocals`, `noUnusedParameters` |
-| TS2307 cannot find module | `src/lib/tradingview/datafeed.ts` | Missing `charting_library` vendor types |
-| TS2339 property doesn't exist | `rate-limit.ts`, `ipfs.ts` | API surface mismatch |
-| TS2722 cannot invoke possibly undefined | `useReferral.ts` | Contract method optional typing |
-
-**Fix strategy:**
-1. Quickest reduction: address `TS6133` (unused vars) — usually a one-line fix per occurrence
-2. `exactOptionalPropertyTypes` errors: add `| undefined` to optional properties at the type definition level
-3. `noUncheckedIndexedAccess` errors: add null checks or use `?.` access
-4. `charting_library` module: add a `src/lib/tradingview/charting_library.d.ts` stub
-5. Once errors reach 0: remove `continue-on-error: true` from CI and set `ignoreBuildErrors: false` in `next.config.js`
-
-**TypeScript 6+ compatibility note:** Separate from the above — if TypeScript is ever upgraded beyond 5.9.x, `moduleResolution: "node"` and `baseUrl` will need to be updated (`"bundler"` + drop `baseUrl`), but this requires package export maps to be in order first.
-
----
-
-### 17. Brand String Centralization
-
-**Current state:** Product name, description, and social handles are hardcoded in 4+ locations: `src/app/layout.tsx` metadata, `src/config/wagmi.ts` connector metadata, `package.json`, `subgraph/package.json`.
-
-**Fix:** Create `src/config/brand.ts` as a single source of truth. Consume in layout.tsx and wagmi.ts. Enables a one-file rebrand when the final name is confirmed.
-
----
+CI `type-check` is `continue-on-error`; `next.config.js` has `ignoreBuildErrors: true`. ~284 `error TS` lines as of July 2026 (hooks/tests). Don't add new errors; burn down with `/type-debt`. Make `tsc` blocking only at zero.
 
 ### 18. Limit Orders / Stop Loss
 
-UI stubs exist in trading components but are not connected to any on-chain logic. This is a complex feature requiring either off-chain order book or on-chain implementation.
-
-**Estimated effort:** 40–80 hours
-
----
+UI stubs in `src/components/trading/` are not connected to on-chain logic. Contracts for these do not exist. Do not document them as shipped.
 
 ### 19. Multi-Language Support
 
-**Estimated effort:** 20–30 initial setup + ongoing translations
+Not started.
+
+### 20. Multi-chain mainnet (Arbitrum, Base)
+
+Frontend chain configs exist. No mainnet (or current testnet) deploys on those chains.
 
 ---
 
-## 📋 Implementation Order (pre-mainnet)
+## Implementation order (pre-mainnet)
 
-1. Gnosis Safe (#1) — hardest-to-do, not code-heavy
-2. Audit support materials (#2) — in parallel with all other work
-3. Subgraph deploy (#7) — unblocks holder count and 24h metrics
-4. Moralis → Vercel KV (#5) + 24h metrics (#6) — once subgraph is live
-5. Fuzz tests (#3) — before audit freeze
-6. E2E tests (#4) — before mainnet dry-run
-7. CSP (#8) + Rate limiting (#9) — security hardening
-8. WS server deploy (#10) + RPC failover (#11) — scalability
-9. Monitoring activation (#14) — ops readiness
-10. Brand centralization (#17) — no-regret prep for eventual rename
+1. Redeploy current contracts to BSC Testnet (#4)
+2. Gnosis Safe rehearsal (#1)
+3. Audit package + fuzz tests (#2, #3)
+4. Subgraph + WS host (#6, #7)
+5. Monitoring activation (#8)
+6. Mainnet deploy of audited bytecode
 
 ---
 
 **Maintained by:** Development Team  
-**Reconciled against:** Live source as of 2026-06-23
+**Reconciled against:** Live source as of 2026-08-13
