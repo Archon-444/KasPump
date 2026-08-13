@@ -111,7 +111,7 @@ Current **source** (must be what you deploy next) includes `TokenFactory`, `AMMD
 
 **Do not smoke-test master against the October 2025 factory.** Redeploy with `scripts/deploy.ts` or `scripts/deploy-deterministic.ts` (both now deploy and wire `AMMDeployer`), then update `deployments.json` and `NEXT_PUBLIC_*`.
 
-`DexConfig.sol` has V2 routers for BSC (56/97), Arbitrum (42161), Base (8453). **No Kasplex (202555) or Igra (38833) row.** Graduation on Kas EVM is a strategy choice plus a config port, not a missing language. Native KRC-20 cannot use this AMM. See [STRATEGY.md](./STRATEGY.md) § graduation wall.
+`DexConfig.sol` has V2 routers for BSC (56/97), Arbitrum (42161), Base (8453). **No Kasplex (202555) or Igra (38833) row.** Native KRC-20 cannot use this AMM. Kas L2s are **strategy-closed** (wKAS ethos) — do not add those rows “just in case.” See [STRATEGY.md](./STRATEGY.md).
 
 ---
 
@@ -121,6 +121,6 @@ Current **source** (must be what you deploy next) includes `TokenFactory`, `AMMD
 
 Until that decision log is filled: no public launch, no feature work except what a chosen wedge’s proof requires. The list below is **inventory of leftover engineering**, not a schedule.
 
-If — and only if — a wedge is chosen and a closed test needs chain: redeploy current contracts to a testnet, then smoke create/trade/graduate. Audit, Safe, subgraph, WS host, and BSC mainnet stay parked as scale costs.
+Kas is closed as home for this product. Remaining chain question is Base vs Arc vs mothball — not a Kasplex deploy.
 
 *For security findings, see `SECURITY_AUDIT.md`. For remaining engineering debt, see `TECHNICAL_DEBT.md`.*
