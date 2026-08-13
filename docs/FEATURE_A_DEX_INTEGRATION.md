@@ -1,8 +1,10 @@
 # Feature A: Automated DEX Integration - Implementation Summary
 
-**Status:** ✅ COMPLETE
-**Implementation Date:** November 2025
-**Priority:** CRITICAL (Mainnet Blocker)
+**Status:** ✅ SHIPPED in current `BondingCurveAMM` (still accurate as of 2026-08-13)  
+**Implementation Date:** November 2025  
+**Follow-up:** July 2026 added `retryGraduationLiquidity()` so a dust-pre-seeded pair cannot permanently deny LP (PR #82).
+
+This is an implementation summary, not a go-live checklist. For remaining mainnet gates see [STATUS.md](../STATUS.md).
 
 ## Overview
 

@@ -2,15 +2,17 @@
 
 ## Overview
 
-KasPump requires deployed TokenFactory contracts on each chain you want to support. This guide explains how to configure contract addresses after deployment.
+KasPump requires deployed TokenFactory **and AMMDeployer** contracts on each chain you want to support. `createToken` reverts if the factory has no AMM deployer set.
+
+Canonical deploy status: [STATUS.md](./STATUS.md) and `deployments.json`.
 
 ## Current Deployment Status
 
-Based on `deployments.json`:
+From `deployments.json` as of 2026-08-13:
 
-- ✅ **BSC Testnet (97)**: Contracts deployed
+- ⚠️ **BSC Testnet (97)**: Addresses recorded, but this is the **2025-10-31** factory (`0x7Af627Bf902549543701C58366d424eE59A4ee08`). It does **not** match master (no `AMMDeployer`, pre-V2). Redeploy before relying on it.
   - TokenFactory: `0x7Af627Bf902549543701C58366d424eE59A4ee08`
-  - FeeRecipient: `0xEFec2Eddf5151c724B610B7e5fa148752674D667`
+  - FeeRecipient / deployer EOA: `0xEFec2Eddf5151c724B610B7e5fa148752674D667`
 
 - ❌ **BSC Mainnet (56)**: Not deployed
 - ❌ **Arbitrum One (42161)**: Not deployed

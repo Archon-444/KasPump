@@ -1,6 +1,6 @@
 # Error Handling & Push Notifications Implementation
 **Date**: 2025-01-27  
-**Status**: ✅ Completed
+**Status (2026-08-13):** Error-handling UI is in the tree. Push: `api/push/subscribe` still does **not** persist subscriptions (tab-closed delivery does not work). See TECHNICAL_DEBT.md.
 
 ## Overview
 

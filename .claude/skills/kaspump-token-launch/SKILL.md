@@ -9,7 +9,11 @@ allowed-tools:
 
 # KasPump Token Launch Skill
 
-This skill provides comprehensive guidance for launching tokens on the KasPump platform.
+**Current (V2, 2026-08-13):** Launch UI is `QuickLaunchForm` — **name, ticker, optional image only**. Curve, supply (1B), graduation (800M sold), and fees are protocol-fixed (sigmoid table in `BondingCurveMath.sol`). There is no per-token `virtualKasReserves` / curve-type picker. Social URLs exist on-chain but the form does not collect them.
+
+Use `project-conventions` if unsure. Do not revive `LaunchPad.tsx` or `tools/token-launch-wizard/`.
+
+On-chain testnet in `deployments.json` is stale; see `STATUS.md`.
 
 ## Token Launch Overview
 
@@ -17,76 +21,49 @@ KasPump uses a bonding curve mechanism for fair token launches with automatic DE
 
 ### Key Components
 
-1. **Bonding Curve**: Price increases as more tokens are purchased
-2. **Initial Supply**: Platform mints initial supply for curve
-3. **Virtual Liquidity**: Determines starting price and curve steepness
-4. **DEX Graduation**: Automatic migration to DEX at market cap threshold
+1. **Sigmoid bonding curve**: 31-anchor piecewise-linear table (`BondingCurveMath.sol`). Not x*y=k virtual reserves.
+2. **Fixed supply**: 1,000,000,000; graduates when 800,000,000 are sold.
+3. **Fees**: 1.00% → 0.10% as supply approaches graduation, plus a sniper-window surcharge.
+4. **DEX graduation**: Automatic V2 LP (~70% of raised native), creator vesting, 6-month LP lock.
 
 ## Token Creation Process
 
 ### 1. Token Configuration
 
-**Required Parameters:**
-- `name`: Token name (e.g., "My Token")
-- `symbol`: Token ticker (e.g., "MTK")
-- `description`: Token description
-- `imageUrl`: Token logo/image URL (IPFS recommended)
-- `twitter`: Twitter handle (optional)
-- `telegram`: Telegram link (optional)
-- `website`: Website URL (optional)
+**User-facing (`QuickLaunchForm`):**
+- `name`
+- `symbol` (ticker)
+- `image` (optional, IPFS)
+
+**On-chain but not in the current form:** description, twitter/telegram/website, referrer.
 
 ### 2. Economic Parameters
 
-**Bonding Curve Settings:**
-- `virtualKasReserves`: Virtual KAS/BNB/ETH reserves (affects starting price)
-- `virtualTokenReserves`: Virtual token reserves (affects curve steepness)
-- `graduationThreshold`: Market cap for DEX migration (default: varies by chain)
+Not user-configurable in V2. Do not pass `virtualKasReserves` / `virtualTokenReserves` / `basePrice` / `slope` / `curveType`.
 
-**Example Configuration:**
-```typescript
-const tokenConfig = {
-  name: "MyToken",
-  symbol: "MTK",
-  description: "Community-driven token",
-  imageUrl: "ipfs://...",
-  virtualKasReserves: ethers.parseEther("30"),  // 30 BNB
-  virtualTokenReserves: ethers.parseEther("1073000000"),  // 1.073B tokens
-  graduationThreshold: ethers.parseEther("50")  // 50 BNB market cap
-}
-```
+**Protocol constants (see `QuickLaunchForm` SPECS and `BondingCurveAMM`):**
+- Total supply: 1,000,000,000
+- Graduates at: 800,000,000 sold
+- Creation fee: 0.005 native
+- Trading fee: `MAX_FEE_BPS` 100 → `MIN_FEE_BPS` 10
+- Graduation split: ~70% DEX LP / 20% creator / 10% platform
+- Creator tokens: 40M vest over 6 months
+- LP lock: 6 months
 
 ### 3. Bonding Curve Mathematics
 
-The platform uses a constant product formula:
+See `contracts/libraries/BondingCurveMath.sol`. `BONDING_CURVE_MATH.md` is the **pre-V2 linear** write-up (banner at top).
 
-```
-k = virtualKasReserves * virtualTokenReserves
-price = virtualKasReserves / virtualTokenReserves
-```
-
-**Price Calculation:**
-- Starting price: `virtualKasReserves / virtualTokenReserves`
-- Price increases as tokens are bought
-- Price decreases as tokens are sold (with 1% fee)
-
-**Fee Structure:**
-- Trading fee: 1% on all trades
-- Creator fee: Optional % to token creator
-- Platform fee: Taken from trading fees
+**Fee structure:**
+- Trading fee: supply-decaying 1.00%–0.10%
+- Sniper window: additional decaying surcharge (up to ~99%) for `sniperProtectionDuration` (default 60s)
+- Platform fees: pull-payment (`withdrawPlatformFees`), not a push on every trade
 
 ## Launch Strategy Best Practices
 
 ### 1. Token Economics
 
-**Supply Allocation:**
-- Bonding curve: 80-90% of total supply
-- Team/Marketing: 10-20% (locked recommended)
-- Never dump team allocation on community
-
-**Pricing Strategy:**
-- Set realistic virtual reserves for target starting price
-- Consider graduation threshold based on chain
-- Higher virtual reserves = higher starting price
+Supply, curve, and graduation are protocol-fixed. Creators do not set virtual reserves or a custom curve. Marketing/community work still matters; do not promise configurable tokenomics that the contracts do not offer.
 
 ### 2. Marketing & Community
 

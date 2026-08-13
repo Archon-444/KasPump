@@ -1,17 +1,30 @@
 # KasPump Competitive Analysis: vs BSC & Solana Launchpads
 
-**Date:** April 2026
-**Status:** Pre-Mainnet Assessment
-**Purpose:** Identify competitive gaps and prioritize fixes before BSC mainnet launch
+**Original date:** April 2026  
+**Reconciled:** 2026-08-13 against current KasPump source  
+**Purpose:** Competitive gaps. **Do not treat the April feature matrix as a description of shipped KasPump code.**
+
+> **Code vs this doc (KasPump column only):**
+> - Curve is **sigmoid only**, not “linear + exponential”. Launch UI is name/ticker/image (`QuickLaunchForm`), not a 5-step wizard.
+> - Creation fee is **0.005 BNB** (matches Four.meme). Social URLs exist **on-chain**; the launch form does not collect them.
+> - **No** `LimitOrderBook.sol` / `StopLossOrderBook.sol`. Trading UI stubs are not a live order book.
+> - Fees decay **1.00% → 0.10%** with supply (plus a sniper-window surcharge), not a static 1.0/0.5/0.25 membership menu as the primary UX.
+> - Anti-sniper sliding fee **is** in `BondingCurveAMM`.
+> - Mainnet: **not live**. Testnet factory in `deployments.json` is a 2025-10-31 deploy and does not match master.
+> - Creator share remains graduation-time (plus vesting), not Pump.fun-style ongoing trade-fee split.
+>
+> Competitor numbers below are from the April 2026 research pass and were **not** re-verified on 2026-08-13.
+
+**Status:** Pre-mainnet. Launch blockers are operational (see `STATUS.md`), not “add limit orders first”.
 
 ---
 
 ## Executive Summary
 
-KasPump is a technically sophisticated multi-chain token launchpad with unique on-chain trading tools (limit orders, stop-loss) and aggressive anti-sniper protection. However, it trails the market leaders in **creator monetization** (no ongoing revenue sharing), **user acquisition mechanics** (no referral/points system), and **fee competitiveness** (static fees vs dynamic models). The most urgent threat is Pump.fun's signaled expansion to BSC/Base/Ethereum, which would neutralize KasPump's multi-chain advantage. Addressing creator incentives, dynamic fees, and referral mechanics before mainnet is critical for competitive positioning.
+KasPump is a technically sophisticated multi-chain token launchpad (frontend + registry ready; **BSC mainnet not live**). Shipped differentiators vs April 2026 notes: sigmoid curve, anti-sniper sliding fee, automated V2 graduation + LP lock. It does **not** ship on-chain limit/stop-loss. It trails Pump.fun / Four.meme on **creator ongoing revenue share**, **referral/points**, and **live mainnet presence**.
 
-**Top 3 Advantages:** Multi-chain support, on-chain limit/stop-loss orders, tiered fee structure
-**Top 3 Gaps:** No creator revenue sharing, no referral/points system, static fee model
+**Top 3 Advantages (in code):** Anti-sniper window, automated DEX graduation with LP lock, multi-chain frontend/registry  
+**Top 3 Gaps:** Not on mainnet, no creator per-trade fee share, no referral/points product
 
 ---
 
@@ -32,28 +45,28 @@ KasPump is a technically sophisticated multi-chain token launchpad with unique o
 | Feature | KasPump | Pump.fun | Four.meme | GraFun |
 |---------|---------|----------|-----------|--------|
 | Creation Fee | 0.005 BNB (~$3) | FREE | 0.005 BNB (~$3) | 0.0005 BNB (~$0.30) |
-| Social Links | Twitter, Telegram, Website | Yes | Yes | Yes |
+| Social Links | On-chain fields; launch form does not collect them | Yes | Yes | Yes |
 | Image/Logo | IPFS upload | Yes | Yes | Yes |
-| Curve Types | Linear + Exponential | Standard bonding curve | Creator-configurable | Fair Curve |
-| Creation Wizard | 5-step guided | Simple form | Simple form | Simple form |
+| Curve Types | Sigmoid (protocol-fixed) | Standard bonding curve | Creator-configurable | Fair Curve |
+| Creation Wizard | 3-field QuickLaunch | Simple form | Simple form | Simple form |
 
 ### Bonding Curve & Math
 
 | Feature | KasPump | Pump.fun | Four.meme | GraFun |
 |---------|---------|----------|-----------|--------|
-| Curve Type | Linear + Exponential | Fixed bonding curve | x*y=k (configurable) | Fair Curve (anti-rug) |
-| Math Precision | Binary search, Simpson's Rule | Standard | Standard | Standard |
-| Gas Efficiency | ~70% reduction vs iterative | Solana (cheap) | Standard EVM | Standard EVM |
+| Curve Type | Fixed sigmoid (31-anchor table) | Fixed bonding curve | x*y=k (configurable) | Fair Curve (anti-rug) |
+| Math Precision | Piecewise-linear anchors on-chain | Standard | Standard | Standard |
+| Gas Efficiency | viaIR + optimizer runs=100 | Solana (cheap) | Standard EVM | Standard EVM |
 | Price Impact Display | Yes (color-coded warnings) | Yes | Basic | Basic |
 
 ### Trading Fees
 
 | Feature | KasPump | Pump.fun | Four.meme | GraFun |
 |---------|---------|----------|-----------|--------|
-| Fee Model | Static tiered | Dynamic (market-cap based) | Flat | Flat |
-| Basic Fee | 1.0% | 0.95% (<$300K mcap) | 1.0% | 1.0% |
-| Best Fee | 0.25% (enterprise) | 0.05% (high mcap) | 1.0% | 1.0% |
-| Dynamic Adjustment | No | Yes (Project Ascend) | No | No |
+| Fee Model | Supply-decaying bps (1.00%→0.10%) + sniper surcharge | Dynamic (market-cap based) | Flat | Flat |
+| Basic Fee | 1.0% at supply 0 | 0.95% (<$300K mcap) | 1.0% | 1.0% |
+| Best Fee | 0.10% floor near graduation | 0.05% (high mcap) | 1.0% | 1.0% |
+| Dynamic Adjustment | Yes (vs supply / graduation) | Yes (Project Ascend) | No | No |
 | Fee Recipient | Platform only | Platform + Creator | Platform | Platform |
 
 ### Anti-Bot & Sniper Protection
@@ -80,10 +93,10 @@ KasPump is a technically sophisticated multi-chain token launchpad with unique o
 
 | Feature | KasPump | Pump.fun | Four.meme | GraFun |
 |---------|---------|----------|-----------|--------|
-| Limit Orders | On-chain (native) | Third-party bots only | No | No |
-| Stop-Loss | On-chain (native) | Third-party bots only | No | No |
-| Order Book | On-chain | No | No | No |
-| Keeper Bot System | Yes (executor rewards) | No | No | No |
+| Limit Orders | UI stubs only (no contract) | Third-party bots only | No | No |
+| Stop-Loss | UI stubs only (no contract) | Third-party bots only | No | No |
+| Order Book | No | No | No | No |
+| Keeper Bot System | No | No | No | No |
 | Charts | TradingView-style OHLCV | Basic | Basic | Basic |
 
 ### Creator Incentives
@@ -126,24 +139,25 @@ KasPump supports BSC, Arbitrum, and Base with deterministic deployment (same con
 - `contracts/DexRouterRegistry.sol` — chain-specific DEX routing
 - `contracts/DeterministicDeployer.sol` — CREATE2 cross-chain consistency
 
-### 2. Native On-Chain Limit Orders
-No competitor offers on-chain limit orders on their launchpad. Pump.fun users rely on third-party Telegram bots.
-- `contracts/LimitOrderBook.sol` — 0.3% fee, min 0.001 ETH buy orders
+### 2. Native On-Chain Limit Orders — NOT SHIPPED
 
-### 3. Native On-Chain Stop-Loss
-Unique feature with keeper bot incentives (0.1% executor reward). Enables professional risk management.
-- `contracts/StopLossOrderBook.sol` — batch execution, slippage protection
+April 2026 text claimed `contracts/LimitOrderBook.sol`. That file is not in the tree. UI stubs in `src/components/trading/` are not wired. Do not sell this as a live advantage.
+
+### 3. Native On-Chain Stop-Loss — NOT SHIPPED
+
+Same: no `StopLossOrderBook.sol`. Backlog only.
 
 ### 4. Strongest Anti-Sniper Protection
-99% sliding fee decaying over configurable duration (up to 300s). More aggressive than any competitor.
-- `contracts/BondingCurveAMM.sol` lines 457-471 — sliding fee with linear decay
 
-### 5. Dual Bonding Curves
-Linear and exponential options with advanced math (Simpson's Rule, binary search). ~70% gas savings.
-- `contracts/libraries/BondingCurveMath.sol`
+99% sliding fee decaying over configurable duration (default 60s, cap 300s). This **is** in `BondingCurveAMM`.
 
-### 6. Tiered Fee Structure
-Enterprise-grade fee tiers (1.0% / 0.5% / 0.25%) reward high-volume participants.
+### 5. Bonding curve: sigmoid only
+
+V2 removed per-token linear/exponential choice. Math is a 31-anchor piecewise-linear sigmoid in `BondingCurveMath.sol`.
+
+### 6. Supply-decaying trading fee
+
+`MAX_FEE_BPS` 100 → `MIN_FEE_BPS` 10 as supply approaches graduation, plus sniper surcharge. Membership tier still exists on the AMM constructor but is not the user-facing fee story.
 
 ### 7. 6-Month LP Lock
 Anti-rug protection via time-locked LP tokens. Stronger than Four.meme's burn approach for creator accountability.
@@ -162,10 +176,9 @@ TradingView-style charts, portfolio tracking, risk indicators, price alerts, rea
 - **Risk:** Creators will launch on Pump.fun for the ongoing income stream.
 - **Fix:** Add per-trade creator fee (e.g., split platform fee: 50% platform / 50% creator) in `BondingCurveAMM.sol` buyTokens/sellTokens.
 
-**Gap 2: No Dynamic Fee Model**
-- **Impact:** Pump.fun's Project Ascend adjusts fees by market cap (0.95% for small tokens, 0.05% for large). This encourages trading of successful tokens. KasPump's static tiers only reward membership level, not token success.
-- **Risk:** Higher fees on successful tokens drive traders to lower-fee platforms.
-- **Fix:** Replace static tier lookup in `getPlatformFee()` with market-cap-based schedule.
+**Gap 2: No Pump.fun-style market-cap fee schedule**
+- **Impact:** Pump.fun's Project Ascend adjusts fees by market cap. KasPump already decays fees with **bonding-curve supply** (1.00% → 0.10%). Remaining gap is market-cap-based (USD) scheduling, not “static 1% forever”.
+- **Fix (optional):** USD/mcap oracle schedule on top of the existing bps decay.
 
 **Gap 3: No Referral/Points System**
 - **Impact:** Four.meme's referral program and points system drive organic user acquisition. No equivalent exists in KasPump.
@@ -201,9 +214,9 @@ TradingView-style charts, portfolio tracking, risk indicators, price alerts, rea
 | # | Action | Impact | Effort | Priority |
 |---|--------|--------|--------|----------|
 | 1 | Add creator revenue sharing (per-trade) | Critical | 2-3 days | P0 |
-| 2 | Add dynamic market-cap-based fees | Critical | 2 days | P0 |
-| 3 | Add referral system (on-chain) | Critical | 2-3 days | P0 |
-| 4 | Ship to BSC mainnet | Critical | 2-3 days | P0 |
+| 2 | Optional USD/mcap fee overlay | Medium | 2 days | P2 |
+| 3 | Referral program UI (on-chain hook exists) | High | 2-3 days | P1 |
+| 4 | Ship to BSC mainnet (see STATUS.md) | Critical | process + audit | P0 |
 | 5 | Explore platform token (design phase) | High | 1 week | P1 |
 | 6 | Build points/rewards system (off-chain) | High | 2-3 days | P1 |
 | 7 | Add creator accelerator program | Medium | Operational | P2 |
@@ -217,9 +230,9 @@ TradingView-style charts, portfolio tracking, risk indicators, price alerts, rea
 
 2. **Four.meme's Binance backing** — Direct Binance Wallet integration and institutional support give Four.meme a distribution moat on BSC that is difficult to replicate.
 
-3. **Market saturation** — The launchpad space is crowded. Differentiation through advanced trading tools (limit orders, stop-loss) is KasPump's best defensible moat.
+3. **Market saturation** — The launchpad space is crowded. Differentiation through anti-sniper fees and automated graduation is real; limit/stop-loss is **not** a shipped moat.
 
-4. **Race to zero fees** — Pump.fun removed creation fees entirely. GraFun charges 0.0005 BNB. Pressure to lower fees reduces revenue potential.
+4. **Race to zero fees** — Pump.fun removed creation fees entirely. GraFun charges 0.0005 BNB. KasPump is at 0.005 BNB, in line with Four.meme.
 
 ---
 

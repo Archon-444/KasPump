@@ -57,11 +57,13 @@ Node 20+ is required (Next 16 needs >=20.9; Hardhat is unsupported on 18). CI us
 
 ### Contract layer (`contracts/`, Solidity 0.8.20)
 
-`TokenFactory.sol` is the entry point: `createToken` deploys a `KRC20Token` (defined in the same file) plus a paired `BondingCurveAMM` via CREATE2. Each token gets its own AMM instance — there is no shared pool contract.
+`TokenFactory.sol` is the entry point: `createToken` deploys a `KRC20Token` (defined in the same file) plus a paired `BondingCurveAMM` through `AMMDeployer.sol` (the deployer `transferOwnership`s each AMM to the platform admin so emergency controls are callable). Each token gets its own AMM instance — there is no shared pool contract. `DeterministicDeployer` uses CREATE2 for the factory address, not for each AMM.
 
 `BondingCurveAMM.sol` holds the trading logic: pricing comes from `contracts/libraries/BondingCurveMath.sol` (V2: sigmoid curve only — see the `project-conventions` skill for what's legacy), fees decay from MAX to MIN bps as supply approaches graduation. When a buy crosses `GRADUATION_THRESHOLD`, `_graduateToken` fires in the same transaction: ~70% of raised funds become DEX liquidity (router resolved per-chain via `DexRouterRegistry.sol`), a `CreatorVesting.sol` contract is deployed for the creator's allocation, and payouts use a pull-payment pattern. Graduation accounting is tracked explicitly rather than reading `address(this).balance` — preserve that invariant when touching AMM code.
 
-Compiler settings in `hardhat.config.js` matter: `viaIR: true` is required (`buyTokens` hits "stack too deep" under legacy codegen) with optimizer runs=100. Network RPC URLs and deployer key come from `.env.local` / `.env`.
+Compiler settings in `hardhat.config.ts` matter: `viaIR: true` is required (`buyTokens` hits "stack too deep" under legacy codegen) with optimizer runs=100. Network RPC URLs and deployer key come from `.env.local` / `.env`.
+
+Go-live status (what is actually shipped vs still blocking mainnet) lives in `STATUS.md`. The BSC Testnet addresses in `deployments.json` are a 2025-10-31 factory and do **not** match current source.
 
 After any change to `contracts/**`, run the `solidity-security-reviewer` subagent (`.claude/agents/`) before merging.
 
@@ -105,4 +107,4 @@ Deployment is handled entirely by the **Vercel GitHub integration**: every push 
 
 ## Reference docs
 
-The repo has extensive markdown docs at the root. Most useful: `AGENTS.md` (agent-oriented overview — its curve description predates V2), `BONDING_CURVE_MATH.md` (curve math spec), `TESTING_GUIDE.md`, `CONTRACT_CONFIGURATION.md`, `TROUBLESHOOTING.md`, `EMERGENCY_RUNBOOK.md`. `TECHNICAL_DEBT.md` tracks known placeholders (e.g. holder counts return 0). Everything under `docs/archive/` is historical — don't treat it as current state.
+The repo has extensive markdown docs at the root. **Source of truth for go-live:** `STATUS.md`. Also useful: `AGENTS.md` (agent overview), `CLAUDE.md` (this file), `TECHNICAL_DEBT.md`, `SECURITY_AUDIT.md`, `ROADMAP.md`, `TESTING_GUIDE.md`, `CONTRACT_CONFIGURATION.md`, `TROUBLESHOOTING.md`, `EMERGENCY_RUNBOOK.md`. `BONDING_CURVE_MATH.md` is **pre-V2** (linear/quadratic) — a banner at the top says so; current math is `contracts/libraries/BondingCurveMath.sol`. Everything under `docs/archive/` is historical — don't treat it as current state.

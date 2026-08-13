@@ -10,7 +10,9 @@ allowed-tools:
 
 # Smart Contract Deployment Skill
 
-This skill helps deploy and verify smart contracts on multiple networks for the KasPump project.
+This skill helps deploy and verify KasPump contracts.
+
+**Current (2026-08-13):** Scripts deploy `TokenFactory` **and** `AMMDeployer` (plus `DexRouterRegistry` / `DeterministicDeployer`). `createToken` reverts without AMMDeployer. The factory in `deployments.json` (2025-10-31) does **not** match master — always redeploy current bytecode to testnet before mainnet. Gates: `STATUS.md`. Transfer ownership with `scripts/transfer-ownership.ts` to a Safe that has code **on this chain**.
 
 ## Supported Networks
 

@@ -1,6 +1,12 @@
 # KasPump - Quick Deployment Guide
 
-Get KasPump running in production in under 2 hours with this streamlined guide.
+**Last updated:** 2026-08-13
+
+This is a **minimum** path to get contracts + Vercel up. It is **not** a mainnet launch. Hard gates (audit, Safe, matching testnet smoke) are in [STATUS.md](./STATUS.md). Current testnet addresses in `deployments.json` are stale.
+
+Both deploy scripts now deploy **AMMDeployer** as well as TokenFactory. `createToken` fails without it.
+
+Never paste private keys into git or chat logs.
 
 ---
 

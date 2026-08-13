@@ -1,92 +1,84 @@
 # KasPump BSC Mainnet Deployment Guide
 
-**Status:** Ready for Deployment
-**Target Network:** BNB Smart Chain Mainnet (Chain ID: 56)
-**Deployment Method:** Deterministic CREATE2
+**Status:** Not ready for mainnet. Current source must first be redeployed to BSC Testnet, owned by a Gnosis Safe, audited, and smoke-tested. See [STATUS.md](./STATUS.md).
+
+**Target Network:** BNB Smart Chain Mainnet (Chain ID: 56)  
+**Deployment Method:** Deterministic CREATE2 (`scripts/deploy-deterministic.ts`)
 
 ---
 
-## 🎯 Overview
+## Overview
 
-This guide walks through deploying KasPump smart contracts to BSC mainnet using deterministic CREATE2 deployment, ensuring consistent contract addresses across all EVM chains.
+This guide walks through deploying KasPump smart contracts to BSC mainnet using deterministic CREATE2 deployment.
 
 **What Gets Deployed:**
-- `DeterministicDeployer` - CREATE2 factory contract
-- `TokenFactory` - Main token creation and registry contract
-- Configuration for PancakeSwap integration
+- `DeterministicDeployer` — CREATE2 factory (address differs per chain)
+- `DexRouterRegistry` — per-chain V2 router
+- `TokenFactory` — token creation and registry
+- `AMMDeployer` — deploys each BondingCurveAMM and transfers ownership to the platform admin (**required**; without it `createToken` reverts)
 
-**Estimated Costs:**
-- Gas for DeterministicDeployer: ~0.002 BNB (~$1)
-- Gas for TokenFactory: ~0.008 BNB (~$4)
-- **Total: ~0.01 BNB (~$5)**
+`CreatorVesting` is created per token at graduation, not at factory deploy.
+
+The October 2025 BSC Testnet factory in `deployments.json` does **not** match this bytecode. Do not skip a fresh testnet deploy.
+
+**Estimated Costs (order of magnitude):** ~0.02–0.05 BNB plus buffer. Re-measure after compile; `AMMDeployer` was added after older cost estimates.
 
 ---
 
-## ⚠️ Pre-Deployment Checklist
+## Pre-Deployment Checklist
 
-### 1. Security Review
+Do not run the mainnet script until every item is true.
 
-- [ ] **Smart Contract Audit** - Recommended but not required for testnet-proven contracts
-- [ ] **Code Review** - Verify no changes since testnet deployment
-- [ ] **Access Control** - Confirm fee recipient address is correct
-- [ ] **Emergency Controls** - Understand pause/unpause mechanisms
+### 1. Security / process
+
+- [ ] External professional audit complete; Critical/High resolved
+- [ ] Foundry invariants + Slither triaged
+- [ ] **Current** contracts deployed to BSC Testnet and a full create/trade/graduate smoke recorded
+- [ ] Gnosis Safe exists on BSC **mainnet**; testnet Safe rehearsal already done
+- [ ] `SAFE_OWNER_ADDRESS` is the mainnet Safe (has code on chain 56)
+- [ ] Fee recipient is Safe-controlled
+- [ ] Emergency pause rehearsed (`EMERGENCY_RUNBOOK.md`)
 
 ### 2. Environment Setup
 
 #### Required Files
-- [ ] `.env.local` file exists with required variables
-- [ ] Private key has sufficient BNB for deployment (~0.02 BNB minimum)
+- [ ] `.env.local` exists with required variables
+- [ ] Private key has sufficient BNB for deployment (~0.05 BNB minimum)
 - [ ] BSC mainnet RPC URL configured
-
-#### Environment Variables Checklist
+- [ ] `BSCSCAN_API_KEY` for verification
 
 ```bash
-# Required for deployment
 PRIVATE_KEY=your_deployment_wallet_private_key_here
-BSC_RPC_URL=https://bsc-dataseed1.binance.org  # Or your private RPC
-
-# Optional: For contract verification on BSCScan
+BSC_RPC_URL=https://bsc-dataseed1.binance.org
 BSCSCAN_API_KEY=your_bscscan_api_key_here
+SAFE_OWNER_ADDRESS=0xYourMainnetSafe
 ```
 
-**Get BSCScan API Key:**
-1. Visit https://bscscan.com/myapikey
-2. Sign up/login
-3. Create new API key (free)
-4. Add to `.env.local`
+**Get BSCScan API Key:** https://bscscan.com/myapikey
 
 ### 3. Deployment Wallet
 
-**Recommended Setup:**
-- [ ] Use a dedicated deployment wallet (not your personal wallet)
-- [ ] Fund with 0.02-0.05 BNB for deployment + buffer
-- [ ] Verify wallet address: Run `npm run deployment:check-wallet`
-- [ ] Confirm this address will be the initial owner and fee recipient
-
-**Security Best Practices:**
-- Never commit private keys to version control
-- Use hardware wallet for mainnet deployment (optional but recommended)
-- Keep backup of private key in secure location
+- [ ] Dedicated deployment wallet (not a personal hot wallet you keep using)
+- [ ] Fund with 0.05+ BNB
+- [ ] Confirm this address is **initial** owner only — ownership must move to the Safe in the same change window
+- Never commit private keys
 
 ### 4. Network Verification
 
 ```bash
-# Test RPC connectivity
 curl -X POST https://bsc-dataseed1.binance.org \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
-
-# Should return current block number
 ```
 
 ### 5. Compilation Check
 
 ```bash
-# Compile contracts to ensure no errors
+npm install --legacy-peer-deps
 npm run compile
-
-# Should output: "Compilation successful"
 ```
+
+Confirm TokenFactory / AMMDeployer / BondingCurveAMM are all under 24,576 bytes (they were as of 2026-08-13).
 
 ---
 
@@ -298,28 +290,22 @@ npm run dev
 
 ### 3. Create Test Token (Small Amount)
 
-**IMPORTANT:** This will cost real BNB (~0.025 BNB creation fee + gas)
+**IMPORTANT:** This costs real BNB. Creation fee is **0.005 BNB** (`CREATION_FEE`) plus gas — not 0.025.
 
-1. Connect wallet to KasPump on localhost
-2. Switch to BSC Mainnet (Chain ID 56)
-3. Create a test token with minimal supply:
-   - Name: "Test Token"
-   - Symbol: "TEST"
-   - Total Supply: 1000
-   - Base Price: 0.0001 BNB
-4. Verify transaction on BSCScan
-5. Confirm token appears in listings
-6. Test buying small amount (0.001 BNB)
-7. Test selling tokens back
+1. Connect wallet; switch to BSC Mainnet (Chain ID 56)
+2. Use `/launch` (`QuickLaunchForm`): name, ticker, optional image only. Supply, curve, and price are protocol-fixed (1B supply, sigmoid, graduates at 800M sold).
+3. Verify `TokenCreated` on BscScan; confirm `AMMDeployer` was used (AMM owner is the platform admin / Safe)
+4. Buy a small amount, then sell
+5. Confirm the token appears in listings
 
-**If all steps succeed:** ✅ Deployment is production-ready!
+This is a smoke test, not a launch announcement. Keep [STATUS.md](./STATUS.md) gates in view.
 
 ### 4. Monitor Initial Hours
 
 - [ ] Watch for any transaction failures
-- [ ] Monitor gas costs (should be reasonable)
-- [ ] Check no one can exploit contracts
-- [ ] Verify graduation mechanism works (if threshold reached)
+- [ ] Monitor gas costs
+- [ ] Confirm pause still works through the Safe
+- [ ] Do not expect graduation on a tiny smoke token unless you deliberately fill the curve
 
 ---
 
@@ -385,12 +371,10 @@ await factory.paused(); // Should return false
 
 ### Transfer Ownership (If Needed)
 
-```bash
-# Transfer to new owner address
-await factory.transferOwnership("0xNewOwnerAddress");
+Prefer `scripts/transfer-ownership.ts` (checks the target has code). Factory, DexRouterRegistry, and DeterministicDeployer use **one-step** OpenZeppelin `Ownable` — there is no `acceptOwnership`. Transferring to an EOA or a Safe that does not exist **on this chain** permanently bricks admin.
 
-# New owner must accept
-# (if using Ownable2Step pattern)
+```bash
+npx hardhat run scripts/transfer-ownership.ts --network bsc
 ```
 
 ---
@@ -465,18 +449,20 @@ npx hardhat verify --network bsc \
 
 Before announcing mainnet launch:
 
+- [ ] Ownership transferred to the mainnet Gnosis Safe; EOA can no longer call `onlyOwner`
+- [ ] `AMMDeployer` configured on TokenFactory
+- [ ] External audit report published / linked
 - [ ] Smart contracts deployed and verified
 - [ ] Test token created and traded successfully
-- [ ] Frontend pointing to mainnet contracts
-- [ ] Environment variables configured
-- [ ] Deployment info committed to git
-- [ ] Emergency pause mechanism tested
-- [ ] Fee recipient address confirmed correct
+- [ ] Frontend pointing to mainnet contracts (`NEXT_PUBLIC_DEFAULT_CHAIN_ID=56`)
+- [ ] Environment variables configured (including `NEXT_PUBLIC_WS_URL` if the WS server is live)
+- [ ] Deployment info committed to git (`deployments.json` includes AMMDeployer)
+- [ ] Emergency pause mechanism tested through the Safe
+- [ ] Fee recipient is Safe-controlled
 - [ ] Gas costs verified reasonable
 - [ ] No critical bugs in 24-hour monitoring
-- [ ] Legal disclaimers in place
-- [ ] Terms of service published
-- [ ] Privacy policy published
+- [ ] Legal pages reviewed by counsel
+- [ ] Terms of service / privacy / disclaimer published
 - [ ] Marketing materials ready
 - [ ] Social media accounts set up
 - [ ] Community support channel ready
@@ -505,6 +491,5 @@ Once all checklists are complete:
 
 ---
 
-**Deployment prepared by:** Claude Code Agent
-**Last updated:** 2025-11-15
-**For support:** See INTEGRATION_STATUS.md
+**Last updated:** 2026-08-13  
+**For support:** [STATUS.md](./STATUS.md), [INTEGRATION_STATUS.md](./INTEGRATION_STATUS.md)

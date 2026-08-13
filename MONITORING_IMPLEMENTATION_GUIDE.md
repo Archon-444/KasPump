@@ -1,9 +1,11 @@
 # KasPump Monitoring Implementation Guide
 
-**Date:** 2025-11-13
-**Status:** 📋 Planning Phase
-**Priority:** Critical for Production Launch
-**Branch:** `claude/cover-audit-gap-011CV5eSgawb3VW9mKEPWL8k`
+**Date:** 2025-11-13  
+**Status (2026-08-13):** ⚠️ Planning / not activated. Sentry client/server/edge configs exist. DSNs are not confirmed live; uptime monitors are not documented as active.
+
+Until events appear in the Sentry dashboard and uptime checks exist for the frontend + WS server, treat monitoring as **not production-ready**. See [STATUS.md](./STATUS.md).
+
+**Priority:** Required before public mainnet (not required to redeploy testnet).
 
 ---
 

@@ -30,12 +30,20 @@ Each token has its own `BondingCurveAMM` instance. Emergency actions must be tak
 
 ### Balance accounting invariant
 
+From `BondingCurveAMM.sol`:
+
 ```
-address(this).balance =
+address(this).balance ==
       curveNativeBalance
-    + creatorAccumulatedFees
-    + referrerAccumulatedFees
+    + creatorAccumulatedFees + referrerAccumulatedFees
+    + platformAccumulatedFees
+    + totalGraduationFunds
+    + pendingLPNative
 ```
+
+(any leftover beyond these buckets is ignored on purpose.)
+
+Primary chain for Phase 1 ops is **BSC**, not Base. Use BscScan (or the explorer for whichever chain the AMM is on). A Gnosis Safe must exist **on that chain** before it can be owner.
 
 ---
 
@@ -51,7 +59,7 @@ Effect: Blocks all buyTokens(), sellTokens(), and new trading
 
 ### Procedure
 
-1. Open Gnosis Safe (safe.global) connected to the correct chain (Base for Phase 1)
+1. Open Gnosis Safe (safe.global) connected to the **same chain as the AMM** (BSC for the intended first launch)
 2. Navigate to **New Transaction** > **Contract Interaction**
 3. Enter the BondingCurveAMM address for the affected token
 4. Select `pause()` from the ABI
@@ -79,27 +87,26 @@ Effect: Withdraws owner-accessible funds ONLY
 
 ### What Gets Withdrawn
 
+`emergencyWithdraw` (onlyOwner, whenPaused) sweeps **only owner-accessible leftover**. It **must not** take trader curve liquidity, the graduated creator's pull-payment, or accrued fees.
+
 | Fund Type | Withdrawn? |
 |-----------|-----------|
-| Bonding curve liquidity (minus reserved fees) | YES |
-| `creatorAccumulatedFees` | NO (preserved) |
-| `referrerAccumulatedFees` | NO (preserved) |
+| Stray / unaccounted native | YES |
+| `curveNativeBalance` (traders' sell backing) | NO |
+| `totalGraduationFunds` | NO |
+| `pendingLPNative` | NO |
+| `creatorAccumulatedFees` / `referrerAccumulatedFees` / `platformAccumulatedFees` | NO |
 | `CreatorVesting` token balances | NO (separate contract) |
 
-The contract calculates:
-```
-withdrawable = address(this).balance - creatorAccumulatedFees - referrerAccumulatedFees
-```
-
-Creator and referrer fees are **never** swept. They remain in the contract for their rightful owners to claim when the contract is unpaused.
+Creator, referrer, and platform fees stay in the contract for their rightful `withdraw*` calls.
 
 ### Procedure
 
 1. Confirm contract is paused (Step 1 complete)
 2. In Gnosis Safe, call `emergencyWithdraw("Reason: brief description of the incident")`
 3. Collect required signatures and execute
-4. Verify the `EmergencyWithdraw` event on BaseScan (includes amount and reason)
-5. Confirm withdrawn ETH arrived in the Safe wallet
+4. Verify the `EmergencyWithdraw` event on the block explorer (amount + reason)
+5. Confirm withdrawn native arrived in the Safe
 
 ---
 

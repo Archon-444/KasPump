@@ -1,8 +1,14 @@
 # KasPump Subgraph
 
-The Graph protocol subgraph for indexing KasPump platform data on BSC Testnet and mainnets.
+The Graph protocol subgraph for indexing KasPump on BSC (and later other EVM chains).
 
-## Overview
+**Status (2026-08-13):** Indexer **code** lives here. It is **not deployed**. The Graph hosted service (`--product hosted-service`) was shut down in 2024 — the npm scripts below still name it and must be retargeted to **Goldsky or Alchemy Subgraphs** before they will work. `NEXT_PUBLIC_SUBGRAPH_URL_*` are unset; the frontend GraphQL client fails loudly if called without them.
+
+Factory address / start block in `subgraph.yaml` still point at the **2025-10-31** testnet factory. After the V2 redeploy, update those before indexing.
+
+Canonical tracker: [STATUS.md](../STATUS.md) § Subgraph.
+
+---
 
 This subgraph indexes:
 - **Tokens**: All KasPump tokens with metadata, pricing, and status
@@ -34,10 +40,11 @@ npm run deploy:mainnet
 
 ## Configuration
 
-### BSC Testnet (current)
+### BSC Testnet (recorded — stale vs master)
 - Network: `chapel`
-- TokenFactory: `0x7Af627Bf902549543701C58366d424eE59A4ee08`
+- TokenFactory: `0x7Af627Bf902549543701C58366d424eE59A4ee08` (2025-10-31 factory)
 - Start Block: `70735503`
+- Update these after the V2 / `AMMDeployer` redeploy.
 
 ### Environment Setup
 
@@ -47,12 +54,13 @@ Before deploying, you need to authenticate with The Graph:
 # Install The Graph CLI globally
 npm install -g @graphprotocol/graph-cli
 
-# Authenticate (get your access token from https://thegraph.com/studio/)
-graph auth --product hosted-service <ACCESS_TOKEN>
-
-# Deploy
-graph deploy --product hosted-service <GITHUB_USERNAME>/kaspump-subgraph
+# Authenticate with your host (Goldsky / Alchemy / Graph Studio) — not hosted-service
+# Example shape only; replace with the host's current CLI:
+#   goldsky subgraph deploy kaspump-bsc-testnet
+#   graph deploy --studio <SLUG>
 ```
+
+Hosted-service commands in `package.json` (`deploy`, `deploy:testnet`, `deploy:mainnet`) are **stale** and will fail. Update them when you pick a host.
 
 ## Schema
 

@@ -1,14 +1,14 @@
 # KasPump Quick Start Guide
 
-Get KasPump running on BSC Testnet in 5 minutes.
+Get the **frontend** running locally. On-chain calls against the recorded BSC Testnet factory will **not** match current V2 contracts — see [STATUS.md](./STATUS.md) and [TESTNET_DEPLOYMENT_GUIDE.md](./TESTNET_DEPLOYMENT_GUIDE.md).
 
 ---
 
 ## Prerequisites
 
-- Node.js 18+ and npm installed
+- Node.js **20+** and npm
 - MetaMask or compatible Web3 wallet
-- BSC Testnet BNB (get from faucet)
+- BSC Testnet BNB (faucet) only if you intend to send txs — after a **fresh** V2 deploy
 
 ---
 
@@ -17,16 +17,16 @@ Get KasPump running on BSC Testnet in 5 minutes.
 ```bash
 git clone https://github.com/Archon-444/KasPump.git
 cd KasPump
-npm install
+npm install --legacy-peer-deps
 ```
 
 ---
 
 ## Step 2: Environment Setup
 
-### Option A: Use Existing .env.local (Recommended)
+### Option A: Use Existing .env.local
 
-If `.env.local` already exists in the project root, you're good to go! Skip to Step 3.
+If `.env.local` already exists, you can start the UI. WalletConnect still needs a real `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`. The recorded testnet factory is **stale vs master** — do not expect V2 `createToken` to work against it.
 
 ### Option B: Create .env.local from Example
 
@@ -37,7 +37,7 @@ cp .env.example .env.local
 Then edit `.env.local` and add the BSC Testnet addresses:
 
 ```env
-# BSC Testnet - Active Deployment
+# BSC Testnet - 2025-10-31 factory (STALE vs master — redeploy before trading)
 NEXT_PUBLIC_BSC_TESTNET_TOKEN_FACTORY=0x7Af627Bf902549543701C58366d424eE59A4ee08
 NEXT_PUBLIC_BSC_TESTNET_FEE_RECIPIENT=0xEFec2Eddf5151c724B610B7e5fa148752674D667
 
@@ -167,11 +167,11 @@ Open http://localhost:3000 in your browser.
 - Check BSCScan Testnet to verify the transaction went through
 
 ### TypeScript Errors
-- Run `npm install` again
+- Run `npm install --legacy-peer-deps` again
 - Delete `node_modules` and `.next`, then reinstall:
   ```bash
   rm -rf node_modules .next
-  npm install
+  npm install --legacy-peer-deps
   npm run dev
   ```
 
