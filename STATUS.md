@@ -109,7 +109,9 @@ Current **source** (must be what you deploy next) includes `TokenFactory`, `AMMD
 | Ownership → Safe | ❌ Still EOA `0xEFec…D667` | — | — |
 | BscScan verified | ❓ Unknown for the 2025 bytecode | — | — |
 
-**Do not smoke-test master against the October 2025 factory.** Redeploy with `scripts/deploy.ts` or `scripts/deploy-deterministic.ts` (both now deploy and wire `AMMDeployer`), then update `deployments.json` and `NEXT_PUBLIC_BSC_TESTNET_*`.
+**Do not smoke-test master against the October 2025 factory.** Redeploy with `scripts/deploy.ts` or `scripts/deploy-deterministic.ts` (both now deploy and wire `AMMDeployer`), then update `deployments.json` and `NEXT_PUBLIC_*`.
+
+`DexConfig.sol` has V2 routers for BSC (56/97), Arbitrum (42161), Base (8453). **No Kasplex (202555) or Igra (38833) row.** Graduation on Kas EVM is a strategy choice plus a config port, not a missing language. Native KRC-20 cannot use this AMM. See [STRATEGY.md](./STRATEGY.md) § graduation wall.
 
 ---
 

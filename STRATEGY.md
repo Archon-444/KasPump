@@ -22,11 +22,47 @@ Canonical ops/code state: [STATUS.md](./STATUS.md). This file outranks [ROADMAP.
 
 **Thesis (stated):** creators should **earn more**, and the launch should be **harder to rug**. That is B + C. It is a real thesis. It is not “simple for everyone.”
 
-**Origin:** Kaspa / KRC-20 was the home. EVM/BSC was a detour because Kasplex-era tech and volume could not carry a proper curve product. Crescendo (May 2025, 10 BPS) and Toccata (June 2026, L1 covenants / native KRC-20 path) improved the chain. The chain is still small. Fear: without volume the launcher dies.
+**Origin:** Kaspa / KRC-20 was the home. The founder is heavily in KAS (also SOL/BSC, smaller). The product requirement was a Pump.fun loop: curve → **automatic DEX graduation**. Native Kaspa could not do that (DEX + oracles immature; Solidity AMM has nothing V2-shaped to call). That — not “we got bored of Kas” — is why the repo became portable EVM. Base is attractive for Coinbase onramp. Aptos/Sui were considered and correctly rejected (Move is a rewrite). Feeling: back at square one.
 
 **Correction to an earlier grill:** the AMM **already** pays the creator on every trade. `CREATOR_FEE_SHARE = 5000` — 50% of the trading fee, pull-payment (`withdrawCreatorFees`). Referrer can take 5% of the fee. Graduation still locks LP 6 months and vests the creator token bag 6 months. So the *contract* is closer to the thesis than the *homepage* is.
 
 What the product currently *says*: “BSC meme coin launchpad,” “no team allocation,” “standard sigmoid.” It does not lead with “you earn 50% of every trade” or “LP is locked; you cannot yank liquidity.” The thesis is buried in Solidity.
+
+---
+
+## The graduation wall (this is the actual constraint)
+
+Pump.fun is not “a bonding curve.” It is **curve + one-tx graduation into a live DEX pool**. Our AMM already does that *if* the chain has a Uniswap-V2-compatible `addLiquidityETH` router. `DexConfig.sol` currently knows BSC, Arbitrum, Base. It does **not** know Kaspa.
+
+Treat “Kaspa” as three different products. Mixing them is why this feels like square one.
+
+| Layer | What it is | Can this codebase graduate? | Volume / oracles | Identity |
+|-------|------------|-----------------------------|------------------|----------|
+| **Native Kaspa L1 / KRC-20** | Inscriptions, not our Solidity ERC-20 | **No.** This was the wall. Still the wall. | DEX/oracles still not a Pump.fun substrate | Real Kas community |
+| **Kasplex / Igra EVM** | EVM L2s that settle to Kas; native token is KAS | **Yes, as a port.** Kroko on Kasplex already publishes a V2 router (`0xC7ca845B…`, chain 202555) + WKAS. KaspaCom DEX is a Uniswap V2 fork (write APIs still immature; the *router* exists). Graduation is a `DexConfig` row + a fork-test, not a new language. | Pond: KaspaCom-scale DEX ~$150k/30d. Oracles thin. Graduation is **real technically, shallow economically**. | Still Kas. Name KasPump is honest. |
+| **Public EVM (BSC / Base / Arb)** | Where this repo already points | **Yes, already wired.** | Real DEXes and oracles. Volume is **owned** (Four.meme on BSC; Clanker / Flaunch / Zora on Base — Base is *not* empty). | KasPump is a lie unless we rename |
+
+**Oracle FOMO is a later problem.** v1 graduation does not need Chainlink. It needs a router. USD charts, stop-loss, and “fair launch” badges can wait. Do not pick Base because “Kas has no oracle.”
+
+**Move (Sui / Aptos) is out.** Correct instinct. This is an EVM factory + CREATE2 AMM. Move is a second product, not a port. Do not reopen it to avoid a hard choice.
+
+### You cannot keep all three
+
+1. **Kas as home** (community you already sit in, name that says Kas)
+2. **Pump.fun-style DEX graduation** (V2 `addLiquidityETH` in the same tx)
+3. **Meaningful volume / less crowded than SOL**
+
+| If you insist on… | You give up… | Honest home |
+|-------------------|--------------|-------------|
+| 1 + 2 | Volume. Graduate into a thin Kasplex/Igra pool | **Kasplex (or Igra) EVM**, not native KRC-20 |
+| 2 + 3 | Kas as home. Rename. Fight Clanker/Four.meme | **Base** (onramp) or **BSC** (Four.meme war) |
+| 1 + 3 | Graduation — native KRC-20 still cannot do our loop | Not this repo |
+
+Native KRC-20 + this Solidity pad was never a coherent product. Square one is **refusing to drop one of the three**. Dual-home (“Kas + Base so we have volume”) is how you get two empty feeds and a confused name.
+
+**Base is not the empty ocean.** Easy Coinbase onramp is real. So is competition: social/AI launchers already live there. You would still need a room (A) that is not “people who onramp to Base.” That room is not the Kas Discord.
+
+**BSC remains the volume mirage.** Four.meme owns the meme-launch room. Our Solidity portability is a *cost*, not a reason to go there.
 
 ---
 
@@ -43,14 +79,15 @@ So:
 | Path | Volume you might touch | Thesis fit |
 |------|------------------------|------------|
 | Generic BSC Pump.fun | Huge pool, ~0% ours | Weak — Four.meme has the room |
-| Kaspa bonding-curve pad | Tiny pool, **high % ours if we become the default** | Strong — we are not a KaspaCom clone; we are the thing they are not |
-| “Both, for volume” | Dilutes the Kas name and the story | Usually dies twice |
+| Base (keep KasPump name) | Medium pool, onramp is real, Clanker/Flaunch already there | Weak — identity lie + crowded in a different way |
+| Kasplex/Igra curve pad | Tiny pool, **high % ours if we become the default** | Strong — we are not a KaspaCom clone; we are the thing they are not |
+| “Kas + Base, for volume” | Dilutes the Kas name and the story | Usually dies twice |
 
 Launchpads do not import another chain’s volume. Traders follow coins and a **scene**. A scene is a Discord / CT circle that already talks. Kaspa has one. “BSC degens” are not ours.
 
-**Kill criterion (proposed):** if after a closed Kaspa (or Kaspa-community) test we cannot get repeat traders from *that room*, BSC will not save us. It will only hide the failure in a bigger graveyard.
+**Kill criterion (proposed):** if after a closed Kaspa-community test we cannot get repeat traders from *that room*, Base/BSC will not save us. They will only hide the failure in a bigger graveyard.
 
-Crescendo/Toccata made a curve product *technically* more plausible. They did not create Pump.fun-scale flow. Treat Kaspa as: **small, native, thesis-aligned, with a weak incumbent launchpad model** — not as “the chain is ready so we will have volume.”
+Crescendo/Toccata made *native* Kas more capable. They did not add a V2 router our Solidity can call. Treat **Kasplex/Igra** as: small, thesis-aligned, graduation-possible, weak incumbent (presale not curve) — not as “the chain is ready so we will have volume.”
 
 ---
 
@@ -72,15 +109,18 @@ Distribution is the product in this category. They have attention, KOLs, muscle 
 
 If the honest answer is “we own engineering time,” that is not a go-to-market. It is a hobby with a factory contract.
 
-### 3. Why did Kasplex / Kaspa die as the story, and why is BSC the replacement?
+### 3. Native KRC-20 vs Kasplex EVM vs Base — which wall are we actually talking about?
 
-The token is still called `KRC20Token`. The product is still called KasPump. The homepage says BSC. That is three identities. Pick one:
+The token is still called `KRC20Token`. The product is still called KasPump. The homepage says BSC. DexConfig has no Kasplex row. That is four identities.
 
-- We are the launchpad for **a chain/community we actually belong to** (then BSC-as-Four.meme-clone is the wrong war).
-- We are a **generic EVM Pump.fun** (then the Kas name is a liability, and Four.meme already won the obvious chain).
-- We are **not a consumer launchpad** (then stop designing a casino UI).
+The founder’s real constraint was **graduation**, not vibes. Answer which sentence is true:
 
-Migrating off Kasplex because the chain was hard, then pointing the same codebase at the most crowded EVM meme venue, is how you get “clumsy market fit.”
+- “I need Pump.fun graduation **and** I want to stay Kas” → home is **Kasplex/Igra EVM**. Native L1 is closed. Volume stays small. That is the deal.
+- “I need graduation **and** Coinbase-easy volume” → home is **Base**, and we **rename**. Kas community is distribution we walk away from.
+- “I need SOL-scale flow with less crowding” → that chain does not exist for a new pad. BSC is Four.meme’s. SOL is Pump.fun’s. Base is already Clanker/Flaunch.
+- “I cannot accept a small pond” → this is the wrong category (wedge E), not the wrong router.
+
+Migrating off native KRC-20 because graduation was impossible was correct. Pointing the same codebase at BSC/Base without dropping the Kas name is how you get “clumsy market fit.”
 
 ### 4. Why would a creator leave Four.meme — or KaspaCom?
 
@@ -119,6 +159,12 @@ Pick a number that would make you keep going, and a number that would make you s
 
 “Ship and see” is how clones die slowly.
 
+### 9. Will we accept a thin post-graduation pool?
+
+On Kasplex/Igra, graduation works as *code* and fails as *depth*. A graduated coin may sit in a pool nobody trades. If that is unacceptable, do not pick Kasplex and then get angry at the pond — pick Base and rename, or pick E.
+
+If it *is* acceptable, say so out loud: **we are the Kas curve room; DEX after is a lock + a listing, not a second Pump.fun.** That sentence is the product.
+
 ---
 
 ## What we got wrong
@@ -129,6 +175,7 @@ Pick a number that would make you keep going, and a number that would make you s
 4. **We built rooms (analytics, alerts, favorites, health scores) before a feed.** Meme launchpads are boards of coins, not Bloomberg.
 5. **We treated mainnet as the milestone.** Mainnet without a wedge is a press release for a product nobody needed.
 6. **We never listed distribution as a workstream.** Engineering ran for a year. GTM is still an empty Twitter string.
+7. **We treated “Kaspa” as one chain.** Native KRC-20 cannot graduate. Kasplex/Igra EVM can. Hunting Base because native Kas had no DEX was solving last year’s problem with a new identity crisis.
 
 ---
 
@@ -141,6 +188,8 @@ Do not disguise these as the plan:
 | Better bonding-curve math | Invisible to users; not a switch reason |
 | More features (limits, stop-loss, pairs, referrals-as-code) | Increases surface without a customer |
 | Multi-chain from day one | Liquidity and attention do not split three ways at zero users |
+| Port to Sui/Aptos | Move is a rewrite; does not unlock the Kas room |
+| Dual-home Kas + Base “for volume” | Two empty feeds; onramp is not a scene |
 | “Fairer than Pump.fun” | Fairness is a trust feature, not an acquisition engine, unless you name the scared customer |
 | “Simple for everyone” | No one to design for; everyone already has an app |
 | Launch because the code is ready | Code readiness ≠ demand |
@@ -189,15 +238,19 @@ Keep the repo as a library of AMM/graduation patterns. Put energy on a different
 
 **Wedge: B + C, in one room (A).** Creator paycheck + cannot-rug LP. Not a generic meme casino.
 
-**Chain: Kaspa-first unless you will drop the Kas name.** BSC is the volume mirage. The incumbent on KAS is a withdraw-the-raise pad, not a curve. That is the only place the thesis is a *difference* instead of a slogan.
+**Chain: Kasplex (or Igra) EVM — not native KRC-20, not BSC, not Base v1.** Graduation is possible there (V2 router exists). The Kas name stays honest. KaspaCom’s launchpad is still a withdraw-the-raise presale, so the thesis is a *difference*. You accept a thin post-grad pool.
 
-**Do not** dual-home at v1. One feed, one asset (KAS), one ritual.
+**Not Base unless you rename and leave the Kas room.** Onramp is not a customer. Clanker already sits on that onramp.
+
+**Not native KRC-20.** The Solidity pad cannot graduate there. That experiment already failed; do not rerun it hoping Toccata grew a Uniswap.
+
+**Do not** dual-home at v1. One feed, one asset (KAS on Kasplex/Igra), one ritual. Solidity portability is how we *might* add Base later — it is not a reason to start homeless.
 
 **I was wrong** to treat C as a weak primary and B as missing from the contracts. The contracts already do both. The failure is identity + distribution + UI that sells “BSC Pump.fun.”
 
-**Still fatal if true:** we have no Kaspa presence (no handle, no weekly face, cannot name ten Kaspa creators). Then B+C on Kaspa is still a ghost town — and the honest fork is D/E, not BSC.
+**Still fatal if true:** we have no Kaspa presence (no handle, no weekly face, cannot name ten Kaspa creators). Then B+C on Kasplex is still a ghost town — and the honest fork is D/E, not Base.
 
-**Volume:** optimize for **share of a small pond**, then grow with the chain. If that ceiling is unacceptable, this is the wrong category, not the wrong AMM.
+**Volume:** optimize for **share of a small pond**, then grow with the chain. If that ceiling is unacceptable, this is the wrong category, not the wrong AMM. If the ceiling *is* unacceptable *and* you will not rename, you are choosing paralysis — that is the square-one feeling.
 
 ---
 
@@ -235,13 +288,13 @@ Copy and date each revision. Unfilled = freeze holds.
 |----------|--------|------|-------|
 | Wedge | **Leaning B+C** (creator pay + less rug) | 2026-08-13 | Founder-stated thesis. Not locked until chain/room is. |
 | Customer (named) | *open* | | Need: Kaspa creators who hate withdraw-the-raise pads? Name ten. |
-| Chain / room | **Kaspa was origin; BSC was detour; still afraid of small-chain volume** | 2026-08-13 | Recommendation: Kaspa-first. Challenge: are we in the room weekly? |
-| Brand | Keep KasPump *if* Kaspa-first; else rename | | Tagline still says BSC — that must die if we go home |
+| Chain / room | **Native KRC-20 blocked graduation; hunting Base/BSC; Move rejected; feels like square one** | 2026-08-13 | Recommendation: Kasplex/Igra EVM (1+2, drop volume). Base only if we rename. Not native L1. Not dual-home. |
+| Brand | Keep KasPump *if* Kasplex/Igra; **rename if Base/BSC** | | Tagline still says BSC — that must die if we go home |
 | Creator economics | **Already 50% of trade fees on-chain** | 2026-08-13 | UI/homepage do not lead with this. Graduation 20% native surplus + 6mo vest still exists |
 | Allocation story | Vested 40M + LP lock 6mo | | Homepage “no team allocation” is still a lie. Rewrite as “vested creator bag, locked LP” |
 | 12-month win | *open* | | Propose: become default *curve* launcher in the Kaspa room, or kill consumer |
 | Public face / distribution | Empty X/TG in `brand.ts` | | Fatal if unchanged |
-| Next proof | Conversations in the Kaspa room, not a BSC deploy | | Ten chats before any chain work |
+| Next proof | Conversations in the Kaspa room, not a BSC/Base deploy | | Ten chats before any DexConfig/Kasplex work |
 
 ---
 
