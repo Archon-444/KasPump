@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-KasPump is a Pump.fun-style token launchpad prototype on EVM chains. Direction: `STRATEGY.md` (public launch frozen until the decision log is filled). Code inventory: `STATUS.md`. V2 is a fixed sigmoid curve and a 3-field launch form — not a curve picker. The recorded BSC Testnet factory is stale vs master.
+KasPump is a Pump.fun-style token launchpad prototype on EVM chains. Direction: `STRATEGY.md` (consumer launch mothballed). Code inventory: `STATUS.md`. V2 is a fixed sigmoid curve and a 3-field launch form — not a curve picker. The recorded BSC Testnet factory is stale vs master.
 
 ## Repository Structure
 

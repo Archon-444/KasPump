@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KasPump is a Pump.fun-style token launchpad **prototype** for EVM chains. Public launch is frozen until `STRATEGY.md` is decided. Users *would* deploy ERC-20s that trade on a bonding curve until graduation to a DEX — that is what the code does, not a go-to-market.
+KasPump is a Pump.fun-style token launchpad **prototype** for EVM chains. Consumer launch is **mothballed** (`STRATEGY.md`, wedge E). Users *would* deploy ERC-20s that trade on a bonding curve until graduation to a DEX — that is what the code does, not a go-to-market.
 
 The repo contains four deployable pieces:
 
@@ -107,4 +107,4 @@ Deployment is handled entirely by the **Vercel GitHub integration**: every push 
 
 ## Reference docs
 
-The repo has extensive markdown docs at the root. **Direction:** `STRATEGY.md` (launch frozen until the decision log is filled). **Code/ops inventory:** `STATUS.md`. Also useful: `AGENTS.md`, `CLAUDE.md` (this file), `TECHNICAL_DEBT.md`, `SECURITY_AUDIT.md`, `ROADMAP.md` (backlog, not a launch plan). `BONDING_CURVE_MATH.md` is **pre-V2** (linear/quadratic) — a banner at the top says so; current math is `contracts/libraries/BondingCurveMath.sol`. Everything under `docs/archive/` is historical — don't treat it as current state.
+The repo has extensive markdown docs at the root. **Direction:** `STRATEGY.md` (consumer launch mothballed; reopen tests in that file). **Code/ops inventory:** `STATUS.md`. Also useful: `AGENTS.md`, `CLAUDE.md` (this file), `TECHNICAL_DEBT.md`, `SECURITY_AUDIT.md`, `ROADMAP.md` (backlog, not a launch plan). `BONDING_CURVE_MATH.md` is **pre-V2** (linear/quadratic) — a banner at the top says so; current math is `contracts/libraries/BondingCurveMath.sol`. Everything under `docs/archive/` is historical — don't treat it as current state.

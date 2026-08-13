@@ -1,10 +1,10 @@
 # Docs index
 
-**Direction:** [STRATEGY.md](../STRATEGY.md) (launch frozen). **Code inventory:** [STATUS.md](../STATUS.md).
+**Direction:** [STRATEGY.md](../STRATEGY.md) (consumer launch mothballed). **Code inventory:** [STATUS.md](../STATUS.md).
 
 | Doc | Role |
 |-----|------|
-| [../STRATEGY.md](../STRATEGY.md) | Direction — launch frozen until decisions are filled |
+| [../STRATEGY.md](../STRATEGY.md) | Direction — mothballed; reopen tests in that file |
 | [../STATUS.md](../STATUS.md) | Code/ops inventory (not permission to ship) |
 | [../TECHNICAL_DEBT.md](../TECHNICAL_DEBT.md) | Remaining engineering work |
 | [../SECURITY_AUDIT.md](../SECURITY_AUDIT.md) | Contract findings vs current source |

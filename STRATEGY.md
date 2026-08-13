@@ -1,20 +1,35 @@
 # KasPump strategy board
 
-**Status:** Draft — 2026-08-13. Not decided.  
-**Rule:** Product and mainnet wait on the decisions in this file. Code is inventory, not a strategy.
+**Status:** Decided — 2026-08-13. **Wedge E: mothball.**  
+**Rule:** This file is the record of why we stopped. Do not revive product work until the reopen tests at the bottom are all true.
 
-This replaces “ship a Pump.fun clone to BSC because the contracts compile.” Competitors are not going away. Time is an advantage only if we use it to pick a customer and a reason they switch — not to add features.
-
-Canonical ops/code state: [STATUS.md](./STATUS.md). This file outranks [ROADMAP.md](./ROADMAP.md) until the decision log at the bottom is filled.
+Canonical ops/code state: [STATUS.md](./STATUS.md). This file outranks [ROADMAP.md](./ROADMAP.md).
 
 ---
 
-## Freeze (effective now)
+## Decision (locked)
+
+Founder cannot name ten people who would launch here. That was the kill criterion. **Bury consumer KasPump for now.** Same instinct for [Archon-444/ARC](https://github.com/Archon-444/ARC) until a community exists; Arc is not decided beyond “not now.”
+
+The months of engineering are a **library**, not a failed launch. The failure would have been shipping with wrong fundamentals.
+
+Founder’s own post-mortem (keep this wording):
+
+- **Kas:** chain maturity — native L1 cannot do Pump.fun graduation; L2 wrap is against ethos. Wait. Do not force it.
+- **Arc:** focus lacking on the community. Tried to revive without a room. Recipe for disaster.
+- Reviving a repo because the code exists is how you get another year of the same loop.
+
+**Kas:** keep this repo as-is. Reopen only when native L1 has a DEX the Kas room will use **without wrapping** — a hardfork is not enough by itself (Crescendo/Toccata already happened; they did not add that substrate).  
+**Arc:** unknown. Do not race 2026-09-16 without names. NFT stays dead.
+
+---
+
+## Mothball rules (effective now)
 
 - No public mainnet. No “soft launch.” No marketing that says we are live.
-- No new features unless they are required to **test a wedge** (see Proof, below).
-- Do not redeploy, audit-freeze, or buy distribution until a wedge is written in the decision log.
-- Keep the repo; it is a prototype of *a* launchpad, not proof that *this* launchpad should exist.
+- No new features, deploys, audits-as-a-goal, or dual-repo revival “in case it takes off.”
+- Keep the git history. Do not delete contracts to punish sunk cost.
+- Allowed: reading this file; tiny honesty/docs fixes; a future reopen that passes the tests below.
 
 ---
 
@@ -22,7 +37,7 @@ Canonical ops/code state: [STATUS.md](./STATUS.md). This file outranks [ROADMAP.
 
 **Thesis (stated):** creators should **earn more**, and the launch should be **harder to rug**. That is B + C. It is a real thesis. It is not “simple for everyone.”
 
-**Origin:** Kaspa / KRC-20 was the home. The founder is heavily in KAS (also SOL/BSC, smaller). The product requirement was a Pump.fun loop: curve → **automatic DEX graduation**. Native Kaspa could not do that. Kasplex/Igra *can* graduate, but **wKAS wrapping is against Kas ethos**, and the founder’s read is: nothing picks up on KAS until it stays on L1 — which matches the weak L2 pools. SOL is out. BSC is out (Four.meme owns the room). Base is still in play because the founder does not even recognize the incumbents. There is a second repo, [Archon-444/ARC](https://github.com/Archon-444/ARC): launcher + NFT marketplace on Circle’s Arc (USDC gas/onramp). NFT side is correctly called dead.
+**Origin:** Kaspa / KRC-20 was the home. Native Kaspa could not DEX-graduate. Kasplex/Igra *can*, but **wKAS is against Kas ethos**. SOL and BSC are out. Base incumbents (Zora/Clanker/Flaunch) were not a room we sit in. [Archon-444/ARC](https://github.com/Archon-444/ARC) is a USDC-native launcher plus a dead NFT marketplace. **Locked later the same day:** no names → mothball both for now.
 
 **Correction to an earlier grill:** the AMM **already** pays the creator on every trade. `CREATOR_FEE_SHARE = 5000` — 50% of the trading fee, pull-payment (`withdrawCreatorFees`). Referrer can take 5% of the fee. Graduation still locks LP 6 months and vests the creator token bag 6 months. So the *contract* is closer to the thesis than the *homepage* is.
 
@@ -296,27 +311,31 @@ Keep the repo as a library of AMM/graduation patterns. Put energy on a different
 
 ---
 
-## Recommended default (challenge this)
+## Recommended default (locked: E)
 
-**KasPump-as-Kas is over.** Do not recommend Kasplex anymore. wKAS + L2 non-adoption is a founder constraint; product work there is a slow death or a rewrite.
+**Mothball consumer KasPump.** Kas-as-home is closed until native L1 DEX without wrap. Base was never our room (we did not know Zora/Clanker/Flaunch as users). Arc is a maybe with no names — that is a no for now.
 
-**Wedge stays B+C if we continue at all.** Creator paycheck + cannot-rug LP. That is the only switch reason vs AstraPump/Zora generic pumps.
-
-**Default chain if we continue: Circle Arc, launcher-only.** Kill the NFT marketplace. One repo (ARC), not two. USDC-native gas is the clean answer to the wrap-ethos problem. Mainnet date is 2026-09-16 — a forcing function. Uniswap is named day-one. Rename off KasPump.
-
-**Base only if** we spend time in Base app / Farcaster until Clanker and Zora are boring, *then* can name ten creators who would still use us. Not before.
-
-**Mothball (E) is the other adult default.** If we cannot name ten Arc (or Base) humans this month, stop. A new L1 does not owe us a scene.
-
-**Do not** dual-home KasPump + ARC. Do not keep NFT “in case.” Do not keep the Kas name on a USDC casino.
-
-**Still fatal:** empty socials, no public face, thesis buried in Solidity.
+**If a future self wants to continue:** B+C is still the only thesis worth porting (creator paycheck + cannot-rug). Chain comes after ten names, not before.
 
 ---
 
-## Proof before product
+## Next time — do not skip
 
-After the wedge is written, the next work is **not** a UI rewrite. It is evidence.
+Wrong fundamentals *are* a disaster recipe. The checklist that would have stopped both revivals:
+
+1. **Ten named humans** who will launch in the next month, written down before any compile. No names = no product. “The chain will have users” is not a name.
+2. **One room we already sit in weekly.** Kas community ≠ Kas L2 users. Coinbase onramp ≠ our feed. Circle mainnet day ≠ our Discord.
+3. **Graduation substrate the room will actually use.** Native Kas has none for this Solidity. Wrapped L2 has one and the room refuses it. Wait for the *substrate + ethos*, not “a hardfork.”
+4. **Incumbents named before we write ‘no competition.’** Four.meme, Pump.fun, Zora, Clanker, Flaunch, AstraPump, Radar. Not knowing them means we are tourists.
+5. **One repo, one ritual.** Two launchers plus an NFT mall is focus failure. Kill the dead category first.
+6. **Thesis in the first sentence of the UI**, or it is not the product. 50% creator fees buried in Solidity do not count.
+7. **Sunk-cost is not a reason to revive.** Code ready ≠ demand. This week’s freeze exists so we do not learn this twice.
+
+---
+
+## Proof before product (for a future reopen only)
+
+Do not run this now. If the reopen tests pass, evidence still comes before UI:
 
 1. **Ten conversations** with the named customer. Notes in a private doc: why they launch where they launch, what would move them, what they called us when we described the wedge. If eight would not switch, the wedge is wrong.
 2. **A closed test, not a brand launch.** Fresh testnet or a cheap mainnet you can afford to fail. Twenty coins max, people you can text. Watch: did they launch, did anyone else buy, did they share a URL, did they come back the next day.
@@ -327,42 +346,43 @@ Only after (1)–(3) look alive do we talk audit, Safe, subgraph, WS host, mainn
 
 ---
 
-## What we stop building (until the log is filled)
+## What we stop building (mothball)
 
-- Mainnet deploy scripts as a goal
-- Feature parity with Pump.fun/Four.meme (socials-on-form is allowed *after* A is chosen; it is not the strategy)
-- New curve types or a curve picker
-- Limit orders / stop-loss / extra pairs
-- Analytics, alerts, multi-chain expansion
-- “Impeccable” audits of surfaces we may delete
+Everything that was a launch path. Feature parity, deploys, audits-as-milestone, Arc race, Kasplex rows, NFT marketplace.
 
-Allowed: answering this file; talking to users; deleting UI that contradicts the wedge; fixing honesty bugs in copy (team allocation vs “no team allocation”) when we know which story we are telling.
+Allowed: this file; leaving the library intact; a reopen that passes the tests below.
 
 ---
 
-## Decision log (fill this)
-
-Copy and date each revision. Unfilled = freeze holds.
+## Decision log (filled)
 
 | Decision | Choice | Date | Notes |
 |----------|--------|------|-------|
-| Wedge | **Leaning B+C** (creator pay + less rug) | 2026-08-13 | Not locked until chain/room is. |
-| Customer (named) | *open* | | Kas room is no longer the customer for this product. Name ten on Arc or Base. |
-| Chain / room | **Kas closed (L1 deadlock + L2 ethos). SOL/BSC out. Remaining: Base vs Arc vs mothball** | 2026-08-13 | Founder: wKAS ugly; L2s won’t pick up. Rec: Arc launcher-only *or* E. Base only after we know Zora/Clanker as users. |
-| Brand | **Cannot keep KasPump** if Kas is closed | | Rename if Arc or Base. This repo may become a library (E). |
-| Creator economics | **Already 50% of trade fees on-chain** (KasPump) | 2026-08-13 | Confirm whether ARC’s AMM does the same before picking a repo |
-| Allocation story | Vested 40M + LP lock 6mo | | Homepage “no team allocation” is still a lie if we ship this bytecode |
-| 12-month win | *open* | | Propose: default *curve* launcher on Arc week-one, or kill |
-| Public face / distribution | Empty X/TG in `brand.ts` | | Fatal if unchanged |
-| Next proof | Ten named humans on the chosen chain, not a deploy | | Arc Discord / Base app — not Kas Telegram |
+| Wedge | **E — mothball consumer KasPump** | 2026-08-13 | Founder: no names. Kill criterion hit. B+C remains the thesis *if* we ever return. |
+| Customer (named) | **None** | 2026-08-13 | “I do not have names.” That is the answer. |
+| Chain / room | **None. Kas parked; Arc unknown / not now; SOL/BSC/Base not ours** | 2026-08-13 | Kas waits on native L1 DEX without wrap, not on “a hardfork” alone. Arc: community was missing. |
+| Brand | KasPump stays as archive name on a mothballed repo | | Do not rename in mothball. Rename only if a new product ships elsewhere. |
+| Creator economics | Library: 50% of trade fees on-chain | 2026-08-13 | Do not change bytecode for a product we are not shipping. |
+| Allocation story | Unshipped. Copy still lies if anyone deploys this. | | |
+| 12-month win | **Not a consumer launchpad this year** | 2026-08-13 | Learning locked in this file. |
+| Public face / distribution | Empty — accepted as fatal for v1 | 2026-08-13 | |
+| Next proof | Reopen tests, not a deploy | | See below. |
+
+### Reopen tests (all required)
+
+KasPump consumer work restarts only if **all** of these are true:
+
+1. Ten named people who will launch in the following month.
+2. A chain whose DEX the *same* people already use, with no wrap the room rejects.
+3. Incumbents listed, and a one-sentence switch reason (B+C or something sharper).
+4. One repo, NFT not in scope, empty analytics/alerts until the feed lives.
+
+Arc (separate repo) restarts only with (1)+(3)+(4) plus a weekly presence in that community *before* mainnet week.
 
 ---
 
 ## How we work from here
 
-1. You answer the grill. Push back. “I don’t know” is allowed; “everyone on BSC” is not.
-2. We write one wedge paragraph a stranger could repeat.
-3. We run proof (above). Product changes are only those the proof needs.
-4. Launch is a later document. It does not get to rewrite this one in a panic.
+Stop. Read this file before touching either launcher again.
 
 *If this file and the UI disagree, this file wins until we change it on purpose.*

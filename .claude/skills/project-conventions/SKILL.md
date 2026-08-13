@@ -36,7 +36,7 @@ New features must not accept, validate, or display a curve choice.
 
 - `BONDING_CURVE_MATH.md` describes the pre-V2 linear/quadratic curve (banner at top). Current math is `BondingCurveMath.sol`.
 - `docs/archive/` and root `archive/` are historical records, not current guidance.
-- `STATUS.md` is the code/ops inventory. `STRATEGY.md` is direction (launch frozen until its decision log is filled). GitHub issues #74 and #83 are stale.
+- `STATUS.md` is the code/ops inventory. `STRATEGY.md` is direction (consumer launch mothballed; reopen tests in that file). GitHub issues #74 and #83 are stale.
 
 ## Type errors
 

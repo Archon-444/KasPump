@@ -1,10 +1,10 @@
 # KasPump Roadmap
 
 **Last updated:** 2026-08-13  
-**Direction:** [STRATEGY.md](./STRATEGY.md) — launch frozen until the decision log is filled.  
+**Direction:** [STRATEGY.md](./STRATEGY.md) — consumer launch mothballed.  
 **Code inventory:** [STATUS.md](./STATUS.md).
 
-This is no longer a path to BSC mainnet. Do not execute it as a launch plan. Feature ideas below are **inventory**, not commitments.
+This is not a path to mainnet. Feature ideas below are **inventory**, not commitments.
 
 ---
 
@@ -28,5 +28,5 @@ Not shipped: mainnet, Safe ownership, subgraph host, WS host, limit/stop-loss co
 
 ## Not default work
 
-Socials on the form, push persistence, extra pairs, limit orders, referrals UI, Arbitrum/Base deploys — wait on [STRATEGY.md](./STRATEGY.md). Creator per-trade fees are a **wedge B** contract change, not a “post-launch nice-to-have.”
+Socials on the form, extra pairs, limit orders, Arbitrum/Base/Arc deploys — **mothballed**. See [STRATEGY.md](./STRATEGY.md). Creator per-trade fees already exist on-chain in this repo (`CREATOR_FEE_SHARE = 5000`); they are not a backlog item.
 

@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![Network](https://img.shields.io/badge/Network-BSC%20Testnet%20(stale%20deploy)-orange)
 
-**Strategy:** [STRATEGY.md](./STRATEGY.md) — public launch is frozen until a customer and wedge are written down.  
+**Strategy:** [STRATEGY.md](./STRATEGY.md) — consumer launch is **mothballed** (no named customers). Keep the repo as a library.  
 **Code inventory:** [STATUS.md](./STATUS.md) — V2 in repo; October 2025 testnet factory does **not** match source.
 
 ## Overview

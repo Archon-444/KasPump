@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-08-13  
 **Reconciled against:** `master` at `daad3c2` (through PR #97)  
-**Strategy:** Launch is **frozen**. See [STRATEGY.md](./STRATEGY.md). Mainnet is not the current goal.
+**Strategy:** Consumer launch is **mothballed** (wedge E). See [STRATEGY.md](./STRATEGY.md). This file is code/ops inventory only.
 
-This file is the **code/ops inventory** (what exists, what is still unsafe to ship). It is not permission to ship. Product direction lives in STRATEGY.md until the decision log there is filled.
+This file is the **code/ops inventory** (what exists, what is still unsafe to ship). It is not permission to ship.
 
 Canonical tracker for “what is true in the repo.” Historical write-ups live in `docs/archive/` and must not be treated as current. GitHub issues **#74** and **#83** are stale (their items shipped in PRs #75–#97) and should be closed.
 
@@ -117,10 +117,10 @@ Current **source** (must be what you deploy next) includes `TokenFactory`, `AMMD
 
 ## What is next
 
-**Not a mainnet sequence.** Direction: [STRATEGY.md](./STRATEGY.md).
+**Mothballed.** Direction: [STRATEGY.md](./STRATEGY.md).
 
-Until that decision log is filled: no public launch, no feature work except what a chosen wedge’s proof requires. The list below is **inventory of leftover engineering**, not a schedule.
+No public launch. No feature work. No Kasplex/Base/Arc deploy from this tree. Reopen only if the tests in STRATEGY.md are all true (ten names, usable DEX the room accepts, incumbents named, one repo).
 
-Kas is closed as home for this product. Remaining chain question is Base vs Arc vs mothball — not a Kasplex deploy.
+Engineering leftovers below are **not a schedule.**
 
 *For security findings, see `SECURITY_AUDIT.md`. For remaining engineering debt, see `TECHNICAL_DEBT.md`.*
