@@ -2,10 +2,11 @@
 
 **Last updated:** 2026-08-13  
 **Reconciled against:** `master` at `daad3c2` (through PR #97)  
-**Platform:** Frontend + contracts on master are V2 (sigmoid, `AMMDeployer`). The **on-chain BSC Testnet factory is stale** (deployed 2025-10-31) and does **not** match current source.  
-**Target:** BSC Mainnet after a fresh testnet deploy of current contracts.
+**Strategy:** Launch is **frozen**. See [STRATEGY.md](./STRATEGY.md). Mainnet is not the current goal.
 
-Canonical tracker for “can we ship?”. Historical write-ups live in `docs/archive/` and must not be treated as current. GitHub issues **#74** and **#83** are stale (their items shipped in PRs #75–#97) and should be closed.
+This file is the **code/ops inventory** (what exists, what is still unsafe to ship). It is not permission to ship. Product direction lives in STRATEGY.md until the decision log there is filled.
+
+Canonical tracker for “what is true in the repo.” Historical write-ups live in `docs/archive/` and must not be treated as current. GitHub issues **#74** and **#83** are stale (their items shipped in PRs #75–#97) and should be closed.
 
 ---
 
@@ -112,14 +113,12 @@ Current **source** (must be what you deploy next) includes `TokenFactory`, `AMMD
 
 ---
 
-## What is next (release sequence)
+## What is next
 
-1. Redeploy **current** contracts to BSC Testnet; verify; update env + `deployments.json`.
-2. Create a Gnosis Safe; run `scripts/transfer-ownership.ts` on testnet; rehearse pause/unpause/`updateFeeRecipient`.
-3. Assemble `audit-package/` (BRIEF, coverage, gas snapshot, Slither) and freeze bytecode for the external audit.
-4. Write Foundry invariant tests for curve monotonicity, no-free-tokens, graduation accounting, fee bounds.
-5. Full testnet smoke: create → buy → sell → sniper window → graduate → LP → vesting → Safe pause.
-6. Deploy subgraph (Goldsky/Alchemy) and the Socket.IO server; pin the WS origin in CSP; confirm Sentry + uptime.
-7. BSC mainnet deploy of the audited bytecode; transfer ownership to a **mainnet** Safe; point Vercel at chain 56; quiet 24–48h soft launch.
+**Not a mainnet sequence.** Direction: [STRATEGY.md](./STRATEGY.md).
+
+Until that decision log is filled: no public launch, no feature work except what a chosen wedge’s proof requires. The list below is **inventory of leftover engineering**, not a schedule.
+
+If — and only if — a wedge is chosen and a closed test needs chain: redeploy current contracts to a testnet, then smoke create/trade/graduate. Audit, Safe, subgraph, WS host, and BSC mainnet stay parked as scale costs.
 
 *For security findings, see `SECURITY_AUDIT.md`. For remaining engineering debt, see `TECHNICAL_DEBT.md`.*

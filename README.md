@@ -6,7 +6,8 @@
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![Network](https://img.shields.io/badge/Network-BSC%20Testnet%20(stale%20deploy)-orange)
 
-**Go-live tracker:** [STATUS.md](./STATUS.md) — master is V2 (sigmoid + `AMMDeployer`); the October 2025 testnet factory does **not** match current source. Not mainnet-ready.
+**Strategy:** [STRATEGY.md](./STRATEGY.md) — public launch is frozen until a customer and wedge are written down.  
+**Code inventory:** [STATUS.md](./STATUS.md) — V2 in repo; October 2025 testnet factory does **not** match source.
 
 ## Overview
 
@@ -103,10 +104,10 @@ npm run type-check           # tsc --noEmit (non-blocking in CI; ~284 pre-existi
 
 ## Current Status
 
-See [STATUS.md](./STATUS.md) for the gate checklist.
+See [STATUS.md](./STATUS.md) for the code inventory and [STRATEGY.md](./STRATEGY.md) for whether we should ship at all.
 
-**In code:** launch, trade, graduate, comments, CI (unit + Hardhat + E2E).  
-**Not done:** Safe ownership, external audit, fuzz tests, subgraph host, WS host, mainnet, matching testnet deploy.
+**In code:** launch form, trade, graduate, comments, CI.  
+**Not a product yet:** no named customer, no distribution, no mainnet, no reason to switch from Four.meme/Pump.fun. Launch is frozen.
 
 ## Security
 

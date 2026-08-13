@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-KasPump is a Pump.fun-style token launchpad on EVM chains (starting with BNB Smart Chain). It provides instant ERC-20 token deployment, a **fixed sigmoid** bonding curve (V2 — not linear/exponential), and automated DEX graduation. The app targets BSC, Arbitrum, and Base; only a stale BSC Testnet factory is on-chain today. Canonical status: `STATUS.md`.
+KasPump is a Pump.fun-style token launchpad prototype on EVM chains. Direction: `STRATEGY.md` (public launch frozen until the decision log is filled). Code inventory: `STATUS.md`. V2 is a fixed sigmoid curve and a 3-field launch form — not a curve picker. The recorded BSC Testnet factory is stale vs master.
 
 ## Repository Structure
 
