@@ -18,7 +18,41 @@ Canonical ops/code state: [STATUS.md](./STATUS.md). This file outranks [ROADMAP.
 
 ---
 
-## Grill (answer in writing, in the decision log)
+## What we now know (2026-08-13, from the founder)
+
+**Thesis (stated):** creators should **earn more**, and the launch should be **harder to rug**. That is B + C. It is a real thesis. It is not “simple for everyone.”
+
+**Origin:** Kaspa / KRC-20 was the home. EVM/BSC was a detour because Kasplex-era tech and volume could not carry a proper curve product. Crescendo (May 2025, 10 BPS) and Toccata (June 2026, L1 covenants / native KRC-20 path) improved the chain. The chain is still small. Fear: without volume the launcher dies.
+
+**Correction to an earlier grill:** the AMM **already** pays the creator on every trade. `CREATOR_FEE_SHARE = 5000` — 50% of the trading fee, pull-payment (`withdrawCreatorFees`). Referrer can take 5% of the fee. Graduation still locks LP 6 months and vests the creator token bag 6 months. So the *contract* is closer to the thesis than the *homepage* is.
+
+What the product currently *says*: “BSC meme coin launchpad,” “no team allocation,” “standard sigmoid.” It does not lead with “you earn 50% of every trade” or “LP is locked; you cannot yank liquidity.” The thesis is buried in Solidity.
+
+---
+
+## The volume trap (read this twice)
+
+You are right that a launcher with no flow is a ghost town. The mistake is thinking **BSC volume is available to us**.
+
+- Four.meme already sits on that volume. We would own a rounding error of it.
+- KaspaCom (defi.kaspa.com) is the Kaspa DeFi hub. DefiLlama-scale numbers as of this writing: TVL on the order of **~$120k**, 30-day DEX volume **~$150k**, 24h volume **hundreds of dollars**. That is a pond, not an ocean.
+- KaspaCom’s “launchpad” is a **presale / batch sale**: pre-mint, whitelist, rounds, **creator withdraws the KAS raised** (2.5% platform fee). That is the *opposite* of less-rug + ongoing creator pay. It is a CEX-style raise, not a Pump.fun curve.
+
+So:
+
+| Path | Volume you might touch | Thesis fit |
+|------|------------------------|------------|
+| Generic BSC Pump.fun | Huge pool, ~0% ours | Weak — Four.meme has the room |
+| Kaspa bonding-curve pad | Tiny pool, **high % ours if we become the default** | Strong — we are not a KaspaCom clone; we are the thing they are not |
+| “Both, for volume” | Dilutes the Kas name and the story | Usually dies twice |
+
+Launchpads do not import another chain’s volume. Traders follow coins and a **scene**. A scene is a Discord / CT circle that already talks. Kaspa has one. “BSC degens” are not ours.
+
+**Kill criterion (proposed):** if after a closed Kaspa (or Kaspa-community) test we cannot get repeat traders from *that room*, BSC will not save us. It will only hide the failure in a bigger graveyard.
+
+Crescendo/Toccata made a curve product *technically* more plausible. They did not create Pump.fun-scale flow. Treat Kaspa as: **small, native, thesis-aligned, with a weak incumbent launchpad model** — not as “the chain is ready so we will have volume.”
+
+---
 
 If an answer is “everyone,” “meme coin users,” or “BSC because gas is cheap,” it is not an answer. Rewrite it until a stranger could say no.
 
@@ -48,13 +82,13 @@ The token is still called `KRC20Token`. The product is still called KasPump. The
 
 Migrating off Kasplex because the chain was hard, then pointing the same codebase at the most crowded EVM meme venue, is how you get “clumsy market fit.”
 
-### 4. Why would a creator leave Four.meme?
+### 4. Why would a creator leave Four.meme — or KaspaCom?
 
-Not “our curve is fairer.” Creators leave for **money, audience, or status**.
+On **BSC**: Four.meme has the audience. Our 50% trade-fee share is a real paycheck **only if trades happen**. Empty feed = donation.
 
-Today we offer: 0.005 BNB to create, a 40M vested bag, LP lock, a 99% sniper tax that also taxes real users. We do **not** offer Pump.fun-style ongoing creator fees. Graduation-only upside means most coins pay the creator nothing. That is a worse creator deal than the category leader on Solana, and not a reason to leave Four.meme on BSC.
+On **Kaspa**: KaspaCom already lets people “launch,” but the creator **withdraws the raise**. Our pitch writes itself if we stay honest: *you get paid on every trade; you cannot pull LP; your bag vests.* That is a switch reason **inside a room we might actually belong to.**
 
-If “fair / anti-rug” is the pitch, say who is afraid of Four.meme enough to pay for that — and whether those people launch meme coins at all.
+The remaining question is not the contract. It is: **are we in that Kaspa room every week, or only in this repo?**
 
 ### 5. Why would a trader open this app instead of the one they already have open?
 
@@ -153,14 +187,17 @@ Keep the repo as a library of AMM/graduation patterns. Put energy on a different
 
 ## Recommended default (challenge this)
 
-Until the decision log says otherwise, the only non-absurd consumer path is **A, then maybe B**.
+**Wedge: B + C, in one room (A).** Creator paycheck + cannot-rug LP. Not a generic meme casino.
 
-- Pick **one chain and one community you actually inhabit.** If that is still Kaspa/KAS, stop pretending we are a BSC Four.meme. If it is not, drop the Kas name before another line of UI.
-- Do **not** launch against Four.meme for “everyone on BSC.”
-- Do **not** spend the next quarter on sigmoid vs linear, analytics, or mainnet.
-- If we cannot name the room in one week, default to **D or E**, not to “keep coding.”
+**Chain: Kaspa-first unless you will drop the Kas name.** BSC is the volume mirage. The incumbent on KAS is a withdraw-the-raise pad, not a curve. That is the only place the thesis is a *difference* instead of a slogan.
 
-I will argue against C as the *primary* wedge unless you can introduce the scared users. I will argue against B without A: paying creators more on an empty feed is a donation.
+**Do not** dual-home at v1. One feed, one asset (KAS), one ritual.
+
+**I was wrong** to treat C as a weak primary and B as missing from the contracts. The contracts already do both. The failure is identity + distribution + UI that sells “BSC Pump.fun.”
+
+**Still fatal if true:** we have no Kaspa presence (no handle, no weekly face, cannot name ten Kaspa creators). Then B+C on Kaspa is still a ghost town — and the honest fork is D/E, not BSC.
+
+**Volume:** optimize for **share of a small pond**, then grow with the chain. If that ceiling is unacceptable, this is the wrong category, not the wrong AMM.
 
 ---
 
@@ -196,15 +233,15 @@ Copy and date each revision. Unfilled = freeze holds.
 
 | Decision | Choice | Date | Notes |
 |----------|--------|------|-------|
-| Wedge | A / B / C / D / E | | One only for v1 |
-| Customer (named) | | | Not “everyone” |
-| Chain / room | | | One |
-| Brand | Keep KasPump / rename | | Must match the room |
-| Creator economics | Graduation-only / per-trade share / other | | Must match B or not-B |
-| Allocation story | No founder bag / vested 40M / other | | Must match homepage |
-| 12-month win | | | Number + kill criterion |
-| Public face / distribution | | | Who shows up every week |
-| Next proof | Conversations / closed test / mothball | | Date |
+| Wedge | **Leaning B+C** (creator pay + less rug) | 2026-08-13 | Founder-stated thesis. Not locked until chain/room is. |
+| Customer (named) | *open* | | Need: Kaspa creators who hate withdraw-the-raise pads? Name ten. |
+| Chain / room | **Kaspa was origin; BSC was detour; still afraid of small-chain volume** | 2026-08-13 | Recommendation: Kaspa-first. Challenge: are we in the room weekly? |
+| Brand | Keep KasPump *if* Kaspa-first; else rename | | Tagline still says BSC — that must die if we go home |
+| Creator economics | **Already 50% of trade fees on-chain** | 2026-08-13 | UI/homepage do not lead with this. Graduation 20% native surplus + 6mo vest still exists |
+| Allocation story | Vested 40M + LP lock 6mo | | Homepage “no team allocation” is still a lie. Rewrite as “vested creator bag, locked LP” |
+| 12-month win | *open* | | Propose: become default *curve* launcher in the Kaspa room, or kill consumer |
+| Public face / distribution | Empty X/TG in `brand.ts` | | Fatal if unchanged |
+| Next proof | Conversations in the Kaspa room, not a BSC deploy | | Ten chats before any chain work |
 
 ---
 
